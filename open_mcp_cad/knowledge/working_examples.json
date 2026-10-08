@@ -1,0 +1,488 @@
+{
+  "meta": {
+    "erzeugt_von": "privates Fachwissen-Repo, scripts/wissen_export.py",
+    "hinweis": "ERZEUGT — nicht von Hand aendern. Quelle ist das private Repo; Aenderungen hier gehen beim naechsten Export verloren.",
+    "version": "8.2",
+    "eintraege": 30
+  },
+  "examples": [
+    {
+      "id": "create_beam_vertical",
+      "source": "v1",
+      "title": "Vertikaler Ständer erstellen",
+      "description": "Ständer, vertikal stehend, zentriert auf Achse",
+      "code": "sid = ec.create_rectangular_beam_vectors(breite, hoehe, laenge,\n    cadwork.point_3d(x_achse, y_mitte_wand, z_unten),\n    cadwork.point_3d(0.,0.,1.),\n    cadwork.point_3d(0.,1.,0.))\n# x_local=(0,0,1) → Länge vertikal in Z\n# z_local=(0,1,0) → height in Y (Wanddicke), zentriert\n# width in X (Ständerbreite), zentriert",
+      "notes": "Startpunkt = Mitte des Querschnitts am UNTEREN Ende. width und height sind ZENTRIERT um den Startpunkt, length geht AB Startpunkt."
+    },
+    {
+      "id": "scan_reference_orientation",
+      "source": "v2",
+      "title": "Referenz-Orientierung scannen (IMMER vor Erstellung!)",
+      "description": "Vor dem Erstellen neuer Elemente in einer Ebene die Orientierung eines bestehenden Elements ablesen",
+      "code": "ref = bestehendes_element_id\nxl = gc.get_xl(ref)\nzl = gc.get_zl(ref)\nw = gc.get_width(ref)\nh = gc.get_height(ref)\nprint(f'Ref: w={w}, h={h}, x_local=({xl.x},{xl.y},{xl.z}), z_local=({zl.x},{zl.y},{zl.z})')\n# Dann gleiche x_local und z_local für neue Elemente verwenden!",
+      "notes": "KRITISCH, wenn eine Lage anders orientiert ist als ihre Nachbarn: in einem gemessenen Fall war z_local=(-1,0,0), nicht (0,1,0)!"
+    },
+    {
+      "id": "get_active_elements",
+      "source": "v2",
+      "title": "User-Selektion auslesen",
+      "description": "Zeigt welche Elemente der User in Cadwork aktiviert hat",
+      "code": "aktive = ec.get_active_identifiable_element_ids()\nfor eid in aktive:\n    name = ac.get_name(eid)\n    v = gc.get_element_vertices(eid)\n    xs = [p.x for p in v]\n    ys = [p.y for p in v]\n    zs = [p.z for p in v]\n    print(f'{name}: X={min(xs):.0f}-{max(xs):.0f}, Y={min(ys):.0f}-{max(ys):.0f}, Z={min(zs):.0f}-{max(zs):.0f}')",
+      "notes": "User aktiviert → Claude liest aus. Ideal für 'lösch das' oder 'was ist das'"
+    },
+    {
+      "id": "set_active_elements",
+      "source": "v2",
+      "title": "Elemente für User markieren (grün)",
+      "code": "vc.set_active(element_ids)",
+      "notes": "Zeigt dem User neue/geänderte Elemente an"
+    },
+    {
+      "id": "mirror_copy_wall",
+      "source": "v1",
+      "title": "Wand spiegeln für gegenüberliegende Seite",
+      "description": "Komplett Wand mit allen Schichten spiegeln",
+      "code": "# Wand A → gegenüberliegende Wand B (Spiegelebene bei y = y_spiegel)\nb_ids = ec.mirror_copy_elements(a_ids, cadwork.point_3d(0., 1., 0.), y_spiegel)\nfor nid in b_ids:\n    ac.set_group([nid], 'Wand B')",
+      "notes": "Spiegelt alle Attribute und Materialien mit. Danach nur Gruppe umbenennen."
+    },
+    {
+      "id": "set_attributes_material",
+      "source": "v1",
+      "title": "Attribute und Material setzen (korrekter Workflow)",
+      "description": "Immer in separaten Aufrufen nach Element-Erstellung",
+      "code": "# Aufruf 1: Element erstellen\neid = ec.create_rectangular_beam_vectors(...)\n\n# Aufruf 2: Attribute\nac.set_name([eid], 'Ständer')  # LISTE!\nac.set_group([eid], 'Wand A')\nac.set_subgroup([eid], 'Tragstruktur')\n\n# Aufruf 3: Material (SEPARATER execute_cadwork_command!)\nmat_fita = mc.get_material_id('Fi/Ta')  # 288\nac.set_element_material([eid], mat_fita)\n\n# Aufruf 4: Textur-Reset\nvc.set_use_material_texture([eid], False)\nvc.set_use_material_texture([eid], True)",
+      "notes": "Material IMMER in separatem API-Aufruf! set_name erwartet LISTE [eid], get_name erwartet einzelne ID eid."
+    },
+    {
+      "id": "duplikat_bereinigung",
+      "source": "v1",
+      "title": "Duplikate nach Bridge-Timeout bereinigen",
+      "description": "Bekannte IDs behalten, alles andere löschen",
+      "code": "behalten = set(bekannte_ids + [bodenplatte_id])\nalle = ec.get_all_identifiable_element_ids()\nloeschen = [eid for eid in alle if eid not in behalten]\nfor i in range(0, len(loeschen), 100):  # Batches à 100\n    ec.delete_elements(loeschen[i:i+100])",
+      "notes": "Nach Timeouts IMMER Inventar prüfen! Befehle werden trotz Timeout oft ausgeführt → Duplikate."
+    },
+    {
+      "id": "panel_horizontal_lying",
+      "source": "v3",
+      "title": "Liegende horizontale Platte (Bodenplatte, DSP etc.)",
+      "description": "Panel das flach in der XY-Ebene liegt, Dicke in Z",
+      "code": "# Bodenplatte 10000x8000mm, 300mm dick, OK bei Z=0\nbp = ec.create_rectangular_panel_vectors(\n    8000.,    # width → geht in Y (REST-Richtung, die GROSSE Dimension!)\n    300.,     # thickness → geht in Z (z_local-Richtung, die DÜNNE!)\n    10000.,   # length → geht in X (x_local)\n    cadwork.point_3d(0., 4000., -150.),  # Start: X=0, Y=Mitte, Z=Mitte\n    cadwork.point_3d(1.,0.,0.),  # x_local\n    cadwork.point_3d(0.,0.,1.))  # z_local\n# Ergebnis: X=0-10000, Y=0-8000, Z=-300-0",
+      "notes": "ACHTUNG: Bei Panels ist width die GROSSE Dimension (REST-Richtung) und thickness die DÜNNE (z_local-Richtung). Das ist umgekehrt zur Intuition!"
+    },
+    {
+      "id": "set_width_real_stretch",
+      "source": "s009t3",
+      "title": "Width aendern mit set_width_real statt stretch_facet",
+      "category": "element_modification",
+      "version": "v6.0",
+      "code": "# stretch_start/end_facet geht NUR in xl-Richtung!\n# Fuer Width-Aenderung: set_width_real\neid = 12345\n\n# FALSCH - stretch_facet aendert nur Laenge:\n# gc.set_start_facet([eid], some_point)  # Nur xl!\n\n# RICHTIG - Width aendern:\ngc.set_width_real([eid], 60.0)  # Neue Breite in mm\n# ACHTUNG: Aendert SYMMETRISCH um Mitte!\n# Falls asymmetrisch noetig: danach move_element\n\n# Analog fuer Height:\ngc.set_height_real([eid], 200.0)",
+      "notes": "stretch_start/end_facet funktioniert ausschliesslich in xl-Richtung (Laenge). Fuer Breite/Hoehe immer set_width_real/set_height_real verwenden. Beide aendern symmetrisch um die Elementmitte."
+    },
+    {
+      "id": "szenen_baugruppen",
+      "source": "s009t1",
+      "title": "Szenen und BIM-Baugruppen erstellen",
+      "category": "organization",
+      "version": "v6.0",
+      "code": "# Szenen erstellen fuer Geschosse\nsc.create_scene('EG Komplett')\nsc.create_scene('OG Komplett')\n\n# Elemente zu Szene zuweisen\neg_ids = [...]  # Alle EG-Element-IDs\nsc.add_elements_to_scene('EG Komplett', eg_ids)\n\n# BIM-Baugruppen\nfor eid in eg_ids:\n    ac.set_group([eid], 'EG')\n    ac.set_subgroup([eid], 'Waende')",
+      "notes": "Szenen ermoeglichen schnelles Ein-/Ausblenden von Geschossen. BIM-Gruppen (group/subgroup) strukturieren das Modell fuer Export und Auswertung."
+    },
+    {
+      "id": "fenster_solder_cform",
+      "source": "s010",
+      "title": "Innenliegende Oeffnung (Fenster) via solder C-Form",
+      "category": "cutting",
+      "description": "Da cut_element_with_plane kein Innenloch kann und subtract nur bei Durchstich: Oeffnung aus Teilplatten zusammensetzen und verschweissen.",
+      "code": "# 3 Teilplatten um die Oeffnung (unten/oben/seite) -> C-Form\nid_unten = ec.create_rectangular_panel_vectors(20., 150., 600., cadwork.point_3d(x0, y, z_unten), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nid_oben  = ec.create_rectangular_panel_vectors(20., 150., 600., cadwork.point_3d(x0, y, z_oben),  cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nid_seite = ec.create_rectangular_panel_vectors(20., 300., 150., cadwork.point_3d(x0, y, z_mitte), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nneu = ec.solder_elements([id_unten, id_oben, id_seite])  # -> 1 Element mit Oeffnung",
+      "notes": "Verifiziert s010: C-Form 3 Platten -> 1 Element (16 Verts). Nicht beruehrende Teile werden NICHT verschweisst (kein Fehler). Ergebnis erbt Material des 1. Elements der Liste."
+    },
+    {
+      "id": "slice_zwei_haelften_tracking",
+      "source": "s010",
+      "title": "Element teilen und beide Haelften korrekt tracken",
+      "category": "cutting",
+      "description": "slice gibt nur das neue Teil zurueck; Original-ID bleibt die andere Haelfte.",
+      "code": "orig = beam_id\nneu = ec.slice_elements_with_plane_and_get_new_elements(orig, cadwork.point_3d(1.,0.,0.), distanz)\nhaelfte_a = orig      # Original-ID = eine Haelfte\nhaelfte_b = neu[0]    # Rueckgabe = andere Haelfte",
+      "notes": "Verifiziert s010 fuer Balken und Platten, gerade und schraeg. Elementzahl +1 pro Slice. Mehrfach-Slice moeglich."
+    },
+    {
+      "id": "resize_symmetrisch_set_real",
+      "source": "s010",
+      "title": "Querschnitt/Laenge symmetrisch aendern (set_width/height/length_real)",
+      "category": "element_modification",
+      "description": "Alle drei set_*_real aendern symmetrisch um die Elementmitte. set_length_real existiert (war undokumentiert). Fuer einseitig: stretch_facet (nur xl-Richtung).",
+      "code": "gc.set_width_real([eid], 200.)    # Breite, symmetrisch um Mitte\ngc.set_height_real([eid], 300.)   # Hoehe, symmetrisch\ngc.set_length_real([eid], 1000.)  # Laenge, symmetrisch (NEU)\n# Einseitig (nur xl-Richtung!):\nec.stretch_end_facet([eid], cadwork.point_3d(500.,0.,0.))\nec.stretch_start_facet([eid], cadwork.point_3d(200.,0.,0.))\n# Soll eine Kante fix bleiben: nach set_*_real mit ec.move_element korrigieren",
+      "notes": "Verifiziert s010: set_width 120->200, set_height 200->300, set_length 600->1000 alle mittig. stretch wirkt NUR in xl; quer dazu kein Effekt; funktioniert auch nach cut_element_with_plane (Schnittflaeche wandert mit)."
+    },
+    {
+      "id": "staender_l_ausklinkung_subtract",
+      "source": "s011",
+      "title": "Staender-Kopf-Ausklinkung (L-Form / Auflagernase) mit einem subtract",
+      "category": "cutting",
+      "description": "Schnellste und sauberste Methode fuer eine innenliegende L-Ausklinkung oben am Staender. cut_element_with_plane kann das NICHT (entfernt Halbraum).",
+      "code": "# Staender 120x120x1000 vertikal\npost = ec.create_rectangular_beam_vectors(120.,120.,1000., cadwork.point_3d(x,y,0.), cadwork.point_3d(0.,0.,1.), cadwork.point_3d(0.,1.,0.))\n# Kloetzchen als Werkzeug an der oberen Ecke (ragt aussen ueber)\nblock = ec.create_rectangular_beam_vectors(100.,300.,200., cadwork.point_3d(x-100.,y+50.,950.), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nec.subtract_elements_with_undo([block], [post], False)  # block=hard (bleibt/Werkzeug), post=soft (bekommt L)\n# Verifiziert s011: 1.44 Mio mm3 weg, 12 Ecken, sauber",
+      "notes": "EIN subtract genuegt. 2x cut_element_with_plane ist FALSCH (entfernt 8.64 Mio statt L-Form, macht kleineren Quader). slice+cut_plane geht auch, erzeugt aber ein Extra-Element."
+    },
+    {
+      "id": "zapfen_via_endtype",
+      "source": "s011",
+      "title": "Zapfen (Tenon) sauber via Endtyp-Katalog setzen",
+      "category": "cutting",
+      "description": "Bevorzugter Weg fuer einen Zapfen am Stirnholz - eine Zeile, kein Dialog, kein Freeze, kein Aufraeumen. Setzt voraus dass ein Zapfen-Endtyp im Cadwork-Profil existiert.",
+      "code": "import endtype_controller as etc\n# Vorhandene Zapfen-Endtypen im Profil holen\ntenon_ids = etc.get_existing_tenon_ids()   # Testprofil: [376683, 376685, 582108]\n# Namen pruefen: etc.get_endtype_name(376683) -> 'Z_40'\nb = ec.create_rectangular_beam_vectors(120.,160.,800., cadwork.point_3d(0.,y,80.), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\netc.set_endtype_id_end(b, 376683)          # Zapfen 'Z_40' am Endface\n# Verifiziert s011: sauberer Zapfen, kein Freeze. Zapfen ist ANGESETZT -> phys 15.61 Mio > roh 15.36 Mio.",
+      "notes": "etc.set_endtype_id_start / _end / _facet je nach Seite. Ohne passenden Endtyp im Profil passiert nichts. cut_double_tenon (Parameter-Variante) wirkt im leeren Modell NICHT, friert aber auch nicht ein."
+    },
+    {
+      "id": "zapfen_via_4x_subtract",
+      "source": "s011",
+      "title": "Zapfen (Tenon) geometrisch mit 4 Wangen-Subtraktionen (Fallback ohne Katalog)",
+      "category": "cutting",
+      "description": "Zuverlaessiger Zapfen in jedem Modell, auch ohne Endtyp-Katalog. Werkzeug-Kloetzchen bleiben uebrig und muessen geloescht werden.",
+      "code": "# Balken 120(Y) x 160(Z) x 800(X), Zapfen am Ende (X-Seite)\nfb = ec.create_rectangular_beam_vectors(120.,160.,800., cadwork.point_3d(0.,y,80.), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\n# 4 Wangen-Kloetzchen (je 80mm in X, ragen aussen ueber), lassen zentralen Zapfen stehen\nbt  = ec.create_rectangular_beam_vectors(140.,60.,80., cadwork.point_3d(740.,y,150.), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nbb  = ec.create_rectangular_beam_vectors(140.,60.,80., cadwork.point_3d(740.,y,10.),  cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nby  = ec.create_rectangular_beam_vectors(80.,200.,80., cadwork.point_3d(740.,y+50.,80.), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nbym = ec.create_rectangular_beam_vectors(80.,200.,80., cadwork.point_3d(740.,y-50.,80.), cadwork.point_3d(1.,0.,0.), cadwork.point_3d(0.,0.,1.))\nfor blk in [bt,bb,by,bym]:\n    ec.subtract_elements_with_undo([blk], [fb], False)  # einzeln!\n# Verifiziert s011: ~1 Mio mm3 weg, 16 Ecken -> Zapfen steht",
+      "notes": "Einzeln subtrahieren (nie als Liste). Nur noetig wenn KEIN Zapfen-Endtyp im Profil. Besserer Weg: zapfen_via_endtype."
+    },
+    {
+      "id": "montage_uebermass_set_over_length",
+      "source": "s011",
+      "title": "Montage-Uebermass: Stab physisch verlaengern, Nennlaenge bleibt",
+      "category": "element_modification",
+      "description": "Fuer Staender/Riegel die 5mm 'eintauchen' sollen. set_over_length haelt die Stuecklisten-Laenge konstant.",
+      "code": "# Staender 100x100x1000\ngc.set_over_length([eid], 5.)     # +5mm physisch am Ende -> X 0..1005\nnominal = gc.get_length(eid)       # bleibt 1000.0\nover    = gc.get_over_length(eid)   # 5.0\n# Gegenstuecke: gc.set_over_width(), gc.set_over_height()\n# UNTERSCHIED:\n# gc.set_length_real([eid], 1010.)  -> echte Laenge 1010 (Stueckliste aendert sich!)\n# ec.stretch_end_facet([eid], cadwork.point_3d(0.,0.,10.))  -> echte Laenge, einseitig",
+      "notes": "Verifiziert s011: set_over_length(5) -> physisch 1005, nominal bleibt 1000. Genau fuer Montage-Uebermass. set_length_real/stretch aendern die ECHTE Laenge -> Stueckliste stimmt dann nicht mehr."
+    },
+    {
+      "id": "bridge_marker_sync_check",
+      "source": "s011",
+      "title": "Antwort-Sync nach Timeout mit Marker pruefen",
+      "category": "bridge",
+      "description": "Schutz gegen veraltete Bridge-Antworten nach Timeout.",
+      "code": "# Eindeutigen Marker mitgeben und nach Erhalt pruefen\nmarker = 778899\nv = gc.get_element_vertices(eid)\nxs=[p.x for p in v]\nresult = {'marker': marker, 'id': eid, 'X':[round(min(xs)),round(max(xs))]}\n# Auf Client-Seite: result['marker'] == 778899 ? sonst Aufruf wiederholen.\n# Nach Timeout zuerst: ec.get_all_identifiable_element_ids() (Inventar)",
+      "notes": "Verifiziert s011: nach Timeouts kamen mehrfach veraltete Antworten (alte IDs, fremde stdout). Marker entlarvt das sofort."
+    },
+    {
+      "id": "platte_und_stahlprofil_vektoren_bezug",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD",
+      "title": "Platte und Katalog-Stahlprofil ueber Vektoren: Startpunkt und Achsen (gemessen)",
+      "category": "element_creation",
+      "description": "Wo liegt der Startpunkt, welches Mass geht in welche Richtung - fuer create_rectangular_panel_vectors und create_standard_steel_vectors (Stahl, Profil, Rohr, Blech).",
+      "code": "import cadwork\nimport element_controller as ec\np  = cadwork.point_3d(0., 0., 0.)\nxl = cadwork.point_3d(1., 0., 0.)   # Laengsrichtung\nzl = cadwork.point_3d(0., 0., 1.)\n# PLATTE: p = MITTE der Startflaeche\n#   length    entlang xl\n#   width     entlang zl x xl (hier (0,1,0)), zentriert um p\n#   thickness entlang zl      (hier Z),     zentriert um p\nblech = ec.create_rectangular_panel_vectors(300., 12., 1000., p, xl, zl)\n# nach dieser Regel: X 0..1000, Y -150..150, Z -6..6\n\n# STAHLPROFIL aus dem Katalog: p = Achsanfang in PROFILMITTE,\n# Laenge entlang xl\nrohr = ec.create_standard_steel_vectors(\"ROR 177.8x10\", 2000., p, xl, zl)\n# nach dieser Regel: Achse X 0..2000, Rohrmitte auf Y=0, Z=0",
+      "notes": "Gemessen 2026-09-25 (Cadwork 2026), Abweichung 0,00 mm. Passt zu panel_horizontal_lying; bei einer vertikalen Wandplatte mit zl=(0,0,1) ist thickness = Z. Katalognamen (CH): ROR = Rundrohr (Hohlprofil Kreisquerschnitt), RRW = Rechteck-/Quadratrohr warm, FLA = Flachstahl. Alle Namen stehen in der SQLite-Datei C:\\Program Files\\cadwork.dir\\EXE_2026\\Database\\MetalShape\\metalShape.db3 (Tabelle STDELEM_NAMES, Profiltyp in STDELEM_ELEMENTS.PROFILETYPE) - nur lesend oeffnen (mode=ro)."
+    },
+    {
+      "id": "vba_standard_anlegen",
+      "source": "Probelauf 2026-09-25 (2288 VBA in 48 Paketen, zurueckgelesen) und Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "VBA (Standard-Verbindungsachse) anlegen und einstellen",
+      "category": "connector_axis",
+      "description": "Standard-VBA aus dem Katalog anlegen, Laenge, Bohrung und Versenkung setzen, update_axis_cutting_ability. Mit Stahl in Endtyp-Nuten zusaetzlich Umgehung A oder B.",
+      "code": "import cadwork\nimport connector_axis_controller as ca\np = cadwork.point_3d\nids = []\nfor a, b in achsen:                  # je VBA [(x,y,z), (x,y,z)]\n    i = ca.create_standard_connector(\"BS M16 vers.\", p(*a), p(*b))\n    ca.set_bolt_length_automatic(i, False)\n    ca.set_bolt_length(i, 200.)\n    ca.set_diameter(i, 17.)\n    for k in range(ca.get_section_count(i)):\n        ca.set_section_diameter(i, k, 17.)\n        ca.set_counterbore_for_start_side(i, k, 0., 0., False)\n        ca.set_counterbore_for_end_side(i, k, 0., 0., False)\n    ids.append(i)\nca.update_axis_cutting_ability(ids)\n# check_axis RECHNET NEU: nur aufrufen, solange kein Stahl in einer\n# Endtyp-Nut steckt (sonst sind alle VBA danach ungueltig).\nungueltig = []\nfor i in ids:\n    if not ca.check_axis(i):\n        ungueltig.append(i)\nresult = {\"vba\": len(ids), \"ungueltig\": ungueltig}   # ungueltig muss [] sein\n# Stahlbleche in Endtyp-Nuten: vba_blech_ignore_in_vba_calculation (A)\n# oder blech_nut_per_subtract_dann_vba (B) - die Reihenfolge allein\n# uebersteht das Neuoeffnen der Datei nicht.",
+      "notes": "Anlegen und Einstellen: Probelauf 2026-09-25, 2288 VBA in 48 Paketen, rund 130 ms je VBA (Anlegen 45 ms, jede Einstellung rund 10 ms) - grosse Mengen in Paketen senden. check_axis und Neuoeffnen rechnen neu: known_issues vba_update_cutting_ability_nach_stahl."
+    },
+    {
+      "id": "vba_blech_ignore_in_vba_calculation",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "VBA bei Stahlblech in Endtyp-Nut: Blech von der VBA-Berechnung ausnehmen (Umgehung A)",
+      "category": "connector_axis",
+      "description": "Stahlbleche mit ac.set_ignore_in_vba_calculation ausnehmen: die VBA bleiben gueltig, auch nach update_axis_cutting_ability und nach dem Neuoeffnen der Datei. Nachteil: im Viewer-Modus hat das Blech keine Loecher.",
+      "code": "import attribute_controller as ac\nimport connector_axis_controller as ca\n# a) Bleche NEU anlegen, die VBA stehen schon: Schalter sofort setzen,\n#    die Bleche werden ohne Neurechnen gebohrt\nac.set_ignore_in_vba_calculation(bleche, True)\n\n# b) VBA schon kaputt (0 Abschnitte): Schalter setzen, neu rechnen,\n#    Abschnitte neu einstellen -> 1 Abschnitt Holz, Bohrung 17\nac.set_ignore_in_vba_calculation(bleche, True)\nca.update_axis_cutting_ability(vba)\nfor i in vba:\n    for k in range(ca.get_section_count(i)):\n        ca.set_section_diameter(i, k, 17.)\n        ca.set_counterbore_for_start_side(i, k, 0., 0., False)\n        ca.set_counterbore_for_end_side(i, k, 0., 0., False)\n",
+      "notes": "Gemessen 2026-09-25 an 2288 VBA: gueltig mit 1 Abschnitt (Holz, Bohrung 17), uebersteht Speichern + Neuoeffnen, das Holz ist gebohrt, gc.get_actual_physical_volume des Blechs zeigt die Loecher - im Viewer-Modus hat das Blech aber KEINE Loecher. Das Blech hat keinen eigenen Stahl-Abschnitt. Soll der Stahl eigene Bohrungen zeigen: Umgehung B (blech_nut_per_subtract_dann_vba)."
+    },
+    {
+      "id": "blech_nut_per_subtract_dann_vba",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "VBA bei Stahlblech in Nut: Blech schneidet echte Nut ins Holz, VBA danach (Umgehung B, eigener Stahl-Abschnitt)",
+      "category": "connector_axis",
+      "description": "Statt einer Endtyp-Nut schneidet das Blech per subtract eine echte Nut ins Holz. Danach angelegte VBA sehen Holz und Stahl: 3 Abschnitte, der Stahlabschnitt laesst sich eigens bohren.",
+      "code": "import cadwork\nimport element_controller as ec\nimport attribute_controller as ac\nimport connector_axis_controller as ca\n# 1) ZUERST schneiden, solange am Blech KEINE VBA stehen - sonst\n#    fragt Cadwork in der Befehlszeile und der Aufruf blockiert\n#    (known_issues subtract_blech_mit_vba_blockiert).\n#    hard = Blech (bleibt), soft = Holz (wird geschnitten).\n#    Drittes Argument with_undo: laut API-Beschreibung 'in den\n#    Undo-Stapel'; gemessen wurde nur mit False, die Wirkung nicht.\nec.subtract_elements_with_undo([blech], [holz], False)\n\n# 2) DANACH die VBA (vba_standard_anlegen) -> 3 Abschnitte\n#    Holz 75 / Stahl 10 / Holz 75. Der Stahlabschnitt meldet das\n#    Material, das man den Blechen gegeben hat (gemessen: \"Stahl S355\",\n#    selbst vergeben - kein fester Cadwork-Name). Verlaesslicher als\n#    get_section_contact_element (meldete einmal den Stab statt des Blechs).\nSTAHL = ac.get_element_material_name(blech)   # Material der Bleche\nfor i in vba:\n    for k in range(ca.get_section_count(i)):\n        if ca.get_section_material_name(i, k) == STAHL:\n            ca.set_section_diameter(i, k, 18.)\n        else:\n            ca.set_section_diameter(i, k, 17.)",
+      "notes": "Gemessen 2026-09-25: das rohe Volumen des Holzes sinkt um den Blechanteil im Holz (subtract ist fest eingerechnet, vgl. subtract_kerve_roh_equals_phys); 3 Abschnitte Holz 75 / Stahl 10 / Holz 75; get_section_material_name des Stahlabschnitts = Material der Bleche; Stahlabschnitt auf 18 gesetzt -> Blechvolumen genau um 4 Loecher mit Durchmesser 18 kleiner. Gemessen nur mit with_undo=False; was das Argument bewirkt, ist nicht gemessen (nur API-Beschreibung)."
+    },
+    {
+      "id": "endtyp_per_name_setzen",
+      "source": "Probelauf 2026-09-25 (286 Staebe, 572 Endtypen in einem Auftrag, zurueckgelesen)",
+      "title": "Vorhandenen Endtyp per Name an beiden Stabenden setzen und zuruecklesen",
+      "category": "endtype",
+      "description": "Einen Endtyp aus dem Katalog der Datei (z. B. eine Nut) ueber seinen Namen finden und an Start und Ende vieler Staebe setzen. Fehlt er in der Datei, zuerst im Endtyp-Dialog von Cadwork anlegen.",
+      "code": "import endtype_controller as etc\nNAME = \"Name_des_Endtyps\"          # Katalogname in dieser Datei\ne = etc.get_endtype_id(NAME)\nif not e:   # Rueckgabe fuer fehlende Namen nicht gemessen - vorher pruefen\n    raise RuntimeError(\"Endtyp %s fehlt in dieser Datei\" % NAME)\nfor i in ids:\n    etc.set_endtype_id_start(i, e)\n    etc.set_endtype_id_end(i, e)\n# zuruecklesen\nn = 0\nfor i in ids:\n    n += (etc.get_endtype_name_start(i) == NAME) + (etc.get_endtype_name_end(i) == NAME)\nresult = {\"staebe\": len(ids), \"endtypen\": n}   # endtypen == 2 * staebe",
+      "notes": "Gemessen im Probelauf 2026-09-25: 572 Endtypen an 286 Staeben in EINEM Auftrag, 11,3 s - bei vielen Staeben die Antwortzeit hoch setzen (timeout_s). Endtyp und VBA/Stahl: known_issues vba_blech_in_endtyp_nut_ungueltig. Zapfen aus dem Standardkatalog: zapfen_via_endtype."
+    },
+    {
+      "id": "kurve_kreisbogen_zylinder_boolean",
+      "source": "Messung 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Kurvenversuch, Belegordner KURVEN_NATIV_20260926)",
+      "title": "Kreisbogen (Viertelring) als ein nativer Koerper ueber Zylinder und Boolean",
+      "category": "kurven",
+      "description": "Gekruemmter Bogen mit Rechteckquerschnitt: zwei koaxiale Kreiszylinder, innen abziehen, auf 90 Grad beschneiden. Analytische Zylinderflaechen, ein Koerper - bleibt aber ein Rundstab (is_circular_beam).",
+      "stichworte": [
+        "bogen",
+        "kreisbogen",
+        "ring",
+        "zylinder",
+        "boolean",
+        "subtract",
+        "gekruemmt",
+        "kurve"
+      ],
+      "code": "# Viertelkreis-Bogen als EIN nativer Koerper: zwei koaxiale Kreiszylinder,\n# innen abziehen, dann zwei Quader als Schnittwerkzeuge. Masse in mm.\nfrom math import pi\nR_MITTE = 1500.          # mittlerer Radius\nB_RADIAL = 200.          # radiale Breite des Querschnitts\nT = 160.                 # Tiefe entlang der Zylinderachse (Y)\nMX, MY, MZ = 4000., 0., 0.   # Kreismitte - freie Stelle im Modell waehlen\nra = R_MITTE + B_RADIAL / 2\nri = R_MITTE - B_RADIAL / 2\ny = cw.point_3d(0., 1., 0.)\nz = cw.point_3d(0., 0., 1.)\nx = cw.point_3d(1., 0., 0.)\naussen = ec.create_circular_beam_vectors(2 * ra, T, cw.point_3d(MX, MY, MZ), y, z)\ninnen = ec.create_circular_beam_vectors(2 * ri, T + 40., cw.point_3d(MX, MY - 20., MZ), y, z)\n# Quader: width entlang Y (zentriert), height entlang Z (zentriert), length entlang X\nhalb_links = ec.create_rectangular_beam_vectors(T + 40., 2 * ra + 400., ra + 200.,\n    cw.point_3d(MX - ra - 200., MY + T / 2, MZ), x, z)\nviertel_unten = ec.create_rectangular_beam_vectors(T + 40., ra + 200., ra + 200.,\n    cw.point_3d(MX, MY + T / 2, MZ - (ra + 200.) / 2), x, z)\nstore_as('bogen_teile', [aussen, innen, halb_links, viertel_unten])\nvoll = T * pi * (ra ** 2 - ri ** 2)\nschritte = []\nfor werkzeug, anteil in [(innen, 1.), (halb_links, .5), (viertel_unten, .25)]:\n    aendert([aussen, werkzeug])\n    rueck = ec.subtract_elements_with_undo([werkzeug], [aussen], False)\n    v = gc.get_actual_physical_volume(aussen)\n    schritte.append({'rueckgabe': rueck, 'volumen': v, 'soll': voll * anteil})\n    # Rueckgabe kann [] sein, obwohl geschnitten wurde -> am Volumen pruefen\n    assert abs(v - voll * anteil) < voll * 1e-5, schritte\naendert([innen, halb_links, viertel_unten])\nec.delete_elements([innen, halb_links, viertel_unten])   # exakt die eigenen IDs\ntyp = ac.get_element_type(aussen)\nresult = {'id': aussen, 'schritte': schritte,\n          'is_circular_beam': typ.is_circular_beam(),   # gemessen: True\n          'is_rectangular_beam': typ.is_rectangular_beam()}\n",
+      "notes": "Gemessen 2026-09-26: R1500, 90 Grad, geometrisch 160 x 200; SAT: analytische Zylinderflaechen, ein Koerper; Speichern/Schliessen/Wiederoeffnen bestanden. Der Koerper bleibt is_circular_beam, der Modifizieren-Dialog zeigt 'Stab Rund' D1600 - is_beam_kein_rohling_nachweis. subtract_elements_with_undo kann [] zurueckgeben und trotzdem geschnitten haben (subtract_leere_rueckgabe_trotzdem_geschnitten). Historisch eine Erzeugung je Auftrag; bei kleiner Happen-Empfehlung aufteilen.",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_NATIV_20260926: 09_arc_raw_*, 10b_bogen_ring, 12_bogen_fortsetzen, 24-26 Wiederoeffnen, 45_native_type_details",
+          "messwerte": {
+            "radius_mitte_mm": 1500,
+            "winkel_grad": 90,
+            "querschnitt_mm": [
+              160,
+              200
+            ],
+            "typ": "is_circular_beam"
+          },
+          "wiedergeoeffnet": true
+        },
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): ein Koerper, Volumen 75398236.666 mm3 (gleich altem Versuch), is_circular_beam True, subtract gab dreimal [] zurueck",
+        "geltungsbereich": "Kreisbogen mit Rechteckquerschnitt als Geometrie; keine Bogenstab-Parametrik, keine Fertigungs- oder Rohlingssemantik"
+      }
+    },
+    {
+      "id": "kurve_ebene_spline_kontur_extrusion",
+      "source": "Messung 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Kurvenversuch, Belegordner KURVEN_NATIV_20260926)",
+      "title": "Ebene S-/Wellenkontur ueber Splines, Flaeche und Extrusion",
+      "category": "kurven",
+      "description": "Zwei normal versetzte Spline-Konturen und zwei Endlinien -> convert_lines_to_surfaces -> extrude_surface_to_beam_vector. Ein nativer Rechteckstab mit gekruemmter Form, mit Falt-Guard und Normalquerschnitts-Stichprobe.",
+      "stichworte": [
+        "welle",
+        "s-kurve",
+        "spline",
+        "kontur",
+        "flaeche",
+        "extrusion",
+        "gekruemmt",
+        "kurve",
+        "normalquerschnitt"
+      ],
+      "code": "# Ebene S-/Wellenkontur: zwei normal versetzte Splines + zwei Endlinien ->\n# eine Flaeche -> Extrusion zum Stab. Mittellinie z = Z0 + A*sin(k*x) in der\n# XZ-Ebene, Querschnitt normal HOEHE (in der Ebene) x BREITE (entlang Y).\nfrom math import sin, cos, pi, sqrt\nLAENGE = 3000.; A = 300.; PERIODEN = 1; Z0 = 1500.; X0 = 0.\nHOEHE = 200.; BREITE = 160.; N = 121\nk = 2 * pi * PERIODEN / LAENGE\n# Guard: Versatz darf den Kruemmungsradius nicht erreichen (Kontur faltet)\nassert A * k * k * HOEHE / 2 < 1, 'Kontur wuerde sich falten'\nunten = []; oben = []\nfor j in range(N):\n    xx = LAENGE * j / (N - 1)\n    s = A * k * cos(k * xx); d = sqrt(1 + s * s)\n    nx, nz = -s / d, 1 / d                     # Normale der Mittellinie\n    zz = Z0 + A * sin(k * xx)\n    unten.append(cw.point_3d(X0 + xx - HOEHE / 2 * nx, 0., zz - HOEHE / 2 * nz))\n    oben.append(cw.point_3d(X0 + xx + HOEHE / 2 * nx, 0., zz + HOEHE / 2 * nz))\nlinien = [ec.create_spline_line(unten), ec.create_spline_line(oben),\n          ec.create_line_points(unten[0], oben[0]),\n          ec.create_line_points(unten[-1], oben[-1])]\naendert(linien)\nflaechen = ec.convert_lines_to_surfaces(linien)   # verbraucht die Linien (gemessen)\nassert len(flaechen) == 1, flaechen\nstab = ec.extrude_surface_to_beam_vector(flaechen[0], cw.point_3d(0., BREITE, 0.))\nassert stab > 0\nstore_as('welle_stab', stab)\n# Stichprobe Normalquerschnitt (die native Messung nahm 100 Stationen)\nfehler = []\nfor j in range(1, 11):\n    xx = LAENGE * j / 11\n    s = A * k * cos(k * xx); d = sqrt(1 + s * s); nx, nz = -s / d, 1 / d\n    zz = Z0 + A * sin(k * xx)\n    t = ec.cast_ray_and_get_element_intersections([stab],\n        cw.point_3d(X0 + xx - 300 * nx, BREITE / 2, zz - 300 * nz),\n        cw.point_3d(X0 + xx + 300 * nx, BREITE / 2, zz + 300 * nz), 0.\n        ).get_hit_vertices_by_element(stab)\n    assert len(t) == 2, (j, len(t))\n    o = sorted([(p.x - X0 - xx) * nx + (p.z - zz) * nz for p in t])\n    fehler.append(o[1] - o[0] - HOEHE)\nresult = {'stab': stab, 'max_hoehenfehler': max(abs(f) for f in fehler),\n          'flaeche_noch_da': flaechen[0] in ec.get_all_identifiable_element_ids(),\n          'is_rectangular_beam': ac.get_element_type(stab).is_rectangular_beam()}\n# Steht die Hilfsflaeche noch, sie mit aendert() + delete_elements() ueber\n# IHRE ID entfernen - nie ueber ein Namens-Praefix.\n",
+      "notes": "Gemessen 2026-09-26: S (L3000, A300, 1 Periode) und Welle (L6000, 2 Perioden), je ein Koerper is_rectangular_beam; 100 Normalquerschnitte je Probe, Hoehenfehler hoechstens 0.000003669 mm; Wiederoeffnen bestanden. Die Elementachse bleibt gerade (nurbs_kein_faserfeld_keine_sweep_historie), get_length ist ein Huellmass, keine Bogenlaenge.",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_NATIV_20260926: 14_s_normal_*, 14_wave_normal_*, 16_native_sections, 24-26 Wiederoeffnen",
+          "messwerte": {
+            "normalquerschnitte_je_probe": 100,
+            "max_hoehenfehler_mm": 3.669e-06,
+            "querschnitt_mm": [
+              160,
+              200
+            ]
+          },
+          "wiedergeoeffnet": true
+        },
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): is_rectangular_beam, Hoehenfehler max 3.25e-6 mm an 10 Stationen, Hilfsflaeche verbraucht",
+        "geltungsbereich": "Ebene, nicht selbstschneidende Konturen mit Versatz unter dem Kruemmungsradius; Spline-Interpolation, kein exakter Normaloffset"
+      }
+    },
+    {
+      "id": "raumstab_vier_eckkurven_sechs_flaechen",
+      "source": "Messung 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Raumkurvenversuch, Belegordner KURVEN_RAUM_20260926)",
+      "title": "Raeumlich gekruemmter Rechteckstab aus vier Eckkurven, sechs Flaechen und nativer Volumenbildung",
+      "category": "kurven",
+      "description": "Vier raeumliche Eck-Splines, vier daraus gebildete NURBS-Seitenflaechen, zwei Stirnflaechen, convert_surfaces_to_volume -> ein Stab. Mit Rahmen-Degenerations-Guard, minimaler Normalquerschnittspruefung per Strahl und Aufraeumen ueber exakte IDs.",
+      "stichworte": [
+        "raumkurve",
+        "raumstab",
+        "nurbs",
+        "spline",
+        "helix",
+        "convert_surfaces_to_volume",
+        "create_surface",
+        "normalquerschnitt",
+        "sweep",
+        "3d-kurve",
+        "gekruemmt"
+      ],
+      "code": "# Raeumlicher Rechteckstab: 4 Eck-Splines -> 4 NURBS-Seitenflaechen +\n# 2 Stirnflaechen -> convert_surfaces_to_volume. Kein Sweep-Befehl noetig.\n# Mittellinie C(t), Rahmen T (Tangente), N = Z x T, B = T x N.\nfrom math import sin, cos, pi, sqrt\nB_N = 160.; H_B = 200.; N_PKT = 121          # Querschnitt normal, Stuetzpunkte\ndef mitte(t):   return (5000 + 3000 * t, 2000 + 300 * sin(pi * t), 400 * sin(2 * pi * t))\ndef ableit(t):  return (3000., 300 * pi * cos(pi * t), 800 * pi * cos(2 * pi * t))\ndef kreuz(a, b): return (a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0])\ndef einheit(a):\n    s = sqrt(sum(v * v for v in a))\n    return tuple(v / s for v in a)\ndef rahmen(t):\n    tt = einheit(ableit(t))\n    zxt = kreuz((0., 0., 1.), tt)\n    # Degenerations-Guard: Tangente fast parallel zu Z -> N undefiniert\n    assert sqrt(sum(v * v for v in zxt)) > 1e-3, ('Rahmen degeneriert', t)\n    n = einheit(zxt)\n    return tt, n, kreuz(tt, n)\necken = [[], [], [], []]\nfor i in range(N_PKT):\n    t = i / (N_PKT - 1); c = mitte(t); tt, n, b = rahmen(t)\n    for pk, (sn, sb) in zip(ecken, [(-1, -1), (1, -1), (1, 1), (-1, 1)]):\n        pk.append(cw.point_3d(*[c[j] + sn * B_N / 2 * n[j] + sb * H_B / 2 * b[j] for j in range(3)]))\nflaechen = []\nfor s in range(4):\n    p = ecken[s]; q = ecken[(s + 1) % 4]\n    li = [ec.create_spline_line(p), ec.create_spline_line(q),\n          ec.create_line_points(p[0], q[0]), ec.create_line_points(p[-1], q[-1])]\n    aendert(li)\n    f = ec.convert_lines_to_surfaces(li)   # verbraucht die vier Linien (gemessen)\n    assert len(f) == 1, f\n    flaechen.extend(f)\nanfang = [pk[0] for pk in ecken]; anfang.reverse()\nflaechen.append(ec.create_surface(anfang))\nflaechen.append(ec.create_surface([pk[-1] for pk in ecken]))\nstore_as('raumstab_flaechen', flaechen)\naendert(flaechen)\nstab = ec.convert_surfaces_to_volume(flaechen)\nassert stab, ec.get_last_error(0)\nstore_as('raumstab', stab)\n# Minimale Normalquerschnittspruefung: 10 Stationen, je Breite und Hoehe\nfehler = []\nfor i in range(1, 11):\n    t = i / 11; c = mitte(t); tt, n, b = rahmen(t)\n    for achse, soll in [(n, B_N), (b, H_B)]:\n        tr = ec.cast_ray_and_get_element_intersections([stab],\n            cw.point_3d(*[c[j] - 300 * achse[j] for j in range(3)]),\n            cw.point_3d(*[c[j] + 300 * achse[j] for j in range(3)]), 0.\n            ).get_hit_vertices_by_element(stab)\n        assert len(tr) == 2, (t, len(tr))   # genau zwei Koerpergrenzen\n        o = sorted([sum((getattr(p, 'xyz'[j]) - c[j]) * achse[j] for j in range(3)) for p in tr])\n        fehler.append({'t': t, 'mass': o[1] - o[0] - soll, 'mitte': (o[0] + o[1]) / 2})\n# Die sechs Flaechen bleiben neben dem Volumen bestehen: exakt ueber IDs entfernen\naendert(flaechen + [stab])\nec.delete_elements(flaechen)\nresult = {'stab': stab, 'is_beam': ac.is_beam(stab),\n          'max_massfehler': max(abs(f['mass']) for f in fehler),\n          'max_mittenversatz': max(abs(f['mitte']) for f in fehler),\n          'volumen': gc.get_actual_physical_volume(stab)}\n",
+      "notes": "Gemessen 2026-09-26: 600 Strahlen an 100 Normalquerschnitten, Massfehler max. 0.04831 mm, Mittenversatz max. 0.47973 mm, Volumen 0.001375 % vom Soll; SAT 1 Body/1 Lump/1 Shell/6 Faces (4 Spline, 2 Ebene). Helix R1800, 270 Grad, Anstieg 1200, 140x240: Massfehler max. 0.00054 mm. Beide wiedergeoeffnet, alle Messungen gleich. Der Rahmen N = Z x T ist NICHT torsionsfrei und entartet, wenn die Tangente parallel zu Z liegt (Guard im Code). Numerisch geprueft, kein exakter Sweep; die Elementachse bleibt gerade (nurbs_kein_faserfeld_keine_sweep_historie). Mehrere Flaechen je Auftrag nur, wenn die Happen-Empfehlung es zulaesst - nativ lief es in 5 + 1 Auftraegen.",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_RAUM_20260926: 05_stage_0..4, 06_normal_solid, 07_measure, 11_reopened, final_normal_solid.sat; helix_20260926_233401/21_measure, 24_reopened",
+          "messwerte": {
+            "strahlen": 600,
+            "max_massfehler_mm": 0.0483108,
+            "max_mittenversatz_mm": 0.479729,
+            "helix_max_massfehler_mm": 0.00053982
+          },
+          "wiedergeoeffnet": true
+        },
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): ein Stab, Massfehler max 0.0443 mm, Mittenversatz max 0.474 mm an 10 Stationen, Volumen 113137667.70 mm3",
+        "geltungsbereich": "Die zwei gemessenen Mittellinien (Welle im Raum, Helix unter einer Umdrehung); neue Parameter brauchen neue Querschnitts- und Selbstschnittpruefung. Keine Fertigungs-/CNC-/BTLx-Freigabe"
+      }
+    },
+    {
+      "id": "zylinderplatte_konstanter_radialer_abstand",
+      "source": "Messung 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Plattenversuch, Belegordner KURVEN_PLATTEN_20260926)",
+      "title": "Einfach gekruemmte Platte mit konstanter radialer Dicke (Zylinder-Boolean, convert_beam_to_panel)",
+      "category": "kurven",
+      "description": "Zylindrische Platte: zwei koaxiale Zylinder mit Radius R +/- D/2 voneinander abziehen, auf 90 Grad beschneiden, convert_beam_to_panel. Dicke radial per Strahl messen. Doppelt gekruemmte Platten: normalversatz_randkurven_keine_konstante_dicke.",
+      "stichworte": [
+        "platte",
+        "zylinder",
+        "gekruemmte platte",
+        "schale",
+        "radial",
+        "dicke",
+        "convert_beam_to_panel",
+        "sattel",
+        "doppelt gekruemmt"
+      ],
+      "code": "# Zylindrische Platte mit KONSTANTER radialer Dicke: zwei koaxiale\n# Zylinder voneinander abziehen, auf 90 Grad beschneiden, zur Platte machen.\nfrom math import pi, sin, cos\nR = 2000.; D = 27.; BREITE = 1200.       # Mittelflaechenradius, Dicke, Breite (Y)\nOX = 18000.                              # Kreismitte X - freie Stelle waehlen\nassert D < 2 * R\nro = R + D / 2; ri = R - D / 2; m = ro + 200.\ny = cw.point_3d(0., 1., 0.); z = cw.point_3d(0., 0., 1.); x = cw.point_3d(1., 0., 0.)\naussen = ec.create_circular_beam_vectors(2 * ro, BREITE, cw.point_3d(OX, 0., 0.), y, z)\ninnen = ec.create_circular_beam_vectors(2 * ri, BREITE + 40., cw.point_3d(OX, -20., 0.), y, z)\ncx = ec.create_rectangular_beam_vectors(BREITE + 40., 2 * m, m, cw.point_3d(OX - m, BREITE / 2, 0.), x, z)\ncz = ec.create_rectangular_beam_vectors(BREITE + 40., m, m, cw.point_3d(OX, BREITE / 2, -m / 2), x, z)\nstore_as('zylinderplatte_teile', [aussen, innen, cx, cz])\nvoll = BREITE * pi * (ro * ro - ri * ri)\nfor werkzeug, anteil in [(innen, 1.), (cx, .5), (cz, .25)]:\n    aendert([aussen, werkzeug])\n    ec.subtract_elements_with_undo([werkzeug], [aussen], False)\n    assert abs(gc.get_actual_physical_volume(aussen) - voll * anteil) < voll * 1e-5\naendert([innen, cx, cz, aussen])\nec.delete_elements([innen, cx, cz])\nec.convert_beam_to_panel([aussen])\nassert ac.is_panel(aussen)\n# Tatsaechliche Materialdicke radial messen (nicht get_height lesen)\ndicken = []\nfor j in range(1, 20):\n    th = pi * j / 40\n    tr = ec.cast_ray_and_get_element_intersections([aussen],\n        cw.point_3d(OX + (ri - 100.) * cos(th), BREITE / 2, (ri - 100.) * sin(th)),\n        cw.point_3d(OX + (ro + 100.) * cos(th), BREITE / 2, (ro + 100.) * sin(th)), 0.\n        ).get_hit_vertices_by_element(aussen)\n    assert len(tr) == 2, (j, len(tr))\n    r = sorted([((p.x - OX) ** 2 + p.z ** 2) ** .5 for p in tr])\n    dicken.append(r[1] - r[0])\nresult = {'platte': aussen, 'dicke_min': min(dicken), 'dicke_max': max(dicken),\n          'is_panel': ac.is_panel(aussen), 'is_beam': ac.is_beam(aussen)}\n",
+      "notes": "Gemessen 2026-09-26: R2000, D27, B1200, 90 Grad; 19 radiale Strahlen 27 mm (Abweichung < 4e-12 mm); Volumen relativ 5.65e-8 vom Soll; is_panel True UND is_beam True (is_beam trennt Platten nicht). Wiedergeoeffnet. SATTEL (doppelt gekruemmt): Spline-Randkurven -> Flaeche -> extrude_surface_to_panel_vector(flaeche, (0,0,D)) ist nativ moeglich, aber die Dicke ist dann VERTIKAL: gemessen nur 24.15-25.46 mm Normaldicke bei 27 mm vertikal. Nur mit dieser ausdruecklich bekannten Grenze verwenden.",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_PLATTEN_20260926: 02-04 Zylinder, 05-08 Sattel, 13_reopen_verify, cylindrical_panel.sat",
+          "messwerte": {
+            "radiale_dicke_mm": 27,
+            "strahlen": 19,
+            "sattel_normaldicke_mm": [
+              24.1495,
+              25.4558
+            ]
+          },
+          "wiedergeoeffnet": true
+        },
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): radiale Dicke 27.000 mm an 19 Stellen (< 4e-12), is_panel und is_beam True",
+        "geltungsbereich": "Zylindersektor mit konstanter radialer Dicke. Kein Nachweis zu Biegbarkeit, Lagenaufbau, Herstellbarkeit; Material ist nur eine Katalogzuweisung"
+      }
+    },
+    {
+      "id": "lokale_achse_sehne_huellmass",
+      "source": "Messung 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Plattenversuch Sehnenachse, Belegordner KURVEN_PLATTEN_20260926 und KURVEN_FASER_20260926)",
+      "title": "Feste lokale Achse / Sehnenachse einstellen - Huellmass ist nicht Querschnitt und nicht Bogenlaenge",
+      "category": "kurven",
+      "description": "gc.rotate_length_axis_2_points / rotate_height_axis_2_points richten das EINE feste Elementkoordinatensystem aus (z. B. laengs der Kreissehne). get_length/width/height liefern danach Huellmasse in diesem System - nicht die Materialdicke, nicht die Bogenlaenge.",
+      "stichworte": [
+        "achse",
+        "sehne",
+        "sehnenachse",
+        "lokale achse",
+        "elementachse",
+        "huellmass",
+        "bogenlaenge",
+        "rotate_length_axis_2_points",
+        "textur",
+        "faser"
+      ],
+      "code": "# Festes lokales Achssystem einstellen (z. B. Laengsachse laengs der\n# Kreissehne) und Huellmass von echtem Querschnitt / Bogenlaenge trennen.\n# Beispiel: Viertel-Zylinderplatte aus zylinderplatte_konstanter_radialer_abstand\n# (Mitte OX, Sektor zwischen +X und +Z, Achse Y).\nfrom math import pi\nquelle = get_stored('zylinderplatte_teile')[0]\nR = 2000.; D = 27.\nkopie = ec.copy_elements([quelle], cw.point_3d(0., 2200., 0.))   # Original bleibt Vergleich\nassert len(kopie) == 1, kopie\neid = kopie[0]\nstore_as('zylinderplatte_sehne', eid)\naendert([eid])\ngc.rotate_length_axis_2_points([eid], cw.point_3d(0., 0., 0.), cw.point_3d(-1., 0., 1.))   # Sehne\ngc.rotate_height_axis_2_points([eid], cw.point_3d(0., 0., 0.), cw.point_3d(1., 0., 1.))    # radial zur Sektormitte\nxl = gc.get_xl(eid)\nhuelle = {'length': gc.get_length(eid), 'width': gc.get_width(eid), 'height': gc.get_height(eid)}\n# Gemessen: length = sqrt(2)*(R+D/2) = 2847.519, height = 608.832 (Segmenthoehe\n# inkl. Dicke) - NICHT die Plattendicke (27) und NICHT die Bogenlaenge.\nbogenlaenge_mitte = R * pi / 2\nresult = {'xl': [xl.x, xl.y, xl.z], 'huellmasse': huelle,\n          'bogenlaenge_mittelflaeche': bogenlaenge_mitte,\n          'echte_dicke': 'radial per cast_ray messen (siehe Zylinderplatte), nicht get_height',\n          'volumen': gc.get_actual_physical_volume(eid)}   # darf sich nicht aendern\n",
+      "notes": "Gemessen 2026-09-26 an einer Kopie der Zylinderplatte: vorher xl=(0,1,0), Huelle 1200 x 2013.5 x 2013.5; nachher Huelle 2847.519 x 1200 x 608.832, Volumenaenderung 0, echte radiale Dicke an 19 Stellen weiter 27 mm. Helix: get_length 3740.089 bei Mittellinie 8566.762 mm. Nutzerbeobachtung: die Sehnenachse verbessert die Holztextur optisch (Filmstoss) - als Darstellungswahl, NICHT als mitlaufende Faser werten (nurbs_kein_faserfeld_keine_sweep_historie).",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_PLATTEN_20260926: 19_cylinder_axes_read, 20_cylinder_chord_copy, 21_chord_measure; KURVEN_FASER_20260926: 08_reopened_numeric; KURVEN_RAUM_20260926: 23_dimensions",
+          "messwerte": {
+            "huelle_mm": [
+              2847.519007838,
+              1200,
+              608.832379175
+            ],
+            "radiale_dicke_mm": 27,
+            "helix_get_length_mm": 3740.089257,
+            "helix_mittellinie_mm": 8566.762287
+          },
+          "wiedergeoeffnet": "Faservergleich ja; Sehnenkopie der Platte nein"
+        },
+        "nutzerbeobachtung": "Textur wirkt mit Sehnenachse besser (Filmstoss) - nicht gemessen",
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): xl=(-0.7071,0,0.7071), Huelle 2847.519 x 1200 x 608.832, Volumen unveraendert - alles gleich altem Versuch",
+        "geltungsbereich": "Ein festes Achssystem je Element; kein ortsabhaengiges Koordinatenfeld"
+      }
+    },
+    {
+      "id": "vba_katalog_blank_bestuecken_zuruecklesen",
+      "source": "Messungen 2026-09-26/27, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_NATIV_20260926/vba_runs, FAEHIGKEITEN_20260927/KATALOG_STANDARD und VGS_RAUM)",
+      "title": "Native Katalog-VBA leer anlegen, Produkt zuweisen, raeumlich - und getrennt zuruecklesen",
+      "category": "connector_axis",
+      "description": "ca.create_blank_connector + get_item_guid_by_name(name, art) + set_bolt_item: Produktachse zwischen beliebigen raeumlichen Endpunkten. Katalogidentitaet (GUID, Name, Bestellnummer), Abschnitte, Kern-/Bolzen- und Bearbeitungsdurchmesser in einem EIGENEN Folgeauftrag getrennt lesen.",
+      "stichworte": [
+        "vba",
+        "verbindungsachse",
+        "katalog",
+        "schraube",
+        "stabduebel",
+        "create_blank_connector",
+        "set_bolt_item",
+        "get_item_guid_by_name",
+        "abschnitte",
+        "durchmesser",
+        "raeumlich"
+      ],
+      "code": "# Native Katalog-VBA: LEER anlegen, dann Produkt zuweisen; Rueckgabe erst im\n# FOLGEAUFTRAG verlaesslich lesen (Teil 2). Vorher alle Schnitte ins Holz!\n# --- Teil 1: anlegen --------------------------------------------------------\nimport connector_axis_controller as ca\nPRODUKT = 'Rothoblaas TBS Ø8'   # exakter Name aus dem Katalog DIESER Installation\nART = 10005                     # Katalog-Art des Eintrags (gemessen: Schrauben 10005,\n                                # Stabduebel 10004) - im Katalog nachsehen, nicht raten\nLAENGE = 120.\nP1 = (2700., -60., 0.); P2 = (2700., 60., 0.)   # raeumliche Endpunkte, frei waehlbar\nholz = [ ]                      # IDs der Hoelzer, die die Achse schneiden soll\nguid = ca.get_item_guid_by_name(PRODUKT, ART)\nassert guid, 'Produkt fehlt im Katalog dieser Installation'\naendert(holz)\nachse = ca.create_blank_connector(8., cw.point_3d(*P1), cw.point_3d(*P2))\nassert achse > 0\nstore_as('vba_achse', achse)        # sofort merken: ein Fehler danach -> nicht neu anlegen\nca.set_bolt_item(achse, guid)\nca.set_bolt_length_automatic(achse, False)\nca.set_bolt_length(achse, LAENGE)\nresult = {'achse': achse, 'guid_soll': guid}\n# --- Teil 2: EIGENER, lesender Auftrag danach ---------------------------------\n# import connector_axis_controller as ca\n# a = get_stored('vba_achse'); g = ca.get_bolt_item_guid(a)\n# result = {\n#   'guid': g, 'produkt': ca.get_axis_item_name(g),          # Katalogidentitaet\n#   'bestellnummer': ca.get_bolt_order_number(a),\n#   'bolzen_d': ca.get_bolt_diameter(a),                     # KERN (TBS 8: 5.8)\n#   'laenge': ca.get_bolt_length(a),\n#   'p1': [gc.get_p1(a).x, gc.get_p1(a).y, gc.get_p1(a).z],\n#   'p2': [gc.get_p2(a).x, gc.get_p2(a).y, gc.get_p2(a).z],\n#   'abschnitte': [{'material': ca.get_section_material_name(a, k),\n#                   'laenge': ca.get_section_length(a, k),\n#                   'bohr_d': ca.get_section_diameter(a, k)}  # BEARBEITUNG (TBS 8: 8)\n#                  for k in range(ca.get_section_count(a))],\n#   'ist_vba': ac.get_element_type(a).is_connector_axis()}\n",
+      "notes": "Gemessen: TBS 8x120 (Bestellnummer aus Cadwork, Bolzen-D 5.8 = Kern, Abschnitt-D 8 = Bohrung, Holzvolumen genau um eine Bohrung 8x120 kleiner); VGS 9 raeumlich x400 durch zwei NURBS-Staebe (Abschnitte Holz 200.02/Luft 19.96/Holz 180.02, gleich den unabhaengigen Strahlen auf 1e-6 mm; Bolzen-D 6.5); Stabduebel D16 im Schlitzblech-Anschluss 75/10/75. Alles nach Speichern/Schliessen/Wiederoeffnen gleich. Im ERZEUGENDEN Auftrag waren GUID und Abschnitte der TBS noch leer, im naechsten lesenden richtig. get_axis_items_guids blieb bei TBS leer - get_bolt_item_guid ist massgeblich. Produktname, Kern- und Bohrdurchmesser sind drei verschiedene Werte. Schnitte (Schlitze) VOR der VBA (schnitte_vor_verbindern_kein_resend). Eine bereits bestueckte VBA NICHT umbauen/leeren (dort endete ein Versuch mit Prozessabbruch, Ursache nicht eingegrenzt). Kontaktpruefung nicht an GUID/Abschnittszahl allein: eine VBA in Luft hat beides. Standard-VBA mit festen Werten: vba_standard_anlegen.",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-27",
+        "alter_versuch": {
+          "belege": "KATALOG_STANDARD: 05_tellerkopf, 06_tellerkopf_reread, 10_reopened_measurements; VGS_RAUM: 06-08, 09_snapshot, 11c_reopened_verified; KURVEN_NATIV vba_runs/20260926_224827_318595: 38_*, 41_blank_curved_peg, 44_vba_reopened",
+          "messwerte": {
+            "tbs_bolzen_d_mm": 5.8,
+            "tbs_abschnitt_d_mm": 8,
+            "vgs_bolzen_d_mm": 6.5,
+            "vgs_abschnitte_mm": [
+              200.021533,
+              19.956934,
+              180.021533
+            ]
+          },
+          "wiedergeoeffnet": true
+        },
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): TBS 8x120: Teil 2 im Folgeauftrag las GUID, Bestellnummer TBS8120, Bolzen-D 5.8, Abschnitt-D 8, Endpunkte exakt; Holzvolumen genau um die Bohrung 8x120 kleiner",
+        "geltungsbereich": "Katalogeintraege dieser Installation; Produkte und Art-Nummern neu aufloesen, GUIDs nie als Konstante. Keine Bemessung, keine Vorbohrregel (Bohr-D 0 war eine Testeinstellung)"
+      }
+    },
+    {
+      "id": "standardprofil_und_3dc_katalog",
+      "source": "Messung 2026-09-27, Cadwork 2026 ueber Open MCP CAD (Belegordner FAEHIGKEITEN_20260927/KATALOG_STANDARD)",
+      "title": "Vorhandenes Standardprofil nativ erzeugen und ueber 3dc exportieren/importieren",
+      "category": "catalog",
+      "description": "ec.create_standard_beam_vectors(name, laenge, p, xl, zl) mit einem Namen aus ec.get_standard_beam_list(); fc.export_3dc_file / fc.import_3dc_file erhaelt Standardname, Material, Profil und Volumen. Herstellerteile zuerst aus Katalog/Standard nehmen, nicht selbst nachbauen.",
+      "stichworte": [
+        "standard",
+        "standardprofil",
+        "3dc",
+        "katalog",
+        "import_3dc_file",
+        "export_3dc_file",
+        "create_standard_beam_vectors",
+        "hersteller"
+      ],
+      "code": "# Vorhandenes Standardprofil nativ erzeugen und ueber 3dc exportieren/\n# importieren. Namen aus der Liste DIESER Installation nehmen.\nNAME = 'Blockbohle'                       # muss in ec.get_standard_beam_list() stehen\ndoc = uc.get_3d_file_path()\nassert doc.lower().endswith('.3d'), 'Dokument erst speichern'\nDATEI = doc[:-3] + '_standard_test.3dc'   # NEUE Datei neben der .3d, frei waehlbar\nnamen = ec.get_standard_beam_list()\nassert NAME in namen, 'Standard fehlt in dieser Installation'\n# Namen- und GUID-Liste sind UNTERSCHIEDLICH sortiert: nie zippen.\nstab = ec.create_standard_beam_vectors(NAME, 1200., cw.point_3d(0., 0., 0.),\n                                       cw.point_3d(1., 0., 0.), cw.point_3d(0., 0., 1.))\nassert stab > 0\nstore_as('standard_stab', stab)\nfc.export_3dc_file([stab], DATEI)\nneu = fc.import_3dc_file(DATEI)\nassert len(neu) == 1, neu\nstore_as('standard_3dc_kopie', neu[0])\naendert(neu)\nec.move_element(neu, cw.point_3d(0., 600., 0.))\nzeilen = []\nfor e in [stab] + neu:\n    zeilen.append({'id': e, 'standard': ac.get_standard_element_name(e),\n                   'material': ac.get_element_material_name(e),\n                   'volumen': gc.get_actual_physical_volume(e),\n                   'facetten': gc.get_element_facet_count(e)})\nresult = {'zeilen': zeilen}   # Standardname, Material, Volumen muessen gleich sein\n",
+      "notes": "Gemessen 2026-09-27: Blockbohle 120x215x1200, 30 Flaechen, Material vom Standard; 3dc-Kopie mit gleichem Standardnamen, Material, Profil, Volumen; Wiederoeffnen bestanden. Zusammengesetzter Standard-Verbinder ('BS M16 vers.' per ca.create_standard_connector) exportiert 4 Koerper (Scheibe, Schraube, Scheibe, Mutter). Namen- und GUID-Listen der Standards sind verschieden sortiert - nie positionsweise zuordnen. Ein spezieller Herstellerverbinder ueber 3dc ist NICHT geprueft (keine Herstellerdatei vorhanden).",
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-27",
+        "alter_versuch": {
+          "belege": "KATALOG_STANDARD: 01_api_catalog, 03_standard_and_axis, 07_native_catalog_import, 10_reopened_measurements, verification.json",
+          "messwerte": {
+            "flaechen": 30,
+            "querschnitt_mm": [
+              120,
+              215
+            ],
+            "laenge_mm": 1200
+          },
+          "wiedergeoeffnet": true
+        },
+        "minimalbeispiel": "nativ gemessen 2026-09-28 (Code dieses Eintrags woertlich, frische Testdatei; gespeichert und in neuem Cadwork-Prozess wieder geoeffnet: alle 10 Bauteile, Volumen exakt gleich, Endtyp und VBA-Daten erhalten): Blockbohle und 3dc-Kopie: Standardname, Material Duo N, Volumen 28528800, 30 Facetten gleich",
+        "geltungsbereich": "Standards, die in der Installation vorhanden sind; keine Aussage zu bestimmten Herstellerartikeln"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Von Hand nachtraeglich veraenderte Plugin-Ordner gehoeren NICHT hierher —
+# sie werden aus cad_plugin/_core/ erzeugt. Der A-Ordner ist die Ausnahme:
+# er ist handgepflegt (Dashboard, Chat, Hinweise) und wird eingecheckt.
+
+# Logs der Steckplaetze
+*.log
+projektordner.txt
+cad_plugin/*/projektordner.txt
+wissensordner.txt
+cad_plugin/*/wissensordner.txt
+
+# Lokale Muster fuer paket_bauen/oeffentlich_exportieren: Namen und Spuren
+# privater Teile. Eingecheckt stuenden sie genau dort, wo sie nicht hin
+# duerfen (im oeffentlichen Repo).
+persoenlich.txt
+privat_spuren.txt

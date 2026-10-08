@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PluginInfo>
+    <Version>2.0.0.0</Version>
+    <Date>2026-09-25</Date>
+    <Author>Sebastian Koukoui</Author>
+    <Name>
+      <Text language="German">Open MCP CAD</Text>
+      <Text language="English">Open MCP CAD</Text>
+      <Text language="French">Open MCP CAD</Text>
+      <Text language="Italian">Open MCP CAD</Text>
+      <Text language="Spanish"/>
+      <Text language="Czech"/>
+      <Text language="Finnish"/>
+      <Text language="Russian"/>
+      <Text language="Polish"/>
+      <Text language="Romanian"/>
+      <Text language="Norwegian"/>
+      <Text language="Chinese"/>
+      <Text language="Portuguese"/>
+      <Text language="Estonian"/>
+      <Text language="Japanese"/>
+    </Name>
+    <Description>
+      <Text language="German">
+<![CDATA[
+Open MCP CAD verbindet dieses Cadwork-Dokument mit einem KI-Assistenten.
+
+Ein Klick zeigt oben rechts eine kleine Leiste und verbindet sofort.
+Jedes weitere Cadwork-Fenster bekommt seine eigene Verbindung.
+
+Die Leiste zeigt den Zustand (Bereit, Liest, Zeichnet, Pausiert, Störung).
+Dort wird auch getrennt. Solange die Verbindung nur "Bereit" ist, bleibt
+Cadwork normal bedienbar. Der Chat öffnet sich darunter im selben Fenster;
+wann er vor einem Schritt nachfragt, legt dort der Modus fest.
+]]>
+      </Text>
+      <Text language="English">
+<![CDATA[
+Open MCP CAD connects this Cadwork document to an AI assistant.
+
+One click shows a small bar at the top right and connects right away.
+Every further Cadwork window gets its own connection.
+
+The bar shows the state (Bereit = ready, Liest = reading, Zeichnet =
+drawing, Pausiert = paused, Störung = fault). Disconnecting is done there
+as well. While the connection is only "Bereit", Cadwork stays fully
+usable. The chat opens below it in the same window; the mode chosen there
+decides when you are asked before a step runs.
+]]>
+      </Text>
+      <Text language="French">
+<![CDATA[
+Open MCP CAD relie ce document Cadwork à un assistant IA.
+
+Un clic affiche une petite barre en haut à droite et se connecte
+aussitôt. Chaque fenêtre Cadwork supplémentaire a sa propre connexion.
+
+La barre affiche l'état (Bereit = prêt, Liest = lecture, Zeichnet =
+dessin, Pausiert = en pause, Störung = erreur). C'est aussi là qu'on
+déconnecte. Tant que la connexion est seulement « Bereit », Cadwork reste
+utilisable normalement. Le chat s'ouvre en dessous dans la même fenêtre ;
+le mode choisi là-bas détermine quand une étape vous est soumise pour
+accord.
+]]>
+      </Text>
+      <Text language="Italian">
+<![CDATA[
+Open MCP CAD collega questo documento Cadwork a un assistente IA.
+
+Un clic mostra una piccola barra in alto a destra e si collega subito.
+Ogni ulteriore finestra Cadwork ha il proprio collegamento.
+
+La barra mostra lo stato (Bereit = pronto, Liest = lettura, Zeichnet =
+disegno, Pausiert = in pausa, Störung = guasto). Lì si scollega anche.
+Finché la connessione è solo "Bereit", Cadwork resta utilizzabile
+normalmente. La chat si apre sotto nella stessa finestra; la modalità
+scelta lì stabilisce quando ti viene chiesta conferma prima di un passo.
+]]>
+      </Text>
+      <Text language="Spanish"/>
+      <Text language="Czech"/>
+      <Text language="Finnish"/>
+      <Text language="Russian"/>
+      <Text language="Polish"/>
+      <Text language="Romanian"/>
+      <Text language="Norwegian"/>
+      <Text language="Chinese"/>
+      <Text language="Portuguese"/>
+      <Text language="Estonian"/>
+      <Text language="Japanese"/>
+    </Description>
+</PluginInfo>

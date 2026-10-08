@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "open-mcp-cad"
+version = "0.2.0"
+description = "MCP-Bruecke zwischen KI-Assistenten und einem laufenden Cadwork-3D-Dokument"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["mcp", "cad", "cadwork", "cwapi3d", "llm", "timber"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    # <2: mcp 2.x hat FastMCP in MCPServer umbenannt, server.py startet
+    # damit nicht (gemessen 2026-09-22 mit mcp 2.2.0). Bis zur Migration
+    # bei 1.x bleiben; 1.28.1 ist gemessen lauffaehig.
+    "mcp>=1.0,<2",
+]
+
+[project.optional-dependencies]
+# Nur fuer das Live-Gate der Oberflaeche (tests/test_a_live.py) und die
+# Tk-freien Verbindungsfenster. Der Server selbst braucht kein Qt.
+ui = ["PyQt6>=6.5"]
+# Type-Stubs fuer get_cadwork_api_help. Ohne sie laeuft der Server, aber das
+# Werkzeug findet nichts — es sagt das dann auch.
+stubs = ["cwapi3d"]
+
+[project.scripts]
+open-mcp-cad = "open_mcp_cad.server:main"
+
+[project.urls]
+Source = "https://github.com/sebastiankoukoui/open-mcp-cad"
+
+[tool.setuptools]
+# Die Plugin-Ordner unter cad_plugin/ sind KEIN Python-Paket. Sie werden ins
+# Cadwork-Benutzerprofil kopiert und dort von Cadwork geladen, nicht
+# importiert. Deshalb stehen sie hier bewusst nicht.
+packages = ["open_mcp_cad"]
+
+[tool.setuptools.package-data]
+open_mcp_cad = ["knowledge/*.json", "knowledge/*.md"]

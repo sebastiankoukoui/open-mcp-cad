@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PluginInfo>
+    <Version>2.0.0.0</Version>
+    <Date>2026-08-04</Date>
+    <Author>Sebastian Koukoui</Author>
+    <Name>
+      <Text language="German">Open MCP CAD D</Text>
+      <Text language="English">Open MCP CAD D</Text>
+      <Text language="French">Open MCP CAD D</Text>
+      <Text language="Italian"/>
+      <Text language="Spanish"/>
+      <Text language="Czech"/>
+      <Text language="Finnish"/>
+      <Text language="Russian"/>
+      <Text language="Polish"/>
+      <Text language="Romanian"/>
+      <Text language="Norwegian"/>
+      <Text language="Chinese"/>
+      <Text language="Portuguese"/>
+      <Text language="Estonian"/>
+      <Text language="Japanese"/>
+    </Name>
+    <Description>
+      <Text language="German">
+<![CDATA[
+Open MCP CAD D - Verbindung zwischen diesem Cadwork-Dokument und
+Open MCP CAD.
+
+Nach dem Start ist die Verbindung "Bereit". Der Zustand (Bereit, Liest
+Modell, Bearbeitet Modell, Pausiert, Stoerung) ist jederzeit im Fenster
+"Open MCP CAD Verbindungen" ablesbar; dort wird auch pausiert und sicher beendet.
+
+Solange die Verbindung nur "Bereit" ist, bleibt Cadwork normal bedienbar.
+Waehrend ein Auftrag laeuft ("Liest Modell" / "Bearbeitet Modell"), ist die
+Oberflaeche blockiert - "Pausieren" gibt sie nach dem laufenden Auftrag
+wieder frei. Beenden ueber "Open MCP CAD Verbindungen" oder ueber den
+Open-MCP-CAD-Server (shutdown); waehrend eines Auftrags nur "nach Auftrag
+beenden".
+
+Technische Details: TCP 127.0.0.1:53130, MCP-Bridge-Protokoll 2,
+Log C:\Users\Public\OpenMcpCad_D.log
+]]>
+      </Text>
+      <Text language="English">
+<![CDATA[
+Open MCP CAD D - link between this Cadwork document and Open MCP CAD.
+
+Once started the connection reports "Ready". Its state (Ready, Reading
+model, Modifying model, Paused, Fault) is visible at any time in the
+"Open MCP CAD Verbindungen" window, which is also where you pause it or stop it
+safely.
+
+While the connection is merely "Ready", Cadwork stays usable. While a job
+runs, the user interface is blocked - "Pause" releases it once the current
+job finishes. Stop it from "Open MCP CAD Verbindungen" or via the Open MCP CAD server
+(shutdown); while a job runs, only "stop after current job".
+
+Technical details: TCP 127.0.0.1:53130, MCP bridge protocol 2,
+log C:\Users\Public\OpenMcpCad_D.log
+]]>
+      </Text>
+      <Text language="French"/>
+      <Text language="Italian"/>
+      <Text language="Spanish"/>
+      <Text language="Czech"/>
+      <Text language="Finnish"/>
+      <Text language="Russian"/>
+      <Text language="Polish"/>
+      <Text language="Romanian"/>
+      <Text language="Norwegian"/>
+      <Text language="Chinese"/>
+      <Text language="Portuguese"/>
+      <Text language="Estonian"/>
+      <Text language="Japanese"/>
+    </Description>
+</PluginInfo>

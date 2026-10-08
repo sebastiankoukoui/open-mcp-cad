@@ -1,0 +1,802 @@
+{
+  "meta": {
+    "erzeugt_von": "privates Fachwissen-Repo, scripts/wissen_export.py",
+    "hinweis": "ERZEUGT — nicht von Hand aendern. Quelle ist das private Repo; Aenderungen hier gehen beim naechsten Export verloren.",
+    "version": "8.4",
+    "eintraege": 48
+  },
+  "issues": [
+    {
+      "id": "calculations_block_bridge",
+      "severity": "medium",
+      "source": "v2",
+      "title": "Reine Berechnungen NICHT ueber die Bridge - blockiert UI und Timeout",
+      "description": "Statik, Balkenbemessung etc. die keine cwapi3d-Funktionen brauchen blockieren die Cadwork-UI unnoetig und koennen Timeout verursachen.",
+      "workaround": "Python-Berechnungen lokal mit bash_tool ausfuehren.",
+      "affected_functions": [
+        "execute_cadwork_command"
+      ]
+    },
+    {
+      "id": "cut_plane_edge_artifact",
+      "severity": "medium",
+      "source": "v1",
+      "title": "cut_element_with_plane erzeugt Artefakt-Vertex wenn Schnittebene auf Elementkante liegt",
+      "description": "Wenn die Schnittebene genau durch eine bestehende Kante/Facette des Elements geht, erzeugt Cadwork einen Extra-Vertex statt einer sauberen Schnittlinie.",
+      "workaround": "Element mit Ueberstand erstellen (15-20mm ueber die Schnittlinie hinaus), dann cut_element_with_plane, dann mit stretch_start/end_facet auf die exakte Laenge kuerzen.",
+      "affected_functions": [
+        "ec.cut_element_with_plane"
+      ],
+      "update_s010": "RELATIVIERT: Schnitt genau auf einer Flaeche/Kante erzeugte in Session 010 KEIN Artefakt, sondern wurde sauber ignoriert (kein Abtrag, ret=True). Artefakt tritt offenbar nur in spezielleren Schraeglagen auf. Ueberstand-Workflow bleibt sicher empfohlen."
+    },
+    {
+      "id": "cut_plane_anti_normal",
+      "severity": "high",
+      "source": "v1",
+      "title": "cut_element_with_plane behaelt die ANTI-Normal-Seite",
+      "description": "Die Seite ENTGEGEN der Normalenrichtung bleibt. Wenn Normal=(1,0,0) dann bleibt Material mit X < distance.",
+      "workaround": "Formel: dot(punkt, normal) < distance = Punkt bleibt. Normal immer IN Richtung des Materials zeigen das ENTFERNT werden soll.",
+      "affected_functions": [
+        "ec.cut_element_with_plane"
+      ]
+    },
+    {
+      "id": "material_same_batch",
+      "severity": "high",
+      "source": "v1",
+      "title": "Material-Zuweisung im selben Batch wie Erstellung funktioniert nicht zuverlaessig",
+      "description": "set_element_material im selben execute_cadwork_command wie create_* uebernimmt das Material manchmal nicht korrekt.",
+      "workaround": "Material IMMER in einem separaten execute_cadwork_command-Aufruf zuweisen.",
+      "affected_functions": [
+        "ac.set_element_material"
+      ]
+    },
+    {
+      "id": "stretch_vs_move_vertical",
+      "severity": "medium",
+      "source": "v1",
+      "title": "stretch_start/end_facet wirkt bei vertikalen Elementen in Z, nicht X/Y",
+      "description": "Bei Staendern (x_local in Z-Richtung) verschiebt stretch_start_facet die Z-Unterkante, nicht den Y- oder X-Rand.",
+      "workaround": "Fuer Y/X-Positionsaenderung vertikaler Elemente: ec.move_element() statt stretch.",
+      "affected_functions": [
+        "ec.stretch_start_facet",
+        "ec.stretch_end_facet"
+      ]
+    },
+    {
+      "id": "get_vs_set_signature",
+      "severity": "low",
+      "source": "v1",
+      "title": "Inkonsistente Signaturen: get_name(int) vs set_name(list, str)",
+      "description": "Getter-Funktionen erwarten einzelne IDs, Setter-Funktionen erwarten Listen.",
+      "workaround": "ac.get_name(eid) aber ac.set_name([eid], 'Name')",
+      "affected_functions": [
+        "ac.get_name",
+        "ac.set_name",
+        "ac.get_group",
+        "ac.set_group"
+      ]
+    },
+    {
+      "id": "bridge_timeout_duplicates",
+      "severity": "high",
+      "source": "v1",
+      "title": "Bridge-Timeouts bei grossen Operationen fuehren zu Duplikaten",
+      "description": "Bei >30 Elementen in einer Schleife kann die TCP-Bridge timeout. Trotz Timeout wird der Befehl oft auf Cadwork-Seite ausgefuehrt. Wiederholen erzeugt Duplikate.",
+      "workaround": "Kleinere Batches (max 15-20 Elemente pro Schleife). Nach Timeout: Inventar pruefen bevor man wiederholt.",
+      "affected_functions": [
+        "ec.create_*",
+        "ec.copy_elements"
+      ]
+    },
+    {
+      "id": "texture_red_side",
+      "severity": "low",
+      "source": "v1",
+      "title": "API-erstellte Elemente haben roetliche Seite (Textur-Problem)",
+      "description": "Alle per API erstellten Elemente zeigen eine roetliche Einfaerbung auf einer Seite.",
+      "workaround": "Textur aus- und wieder einschalten: vc.set_use_material_texture(ids, False) dann vc.set_use_material_texture(ids, True)",
+      "affected_functions": [
+        "vc.set_use_material_texture"
+      ]
+    },
+    {
+      "id": "ifc_predefined_type_constructor",
+      "severity": "medium",
+      "source": "v1",
+      "title": "cadwork.ifc_predefined_type() Konstruktor funktioniert nicht",
+      "description": "Der Konstruktor benoetigt ein internes CwAPI3D-Interface-Objekt und kann nicht direkt aufgerufen werden.",
+      "workaround": "Bestehenden Predefined Type holen: pt = bc.get_ifc_predefined_type(existing_eid), modifizieren, zuruecksetzen.",
+      "affected_functions": [
+        "cadwork.ifc_predefined_type",
+        "bc.get_ifc_predefined_type"
+      ]
+    },
+    {
+      "id": "get_element_volume_missing",
+      "severity": "low",
+      "source": "v1",
+      "title": "gc.get_element_volume() existiert nicht",
+      "description": "Die Funktion heisst gc.get_list_volume() oder muss manuell berechnet werden.",
+      "workaround": "Volumen aus Abmessungen berechnen: vol = (laenge * breite * hoehe) / 1e9",
+      "affected_functions": [
+        "gc.get_list_volume"
+      ]
+    },
+    {
+      "id": "panel_axis_confusion",
+      "severity": "high",
+      "source": "v3",
+      "title": "create_rectangular_panel_vectors: width und thickness sind NICHT was man denkt",
+      "description": "Bei Panels: width = REST-Richtung (die GROSSE Dim), thickness = z_local-Richtung (die DUENNE Dim). Das ist UMGEKEHRT zur Intuition.",
+      "workaround": "Liegende Platte (XY-Ebene): width=Dicke(Z), thickness=Breite(Y). Vertikale Wandplatte (XZ): width=Dicke(Y), thickness=Hoehe(Z). IMMER mit Vertex-Check verifizieren!",
+      "affected_functions": [
+        "ec.create_rectangular_panel_vectors"
+      ],
+      "update_2026_09_25": "PRAEZISIERT (gemessen 2026-09-25, Cadwork 2026, Abweichung 0,00 mm): Startpunkt = MITTE der Startflaeche; length entlang xl, width entlang zl x xl, thickness entlang zl, width und thickness zentriert um den Startpunkt. Ob width oder thickness die grosse Dimension ist, haengt also nur an der Wahl von zl. Beispiel: working_examples platte_und_stahlprofil_vektoren_bezug."
+    },
+    {
+      "id": "beam_startpoint_not_center",
+      "severity": "high",
+      "source": "v3",
+      "title": "create_rectangular_beam_vectors: Startpunkt ist Mitte Querschnitt am ANFANG, length geht AB dort",
+      "description": "Width und height sind ZENTRIERT um Startpunkt, length geht AB Startpunkt in x_local Richtung (NICHT zentriert). Bei vertikalen Staedern: Startpunkt-Z = UK.",
+      "workaround": "Startpunkt-Z bei vertikalen Staedern = UK (nicht Mitte!). Startpunkt-X/Y bei horizontalen Schwellen = Anfang + Mitte des Querschnitts.",
+      "affected_functions": [
+        "ec.create_rectangular_beam_vectors"
+      ]
+    },
+    {
+      "id": "vertex_count_misleading",
+      "severity": "medium",
+      "source": "v3",
+      "title": "Vertex-Anzahl ist KEIN zuverlaessiger Indikator fuer Bearbeitungen",
+      "description": "cut_element_with_plane-Schnitte erzeugen ebenfalls zusaetzliche Vertices. 22 Vertices heisst NICHT dass Kerven vorhanden sind.",
+      "workaround": "Visuell pruefen oder spezifische Koordinaten an der Auflagerstelle vergleichen.",
+      "affected_functions": [
+        "gc.get_element_vertices"
+      ]
+    },
+    {
+      "id": "bridge_timeout_rechtsklick",
+      "severity": "medium",
+      "source": "v3",
+      "title": "Bridge-Timeout: Rechtsklick in Cadwork-Viewport kann Bridge wieder freigeben",
+      "description": "Rechtsklick ins Cadwork-3D-Fenster kann die Anzeige aktualisieren und die Bridge wieder freigeben.",
+      "workaround": "Bei Bridge-Timeout: Rechtsklick ins Cadwork-Viewport, dann 30 Sekunden warten.",
+      "affected_functions": []
+    },
+    {
+      "id": "p1_start_repeated_mistake",
+      "severity": "high",
+      "source": "v4",
+      "title": "p1=START ist der HAEUFIGSTE wiederholte Fehler - trotz Dokumentation!",
+      "description": "In der v4-Session wurde p1 als ZENTRUM statt als START verwendet, obwohl beam_startpoint_not_center bereits dokumentiert war. Passierte bei mehreren Plattenlagen und bei Schnittkoerpern.",
+      "workaround": "CHECKLISTE vor JEDEM create:\n1. Wo ist p1? Am ANFANG!\n2. In welche Richtung geht p2? length geht AB p1\n3. Referenz-Panel scannen und p1-Position vergleichen",
+      "affected_functions": [
+        "ec.create_rectangular_beam_vectors"
+      ]
+    },
+    {
+      "id": "stretch_facet_only_xl",
+      "severity": "high",
+      "source": "s009t3",
+      "title": "stretch_start/end_facet wirkt NUR in xl-Richtung (Laengenachse)!",
+      "description": "stretch_end_facet hat KEINEN Effekt wenn der Vektor nicht in xl-Richtung zeigt. Fuer Width gibt es KEINE stretch-Funktion.",
+      "workaround": "Fuer Width: gc.set_width_real([id], neuer_wert). Fuer Height: gc.set_height_real(). Beide aendern symmetrisch um Mitte, ggf. move_element noetig.",
+      "affected_functions": [
+        "ec.stretch_start_facet",
+        "ec.stretch_end_facet",
+        "gc.set_width_real",
+        "gc.set_height_real"
+      ]
+    },
+    {
+      "id": "slice_elements_ids_change",
+      "severity": "medium",
+      "source": "s007",
+      "title": "slice_elements_with_plane: IDs aendern sich nach Schnitt - neu suchen!",
+      "description": "Nach slice ist unklar welches Element welche ID hat. Manchmal wird nur 1 ID zurueckgegeben statt 2.",
+      "workaround": "Nach jedem Schnitt: get_all_identifiable_element_ids() aufrufen und Elemente ueber Filter neu identifizieren.",
+      "affected_functions": [
+        "ec.slice_elements_with_plane_and_get_new_elements"
+      ],
+      "update_s010": "PRAEZISIERT: slice gibt IMMER nur das NEU entstandene Teil zurueck (1 ID); die Original-ID bleibt erhalten und ist die andere Haelfte. Kein 'neu suchen' noetig: die 2 Teile sind original_id + rueckgabe[0]. Elementzahl +1 pro Slice."
+    },
+    {
+      "id": "nested_functions_bridge_scope",
+      "severity": "low",
+      "source": "s007",
+      "title": "Alte Bridge: verschachtelte Funktionen verursachten NameError (Open MCP CAD: ein Namensraum)",
+      "description": "Galt fuer den exec()-Scope der alten Bridge. Open MCP CAD fuehrt Auftragscode wie ein Modul in EINEM Namensraum aus; verschachtelte Funktionen mit Closures sind dort normales Python (nicht eigens nativ gemessen, einfache def-Hilfen schon: bridge_exec_scope_no_locals_in_functions).",
+      "workaround": "Mit Open MCP CAD normal schreiben; tritt doch ein NameError auf, Code flach schreiben und melden.",
+      "affected_functions": [
+        "execute_cadwork_command"
+      ]
+    },
+    {
+      "id": "join_elements_no_effect",
+      "severity": "medium",
+      "source": "s007",
+      "title": "join_elements hat keine Wirkung - solder_elements verwenden",
+      "description": "join_elements hat Panels nicht zusammengefuegt. solder_elements funktioniert zuverlaessig.",
+      "workaround": "Immer solder_elements statt join_elements verwenden.",
+      "affected_functions": [
+        "ec.join_elements",
+        "ec.solder_elements"
+      ]
+    },
+    {
+      "id": "set_width_real_symmetric",
+      "severity": "medium",
+      "source": "s009t1",
+      "title": "set_width_real / set_height_real aendert symmetrisch um Mitte",
+      "description": "gc.set_width_real() und gc.set_height_real() aendern die Dimension symmetrisch um die Element-Mitte. Danach oft move_element noetig.",
+      "workaround": "Nach set_width_real: Versatz berechnen (delta_width/2) und mit ec.move_element korrigieren.",
+      "affected_functions": [
+        "gc.set_width_real",
+        "gc.set_height_real",
+        "ec.move_element"
+      ]
+    },
+    {
+      "id": "cut_shoulder_freezes_bridge",
+      "severity": "high",
+      "source": "s010",
+      "title": "cut_shoulder / cut_heel_shoulder / cut_double_shoulder frieren die Bridge ein (modale Dialoge)",
+      "description": "ec.cut_shoulder([...],[...]) oeffnet in Cadwork eine modale Dialog-Kette (Tiefe Stirnversatz -> Abstirnung -> Geometrie der Stirnflaeche W/S/K/F) und kehrt erst zurueck, wenn der User am Bildschirm alle Werte bestaetigt. Bis dahin haengt der Bridge-Worker-Thread, die ganze MCP-Bridge ist blockiert. Verifiziert in Session 010 (2x Freeze). uc.change_check_and_query_data_to_no_queries() unterdrueckt diese Dialoge NICHT.",
+      "workaround": "cut_shoulder NICHT ueber execute_cadwork_command aufrufen. Versaetze stattdessen mit cut_element_with_plane (Doppelschraege moeglich) selbst konstruieren, oder manuell in Cadwork. Falls Bridge haengt: Dialog bestaetigen (Default 30/0/W) oder Plugin neu starten.",
+      "affected_functions": [
+        "ec.cut_shoulder",
+        "ec.cut_heel_shoulder",
+        "ec.cut_double_shoulder",
+        "uc.change_check_and_query_data_to_no_queries"
+      ]
+    },
+    {
+      "id": "cut_plane_no_interior_window",
+      "severity": "medium",
+      "source": "s010",
+      "title": "cut_element_with_plane kann keinen innenliegenden Ausschnitt (Fenster) erzeugen",
+      "description": "cut_element_with_plane entfernt immer einen Halbraum (Anti-Normal-Seite bleibt). 4 Schnitte erzeugen KEIN Loch, sondern beschneiden nur auf ein kleineres Rechteck (Test: 9,6M -> 0,8M).",
+      "workaround": "Innenliegende Oeffnungen (Fenster) via solder_elements (C-/Rahmen-Form aus Teilplatten) ODER via subtract mit durchstechendem Element.",
+      "affected_functions": [
+        "ec.cut_element_with_plane"
+      ]
+    },
+    {
+      "id": "bridge_exec_scope_no_locals_in_functions",
+      "severity": "low",
+      "source": "s010",
+      "title": "Alte Bridge: Funktionen und Generator-Ausdruecke sahen keine Top-Level-Variablen (Open MCP CAD: behoben)",
+      "description": "Galt fuer die alte Bridge (getrennte globals/locals, Session 010). Der Kern von Open MCP CAD fuehrt Auftragscode seit 2026-08-06 in EINEM Namensraum aus (exec(compiled, ns)) - Hilfsfunktionen, Comprehensions und Generatoren sehen eigene Top-Level-Namen. Gemessen 2026-09-26: Auftraege mit eigenen def-Hilfen (cross, unit mit sqrt von oben) liefen nativ fehlerfrei (Raumkurvenversuch 05_stage_0..4).",
+      "workaround": "Mit Open MCP CAD: normal schreiben. Nur gegen die alte Bridge: flach schreiben, Werte als Parameter uebergeben.",
+      "affected_functions": [
+        "execute_cadwork_command"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "Kern omcad_bridge_core.py _execute (ein Namensraum); KURVEN_RAUM_20260926/05_stage_0.result.json"
+        }
+      }
+    },
+    {
+      "id": "cut_overmeasure_no_effect",
+      "severity": "medium",
+      "source": "s010",
+      "title": "cut_elements_with_overmeasure hat bei einfachen Durchdringungen keinen Effekt",
+      "description": "In 3 Testanordnungen (Balken durch Post, vertauscht, Platte ueber Balken) wurde nichts geschnitten - Volumen unveraendert. Die Signatur hat keinen Uebermass-Parameter; Wert kaeme aus 3D-Optionen.",
+      "workaround": "Fuer gezielte Schnitte cut_element_with_plane oder subtract verwenden.",
+      "affected_functions": [
+        "ec.cut_elements_with_overmeasure"
+      ],
+      "update_s011": "BESTAETIGT mit korrektem Namen. Korrekter Funktionsname ist cut_elements_with_overmeasure (OHNE Unterstrich vor 'measure'), Signatur (hard_list, soft_list). Auch bei sauberer Durchdringung (80x80 Pfosten durch 150x100 Riegel) 0 mm3 entfernt, waehrend subtract exakt 640000 mm3 schneidet. Funktion haengt am globalen Bearbeitungs-Uebermass (3D-Optionen)/Verbindungskontext -> ueber Bridge No-Op. Immer subtract/cut_element_with_plane nehmen."
+    },
+    {
+      "id": "bridge_response_desync_after_timeout",
+      "severity": "high",
+      "source": "s011",
+      "title": "Bridge liefert nach Timeout veraltete Antwort (Response-Desync)",
+      "description": "Nach einem Bridge-Timeout laeuft der alte Job im Cadwork-Hauptthread nach und schreibt seine Antwort verspaetet. Diese wird dann der NAECHSTEN Anfrage zugeordnet. Symptome: zurueckgegebene Element-IDs eines frueheren Aufrufs, fremde stdout-Reste (z.B. 'test'), Geometriewerte die nicht zum Aufruf passen (z.B. Z statt X). In Session 011 mehrfach aufgetreten.",
+      "workaround": "In jeden wichtigen Aufruf einen eindeutigen Marker ins result schreiben (z.B. result={'marker':778899,...}) und pruefen ob er zurueckkommt. Stimmt der Marker nicht -> Antwort verwerfen, Aufruf wiederholen. Nach Timeout zuerst Inventar via ec.get_all_identifiable_element_ids() pruefen bevor weitergebaut wird.",
+      "affected_functions": [
+        "execute_cadwork_command"
+      ]
+    },
+    {
+      "id": "cut_double_tenon_needs_catalog_no_dialog",
+      "severity": "medium",
+      "source": "s011",
+      "title": "cut_double_tenon wirkungslos ohne Katalog - friert aber NICHT ein; Zapfen via Endtyp GEHT",
+      "description": "cut_double_tenon laeuft mit expliziten Parametern OHNE modalen Dialog durch (anders als cut_shoulder, kein Freeze!), entfernt aber 0 mm3 - im leeren Testmodell ohne Verbindungskontext keine Wirkung. DAGEGEN: etc.set_endtype_id_end(balken, ID) erzeugt einen sauberen Zapfen, WENN ein Zapfen-Endtyp im Profil existiert. Standard-Katalog im Testprofil vorhanden: tenon 376683='Z_40', 376685='Z_40 A-10', 582108='Bauteilaufhaengungen'; ausserdem 21 Schwalbenschwanz-IDs (408063...). Zapfen ist ANGESETZT -> Volumen wird groesser (roh!=phys), kein Abtrag.",
+      "workaround": "Bevorzugt: Zapfen via endtype_controller.set_endtype_id_end(balken_id, 376683). Vorhandene IDs holen mit etc.get_existing_tenon_ids(). Fallback ohne Katalog: Zapfen geometrisch mit 4x subtract (je eine Wange einzeln) bauen. ACHTUNG: cut_*_lap (Blattungen) NICHT ungeprueft aufrufen - nutzen 'current 3D options' und koennten wie cut_shoulder Dialoge oeffnen.",
+      "affected_functions": [
+        "ec.cut_double_tenon",
+        "etc.set_endtype_id_end",
+        "etc.get_existing_tenon_ids"
+      ]
+    },
+    {
+      "id": "stretch_only_longitudinal_component",
+      "severity": "medium",
+      "source": "s011",
+      "title": "stretch nimmt nur den Laengsanteil; doppelschraege Facette wird beim Stretchen plattgebuegelt",
+      "description": "Es existieren GENAU zwei stretch-Funktionen (stretch_start_facet, stretch_end_facet), keine 'axis'-Varianten. Reiner Quervektor (0,Y,0) = KEIN Effekt. Gemischter Vektor (X,Y,0) wirkt nur mit seinem LAENGSANTEIL (Laenge waechst, Breite bleibt). Eine EINFACH schraege Endfacette bleibt beim Stretchen erhalten und wandert sauber mit. Eine DOPPELT schraege Facette (Normale mit X+Y+Z) wird beim Stretchen zu einer geraden Stirnflaeche plattgebuegelt (10 Ecken -> 8). Das 'beliebige Facette / bis-Facette strecken' aus der GUI fehlt in der API.",
+      "workaround": "Verbreitern/Hoehe aendern: gc.set_width_real / gc.set_height_real (symmetrisch um Mitte). Reine Laenge symmetrisch: gc.set_length_real. Einseitig nur in Laengsachse: stretch_start/end_facet. Doppelschraege am Ende NICHT per stretch nachfuehren - neu schneiden (cut_element_with_plane).",
+      "affected_functions": [
+        "ec.stretch_start_facet",
+        "ec.stretch_end_facet",
+        "gc.set_width_real",
+        "gc.set_height_real",
+        "gc.set_length_real"
+      ]
+    },
+    {
+      "id": "subtract_kerve_roh_equals_phys",
+      "severity": "low",
+      "source": "s011",
+      "title": "Bei subtract-Kerven ist get_volume == get_actual_physical_volume",
+      "description": "Verifikations-Falle: Eine via subtract erzeugte Kerve/ein Loch ist FEST in die Element-Geometrie eingerechnet. Deshalb liefern gc.get_volume (roh) und gc.get_actual_physical_volume (phys) DENSELBEN, bereits reduzierten Wert. roh!=phys entsteht nur bei Endtypen/Bearbeitungen die Cadwork separat fuehrt (z.B. angesetzter Zapfen -> phys groesser als roh).",
+      "workaround": "Subtract-Erfolg NICHT an roh-vs-phys messen, sondern an: (a) absolutem Volumen (kleiner als der unbearbeitete Klotz) und (b) Vertex-Anzahl (>8). Fuer Endtypen: roh-vs-phys-Differenz ist der richtige Indikator.",
+      "affected_functions": [
+        "gc.get_volume",
+        "gc.get_actual_physical_volume"
+      ],
+      "update_2026_09_25": "EINSCHRAENKUNG (gemessen 2026-09-25): eine Endtyp-NUT zieht gc.get_actual_physical_volume gar nicht ab, VBA-Bohrungen schon - am physischen Volumen ist eine Nut nicht nachweisbar. Siehe physisches_volumen_ohne_endtyp_nut."
+    },
+    {
+      "id": "solder_elements_returns_list",
+      "severity": "medium",
+      "source": "Session 2026-06-01",
+      "title": "ec.solder_elements gibt eine LISTE zurueck, nicht eine ID",
+      "description": "ec.solder_elements([a,b]) verschweisst die Teile und liefert eine Liste [neue_id], NICHT die ID selbst. Wer das Ergebnis direkt als ID nimmt (z.B. ac.set_name([soldered],...)) erzeugt [[id]] -> TypeError. Im 1. Build-Versuch crashte die Zeile NACH dem Solder; Solder + alle Creates davor waren aber schon ausgefuehrt (Teil-Ausfuehrung, vgl. bridge_timeout_duplicates).",
+      "workaround": "sid = sol[0] if isinstance(sol,(list,tuple)) else sol. Danach Attribute auf sid setzen. Bei Crash nach Solder: Ist-Stand scannen (Solder lief), nicht blind wiederholen.",
+      "affected_functions": [
+        "ec.solder_elements"
+      ]
+    },
+    {
+      "id": "ifc_type_via_element_type_object",
+      "severity": "medium",
+      "source": "Session 2026-06-01",
+      "title": "IFC2x3-Typ setzen via cadwork.ifc_2x3_element_type(); Getter braucht TYP-OBJEKT nicht ID",
+      "description": "IFC-Typ zuweisen: t=cadwork.ifc_2x3_element_type(); t.set_ifc_member()/set_ifc_plate()/set_ifc_covering()/set_ifc_slab()...; bc.set_ifc2x3_element_type([eid], t). Lesen NICHT mit eid direkt: bc.get_ifc2x3_element_type_display_string erwartet ein ifc_2x3_element_type-Objekt. Korrekt: t=bc.get_ifc2x3_element_type(eid); bc.get_ifc2x3_element_type_display_string(t). (cadwork.ifc_predefined_type() Konstruktor geht weiterhin nicht, s. ifc_predefined_type_constructor.)",
+      "workaround": "Setzen: t=cadwork.ifc_2x3_element_type(); t.set_ifc_member(); bc.set_ifc2x3_element_type([eid],t). Lesen: bc.get_ifc2x3_element_type_display_string(bc.get_ifc2x3_element_type(eid)). Verfuegbare Setter: set_ifc_member/plate/covering/beam/column/wall/slab/footing/building_element_part/proxy u.a.",
+      "affected_functions": [
+        "bc.set_ifc2x3_element_type",
+        "bc.get_ifc2x3_element_type",
+        "bc.get_ifc2x3_element_type_display_string",
+        "cadwork.ifc_2x3_element_type"
+      ]
+    },
+    {
+      "id": "move_element_timeout_relative_double",
+      "severity": "high",
+      "source": "learnings_REVIEW 2026-06-01 (A2)",
+      "title": "move_element bei Timeout oft trotzdem ausgefuehrt -> relativ nachschieben verdoppelt",
+      "description": "Ein ec.move_element das in einen Timeout laeuft, wird auf Cadwork-Seite oft TROTZDEM ausgefuehrt. Wiederholt man den relativen Move, verschiebt man doppelt (z.B. 2x45=90mm statt 45mm). Erweiterung von bridge_timeout_duplicates auf move_element.",
+      "workaround": "Nach Timeout NIE relativ nachschieben. Ist-Position auslesen und ABSOLUT zielen: delta=ziel-aktuell; ec.move_element([id], point_3d(delta,0,0)). Marker im result zum Erkennen alter Antworten.",
+      "affected_functions": [
+        "ec.move_element"
+      ]
+    },
+    {
+      "id": "vba_blech_in_endtyp_nut_ungueltig",
+      "severity": "high",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "VBA durch Stab mit Endtyp-Nut und Blech IN der Nut ist ungueltig (check_axis False, 0 Abschnitte)",
+      "description": "Eine NEU angelegte Verbindungsachse (ca.create_standard_connector, Standard 'BS M16 vers.') durch einen Holzstab MIT Endtyp-Nut (Schwalbenschwanznut 12 x 350) und ein Stahlblech, das in dieser Nut steckt: ca.check_axis liefert False, die VBA hat 0 Abschnitte. Gegenproben in gleicher Lage: nur das Blech -> gueltig (Abschnitte Luft/Stahl/Luft); nur der Holzstab -> gueltig. Grund: die VBA-Berechnung sieht die Endtyp-Nut nicht; fuer sie liegt das Blech im ROHEN Holzkoerper.",
+      "workaround": "Die Reihenfolge 'VBA zuerst, Stahl danach' haelt NICHT: check_axis, update_axis_cutting_ability und das Neuoeffnen der Datei rechnen neu (vba_update_cutting_ability_nach_stahl). Dauerhaft: Umgehung A ac.set_ignore_in_vba_calculation(bleche, True) (vba_blech_ignore_in_vba_calculation; Viewer zeigt das Blech ohne Loecher) oder Umgehung B: Blech per subtract als echte Nut ins Holz, VBA danach (blech_nut_per_subtract_dann_vba).",
+      "affected_functions": [
+        "connector_axis_controller.create_standard_connector",
+        "connector_axis_controller.check_axis",
+        "endtype_controller.set_endtype_id_start",
+        "endtype_controller.set_endtype_id_end",
+        "attribute_controller.set_ignore_in_vba_calculation"
+      ]
+    },
+    {
+      "id": "vba_update_cutting_ability_nach_stahl",
+      "severity": "high",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "VBA-Neuberechnung bei Stahl in der Endtyp-Nut (update_axis_cutting_ability, check_axis, Datei neu oeffnen): alle Abschnitte weg, undo hilft nicht",
+      "description": "Gueltige VBA durch einen Holzstab, in dessen Endtyp-Nut ein Stahlblech steckt. Jede Neuberechnung macht sie ungueltig (0 Abschnitte, auch die im Holz), weil sie die Nut nicht sieht (vba_blech_in_endtyp_nut_ungueltig): (1) ca.update_axis_cutting_ability(ids); (2) ca.check_axis(id) - prueft nicht nur, sondern rechnet neu: nach einer Pruefschleife waren alle 2288 VBA kaputt; (3) Speichern, Schliessen, Neuoeffnen - Cadwork rechnet beim Laden neu, alle 2288 danach ungueltig, obwohl sie beim Speichern gueltig waren. undo stellt das NICHT wieder her. Bis zur ersten Neuberechnung bohren gueltige VBA ein spaeter angelegtes Blech mit (gc.get_actual_physical_volume des Blechs um die Loecher kleiner), ohne eigenen Stahl-Abschnitt.",
+      "workaround": "An VBA mit Stahl in einer Endtyp-Nut weder check_axis noch update_axis_cutting_ability aufrufen; auch ohne sie sind die VBA nach dem Neuoeffnen kaputt. Dauerhaft: Umgehung A (vba_blech_ignore_in_vba_calculation) oder B (blech_nut_per_subtract_dann_vba). Reparatur kaputter VBA: ac.set_ignore_in_vba_calculation(bleche, True), update_axis_cutting_ability, Abschnitte neu setzen.",
+      "affected_functions": [
+        "connector_axis_controller.update_axis_cutting_ability",
+        "connector_axis_controller.check_axis",
+        "connector_axis_controller.set_section_diameter",
+        "connector_axis_controller.set_counterbore_for_start_side",
+        "connector_axis_controller.set_counterbore_for_end_side",
+        "attribute_controller.set_ignore_in_vba_calculation"
+      ]
+    },
+    {
+      "id": "physisches_volumen_ohne_endtyp_nut",
+      "severity": "medium",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "get_actual_physical_volume zieht VBA-Bohrungen ab, die Endtyp-Nut NICHT",
+      "description": "Holzstab mit Endtyp-Nut an beiden Enden und VBA: gc.get_actual_physical_volume enthaelt die Bohrungen, aber nicht die Nut. Gemessen: phys ist um genau 2 Nuten minus den Bohrungsanteil in der Nut groesser als das Volumen mit Nuten (der Bohrungsanteil in der Nut ist schon abgezogen).",
+      "workaround": "Volumenkontrolle bei Endtyp-Nuten: Nutvolumen selbst abziehen, den Bohrungsanteil in der Nut dabei nicht doppelt. Eine Nut ist am physischen Volumen NICHT nachweisbar - den Endtyp ueber etc.get_endtype_name_start/_end pruefen.",
+      "affected_functions": [
+        "gc.get_actual_physical_volume",
+        "endtype_controller.get_endtype_name_start",
+        "endtype_controller.get_endtype_name_end"
+      ]
+    },
+    {
+      "id": "kollision_ohne_endtyp_nut",
+      "severity": "medium",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "check_if_elements_are_in_collision meldet Blech in Endtyp-Nut als Kollision",
+      "description": "ec.check_if_elements_are_in_collision(blech, holzstab) meldet eine Kollision, auch wenn das Blech nur in der Endtyp-Nut steckt: die Pruefung kennt die Nut nicht und rechnet mit dem rohen Holzkoerper (wie die VBA-Berechnung, vba_blech_in_endtyp_nut_ungueltig).",
+      "workaround": "Traegt eines der Elemente einen Endtyp mit Ausnehmung, ist 'in Kollision' kein Fehlerbeweis. Sitz des Blechs rechnerisch gegen das Nutmass pruefen (Lage und Abmessung).",
+      "affected_functions": [
+        "ec.check_if_elements_are_in_collision"
+      ]
+    },
+    {
+      "id": "viewer_modus_nicht_ueber_api",
+      "severity": "medium",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (rund 3700 Elemente)",
+      "title": "Viewer-Modus ist nicht ueber die API schaltbar",
+      "description": "Kein API-Aufruf zum Ein- oder Ausschalten des Viewer-Modus. Nur ueber das Menue: Extra -> Viewer-Modus (Dialog mit Voreinstellung, u. a. Explodieren 1.5), Extra -> Viewer-Modus beenden. Die Berechnung dauert bei rund 3700 Elementen etwa 50 s. Im Viewer-Modus funktionieren vc.set_active und vc.zoom_active_elements. Bleche mit ac.set_ignore_in_vba_calculation(True) zeigt der Viewer-Modus OHNE VBA-Loecher.",
+      "workaround": "Von Hand schalten (Nutzer oder Computer Use): Extra -> Viewer-Modus bzw. Extra -> Viewer-Modus beenden; Berechnung abwarten (rund 50 s bei 3700 Elementen), danach Elemente mit vc.set_active(ids) + vc.zoom_active_elements() zeigen.",
+      "affected_functions": [
+        "visualization_controller.set_active",
+        "visualization_controller.zoom_active_elements"
+      ]
+    },
+    {
+      "id": "subtract_blech_mit_vba_blockiert",
+      "severity": "high",
+      "source": "Messung 2026-09-25, Cadwork 2026 ueber Open MCP CAD (Probedatei: Holzstaebe mit Endtyp-Nut, Stahlblech in der Nut, Standard-VBA)",
+      "title": "subtract mit einem Blech, an dem schon VBA stehen: Rueckfrage in der Befehlszeile, der API-Aufruf blockiert",
+      "description": "ec.subtract_elements_with_undo([blech], [holz], False) fragt, wenn am Blech schon VBA stehen, in der Cadwork-Befehlszeile 'Schnittigkeit fuer VBA kontrollieren? ([Y]/N)'. Der API-Aufruf (und damit der Bridge-Auftrag) wartet, bis jemand antwortet. Ohne VBA am Blech kommt keine Frage.",
+      "workaround": "Bleche per subtract schneiden, BEVOR VBA angelegt werden (working_examples blech_nut_per_subtract_dann_vba). Haengt ein Auftrag schon: die Frage beantwortet nur ein Mensch (oder Computer Use) in der Befehlszeile; den Auftrag nicht wiederholen, er laeuft noch.",
+      "affected_functions": [
+        "ec.subtract_elements_with_undo"
+      ]
+    },
+    {
+      "id": "cadwork_nicht_ueber_3d_exe",
+      "severity": "medium",
+      "source": "Probelauf 2026-09-25, Cadwork 2026",
+      "title": "Cadwork nie ueber 3d.exe starten oder nach vorne holen",
+      "description": "Cadwork ueber 3d.exe zu starten oder ein laufendes Cadwork damit nach vorne zu holen, fuehrt zu Fehlerdialogen.",
+      "workaround": "Nicht 3d.exe aufrufen: eine Datei ueber ihre Verknuepfung oeffnen (open_document bzw. .3d-Datei oeffnen, startet ci_start.exe), ein laufendes Cadwork ueber sein vorhandenes Fenster nach vorne holen.",
+      "affected_functions": [
+        "3d.exe"
+      ]
+    },
+    {
+      "id": "nurbs_kein_faserfeld_keine_sweep_historie",
+      "severity": "medium",
+      "source": "Messungen 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_NATIV_20260926, KURVEN_RAUM_20260926, KURVEN_FASER_20260926)",
+      "title": "NURBS-Geometrie bringt keine mitlaufende Faser, keine gekruemmte Elementachse und keine Sweep-Historie",
+      "description": "Gekruemmte Koerper aus Splines/Flaechen/Boolean sind echte BREP-Koerper, aber: die Elementachse bleibt EIN fester Vektor, die Holztextur folgt der Kurve nicht, get_length/width/height sind Huellmasse (Helix: 3740 mm statt 8567 mm Mittellinie), es gibt keine Sweep-/Bogenstab-Historie. Laufende API, lokales SDK 2026.307 und Texturdialog durchsucht: kein Faserpfad-, UV- oder ortsabhaengiger Achsen-Setter. get_texture_length_alignment ist ein zufaelliger Texturversatz, keine Kurvenausrichtung. create_rotation_element fehlt in der geladenen API 33.",
+      "workaround": "Achse nur als EIN Rahmen waehlen (rotate_length_axis_2_points, z. B. Sehne - lokale_achse_sehne_huellmass). Bogenlaenge und Querschnitt selbst rechnen/messen, nie aus get_length lesen. Faser und Fertigungssemantik gesondert klaeren; Textur-Aussehen ist kein Faserbeleg.",
+      "affected_functions": [
+        "gc.get_length",
+        "gc.get_xl",
+        "gc.rotate_length_axis_2_points",
+        "vc.set_texture_rotated",
+        "vc.get_texture_length_alignment",
+        "ec.create_rotation_element"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_FASER_20260926: 01_runtime, 03_texture_comparison, sdk_search.json; KURVEN_RAUM_20260926: 23_dimensions",
+          "wiedergeoeffnet": true
+        },
+        "geltungsbereich": "Untersuchte API/SDK/Dialoge dieser Version; keine Aussage ueber alle Cadwork-Module"
+      },
+      "stichworte": [
+        "faser",
+        "faserrichtung",
+        "textur",
+        "sweep",
+        "bogenstab",
+        "elementachse",
+        "nurbs",
+        "bogenlaenge",
+        "kurve"
+      ]
+    },
+    {
+      "id": "is_beam_kein_rohling_nachweis",
+      "severity": "medium",
+      "source": "Messungen 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_NATIV_20260926/45_native_type_details, KURVEN_PLATTEN_20260926)",
+      "title": "is_beam allein beweist weder Rechteck-Rohling noch Fertigungssemantik",
+      "description": "Ein Kreisbogen aus Zylinder-Boolean ist is_beam und is_circular_beam; der Modifizieren-Dialog zeigt 'Stab Rund' D1600, obwohl der echte Querschnitt 160 x 200 ist. Eine gekruemmte Platte meldet is_panel UND is_beam. Materialzuweisung belegt weder Faserverlauf noch Herstellbarkeit.",
+      "workaround": "Den genauen Typ lesen (ac.get_element_type(i).is_rectangular_beam() / is_circular_beam() / is_panel() / is_connector_axis()) und den echten Querschnitt per cast_ray messen. Fertigungs-/Rohlingsaussagen nicht aus Typ-Flags ableiten.",
+      "affected_functions": [
+        "ac.is_beam",
+        "ac.is_panel",
+        "ac.get_element_type"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "45_native_type_details.result.json, 04_cylinder_verify.result.json",
+          "wiedergeoeffnet": true
+        }
+      },
+      "stichworte": [
+        "is_beam",
+        "rohling",
+        "stabtyp",
+        "rundstab",
+        "elementtyp",
+        "fertigung",
+        "kurve"
+      ]
+    },
+    {
+      "id": "normalversatz_randkurven_keine_konstante_dicke",
+      "severity": "medium",
+      "source": "Messungen 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_PLATTEN_20260926)",
+      "title": "Flaechen aus normal versetzten Randkurven garantieren keine konstante Normaldicke",
+      "description": "Doppelt gekruemmte Platte (Sattel 2000 x 1200, Amplitude 300): vertikal 27 mm extrudiert ergibt 24.15-25.46 mm Normaldicke. Alle vier Randkurven um +/-13.5 mm entlang der Flaechennormalen versetzt, sechs native NURBS-Flaechen, convert_surfaces_to_volume: 209 Messungen 27.13-29.30 mm statt 27. Die Flaechenfuellung legt die Innenpunkte nicht als Normalversatz fest. Keine offset/thicken/shell/loft/sweep-Funktion in element_controller gefunden.",
+      "workaround": "Normaldicke immer per Strahl entlang der Flaechennormalen messen und die gemessene Spanne ausweisen. Konstante Dicke nur fuer den Zylinder (koaxiale Zylinder, zylinderplatte_konstanter_radialer_abstand) belegt. Kein Beweis, dass Cadwork es generell nicht kann - nur dieser Ansatz.",
+      "affected_functions": [
+        "ec.convert_lines_to_surfaces",
+        "ec.extrude_surface_to_panel_vector",
+        "ec.convert_surfaces_to_volume"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "07_saddle_panel, 08_saddle_verify, 15_shell_solid, 16_shell_thickness, normal_shell.sat",
+          "messwerte": {
+            "vertikal_extrudiert_mm": [
+              24.1495,
+              25.4558
+            ],
+            "normalversetzte_raender_mm": [
+              27.1301,
+              29.3041
+            ],
+            "messungen": 209
+          },
+          "wiedergeoeffnet": "Sattel ja; Normalversatz-Probe nein"
+        }
+      },
+      "stichworte": [
+        "normaldicke",
+        "sattel",
+        "doppelt gekruemmt",
+        "platte",
+        "offset",
+        "schale",
+        "dicke"
+      ]
+    },
+    {
+      "id": "step_leer_sat_alternative",
+      "severity": "medium",
+      "source": "Messung 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_NATIV_20260926)",
+      "title": "STEP-Import/-Export lieferte nichts und das STEP-Menue war deaktiviert - SAT funktioniert",
+      "description": "Ein 100-mm-Kontrollwuerfel (STEP, mm): beide erprobten STEP-Importfunktionen gaben keine IDs und leere Fehlertexte zurueck; der STEP-Export schrieb keine Datei; der STEP-Menueeintrag war deaktiviert. Die Ursache ist NICHT bestimmt (eine fehlende Lizenz ist nicht bewiesen). SAT-Export und stiller SAT-Import gingen; ein reimportierter Bogen hatte nach Wiederoeffnen Radien 1400/1600 auf 1e-6 mm.",
+      "workaround": "Fuer Geometrieaustausch SAT nehmen (fc.export_sat_file / SAT-Import). Nach jedem Import die Rueckgabe-IDs pruefen; leere Liste = nichts importiert. Keine Lizenzursache behaupten.",
+      "affected_functions": [
+        "fc.export_step_file",
+        "fc.import_step_file",
+        "fc.export_sat_file"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "ERGEBNIS.md Abschnitt STEP, step_menu_disabled.jpg, 49_sat_import_sections",
+          "wiedergeoeffnet": true
+        },
+        "geltungsbereich": "Diese Installation/Lizenz; auf anderen Rechnern neu pruefen"
+      },
+      "stichworte": [
+        "step",
+        "stp",
+        "sat",
+        "import",
+        "export",
+        "austausch"
+      ]
+    },
+    {
+      "id": "endtyp_materialisierung_nicht_in_rohkoerper_gettern",
+      "severity": "medium",
+      "source": "Messung 2026-09-27, Cadwork 2026 ueber Open MCP CAD (Belegordner FAEHIGKEITEN_20260927/ENDTYP_RAUM)",
+      "title": "Rohkoerper-Getter zeigen die Endtyp-Form nicht verlaesslich - Form im Viewer pruefen",
+      "description": "Nach Zuweisung eines Schwalbenschwanzes zeigten export_sat_file, export_sat_file_cut_drillings, get_element_facet_count und cast_ray_and_get_element_intersections im Modell weiter den ROHKOERPER. get_actual_physical_volume aenderte sich (+279662 Kopf / -279662 Tasche), stimmte fuer die Tasche aber NICHT mit der materialisierten Viewer-Form ueberein (59548360.94 statt 59720070.42 mm3). Bei Nut-Endtypen zieht das Volumen die Nut gar nicht ab (physisches_volumen_ohne_endtyp_nut).",
+      "workaround": "Endtyp-ID mit etc.get_endtype_id_start/_end lesen; die FORM im Viewer-Modus (von Hand: Endtypen + Gegenstuecke, ohne Explosion) pruefen: Viewer-IDs ueber eindeutige Namen binden, dort SAT/Strahlen. Viewer-IDs sind voruebergehend - nach Verlassen die Modell-IDs neu lesen. Weder Volumen noch Roh-SAT als Passungsnachweis ausgeben.",
+      "affected_functions": [
+        "fc.export_sat_file",
+        "fc.export_sat_file_cut_drillings",
+        "gc.get_element_facet_count",
+        "ec.cast_ray_and_get_element_intersections",
+        "gc.get_actual_physical_volume",
+        "endtype_controller.set_endtype_id_start"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-27",
+        "alter_versuch": {
+          "belege": "04_straight_apply, 04b_straight_geometry, 07_spatial_apply, 09_viewer_inventory, 10_viewer_measure, 11c_viewer_reopened",
+          "wiedergeoeffnet": true
+        }
+      },
+      "stichworte": [
+        "endtyp",
+        "viewer",
+        "materialisierung",
+        "rohkoerper",
+        "volumen",
+        "schwalbenschwanz",
+        "sat"
+      ]
+    },
+    {
+      "id": "vba_kontakt_id_und_volumen_getter_unzuverlaessig",
+      "severity": "medium",
+      "source": "Messungen 2026-09-26/27, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_NATIV_20260926, VGS_RAUM, KATALOG_STANDARD, Schlitzblech-Versuch)",
+      "title": "VBA: Abschnitts-Kontakt-ID kann Material und Geometrie widersprechen; Volumen-/Facetten-Getter 0 trotz Koerper",
+      "description": "get_section_contact_element meldete im STAHL-Abschnitt die Holz-ID (Material und Strahlen sagen Stahl); die Inkonsistenz blieb nach Wiederoeffnen gleich. Katalogachsen (VGS, TBS, M16) melden gc.get_actual_physical_volume 0 und get_element_facet_count 0, ihr SAT-Export enthaelt aber echte Koerper (VGS: 1 Body, 23 Faces, Kern 6.5, Kopf 16; M16: 4 Koerper).",
+      "workaround": "Abschnitte ueber get_section_material_name + get_section_length bewerten und mit unabhaengigen Strahlen durch die beabsichtigten Hoelzer pruefen (Stahl: Material der Bleche, vgl. blech_nut_per_subtract_dann_vba). Physische Achsgeometrie nicht wegen Volumen 0 ausschliessen - SAT/Viewer pruefen. Eine VBA in Luft hat auch GUID und einen Abschnitt: Kontakt nie an GUID/Abschnittszahl allein festmachen.",
+      "affected_functions": [
+        "connector_axis_controller.get_section_contact_element",
+        "connector_axis_controller.get_section_material_name",
+        "gc.get_actual_physical_volume",
+        "gc.get_element_facet_count"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-27",
+        "alter_versuch": {
+          "belege": "KURVEN_NATIV_20260926 wissen.json vba.grenzen; VGS_RAUM 08_axis_negative, 14_viewer_inventory, vgs_sat_metrics.json; KATALOG_STANDARD verification.json; Schlitzblech V2 06_postcleanup_metadata",
+          "wiedergeoeffnet": true
+        }
+      },
+      "stichworte": [
+        "vba",
+        "kontakt",
+        "kontakt-id",
+        "abschnitt",
+        "volumen",
+        "facetten",
+        "verbindungsachse"
+      ]
+    },
+    {
+      "id": "temporaere_cutter_veraendern_vba_auswertung",
+      "severity": "medium",
+      "source": "Messung 2026-09-27, Cadwork 2026 ueber Open MCP CAD (Schlitzblech-Korrektur mit Hilfsplatte als Schnittwerkzeug)",
+      "title": "Temporaere Schnittkoerper veraendern VBA-Abschnitte und -GUIDs, solange sie existieren",
+      "description": "Waehrend eine ueberlappende Hilfsplatte als Schnittwerkzeug im Modell lag, meldeten zuerst zwei, dann alle vier vorhandenen Stabduebel leere GUIDs und leere Abschnittslisten, das Stahl-Nettovolumen stieg. Umwandeln des Werkzeugs in ein Hilfselement stellte das NICHT wieder her. Erst nach Loeschen genau dieses Werkzeugs (per ID) meldete Cadwork wieder alle GUIDs, Abschnitte und das alte Stahlvolumen - ohne Neubestueckung.",
+      "workaround": "Werkzeug-IDs beim Anlegen merken (store_as), nach dem Schnitt exakt diese IDs loeschen (aendert + delete_elements), dann ALLE VBA-Daten und Volumina neu lesen und gegen den Stand vorher vergleichen. Zwischenwerte mit Werkzeug im Modell nicht als Ergebnis werten und nicht 'reparieren'.",
+      "affected_functions": [
+        "ec.subtract_elements_with_undo",
+        "ec.delete_elements",
+        "connector_axis_controller.get_bolt_item_guid",
+        "connector_axis_controller.get_section_count"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-27",
+        "alter_versuch": {
+          "belege": "STOSS/DURCHGEHENDER_SCHLITZ/V2_SAFE: 05_delete_exact_cutter, 06_postcleanup_metadata, result_summary.json",
+          "wiedergeoeffnet": false
+        },
+        "geltungsbereich": "Ein Lauf; ob die Zwischenanzeige intern eine Katalogaenderung war, ist nicht bestimmt"
+      },
+      "stichworte": [
+        "cutter",
+        "schnittwerkzeug",
+        "hilfskoerper",
+        "vba",
+        "guid",
+        "abschnitte",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "schnitte_vor_verbindern_kein_resend",
+      "severity": "high",
+      "source": "Messungen und Filmablaeufe 2026-09-25 bis 2026-09-27, Cadwork 2026 ueber Open MCP CAD",
+      "title": "Erst alle Schnitte, dann Verbinder - und laufende Schnitte nach Timeout nie neu senden",
+      "description": "Schlitze/Taschen fuer Bleche vor dem Anlegen der VBA schneiden: dann rechnet die VBA Holz/Stahl/Holz (75/10/75 gemessen); eine nur semantische Nut kann der VBA-Kontaktrechnung fehlen, und ein subtract mit einem Blech, an dem schon VBA stehen, blockiert (subtract_blech_mit_vba_blockiert). Modale Schnittbefehle (cut_shoulder u. a.) koennen auf eine Eingabe warten; nach einem Timeout laeuft der Auftrag moeglicherweise weiter. Ein frueherer Umbau einer bereits bestueckten M16-VBA mit Leeren ihrer Schnittstellenkomponenten endete mit Prozessabbruch - welcher Aufruf die Ursache war, ist NICHT eingegrenzt.",
+      "workaround": "Reihenfolge: Holz -> alle Schnitte (subtract) -> Hilfskoerper exakt loeschen -> Verbinder. Bei error='antwort_fehlt' nichts neu senden: get_connection_status, dann Bestand/Journal lesen. Bestueckte VBA nicht umbauen oder leeren, sondern leer neu anlegen und bestuecken (vba_katalog_blank_bestuecken_zuruecklesen).",
+      "affected_functions": [
+        "ec.subtract_elements_with_undo",
+        "ec.cut_shoulder",
+        "connector_axis_controller.create_blank_connector",
+        "connector_axis_controller.set_bolt_item"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-27",
+        "alter_versuch": {
+          "belege": "KURVEN_NATIV_20260926: 32_curved_slot, 40_curved_peg (Abbruch), 41_blank_curved_peg; VIDEO/FILM_REPLAY_PRUEFUNG (letzter Schnitt vor erstem Verbinder)",
+          "wiedergeoeffnet": true
+        },
+        "geltungsbereich": "Reihenfolge nativ belegt; der Prozessabbruch ist ein Einzelfall ohne isolierte Ursache"
+      },
+      "stichworte": [
+        "reihenfolge",
+        "schnitt",
+        "verbinder",
+        "vba",
+        "timeout",
+        "modal",
+        "absturz",
+        "resend"
+      ]
+    },
+    {
+      "id": "subtract_leere_rueckgabe_trotzdem_geschnitten",
+      "severity": "low",
+      "source": "Messungen 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_NATIV_20260926)",
+      "title": "subtract_elements_with_undo kann [] zurueckgeben und trotzdem geschnitten haben",
+      "description": "Ein Stahlblech schnitt einen echten Schlitz in einen gekruemmten Traeger (Volumen -674666 mm3, Strahlen zeigen die Schlitzflanken), die Rueckgabe war []. Auch beim Kreisbogen war die Rueckgabe leer oder das Ziel selbst.",
+      "workaround": "Erfolg am Volumen des Ziels (gc.get_actual_physical_volume vorher/nachher) oder an Strahlen pruefen, nicht an der Rueckgabe. Nicht nochmal schneiden, nur weil [] kam.",
+      "affected_functions": [
+        "ec.subtract_elements_with_undo"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "vba_runs/20260926_224827_318595/32_curved_slot.result.json, 12_bogen_fortsetzen",
+          "wiedergeoeffnet": true
+        }
+      },
+      "stichworte": [
+        "subtract",
+        "boolean",
+        "rueckgabe",
+        "schnitt"
+      ]
+    },
+    {
+      "id": "export_3d_file_rueckgabe_falsch",
+      "severity": "low",
+      "source": "Messungen 2026-09-26, Cadwork 2026 ueber Open MCP CAD (Belegordner KURVEN_PLATTEN_20260926, KURVEN_FASER_20260926)",
+      "title": "fc.export_3d_file meldet Misserfolg, obwohl die Datei geschrieben wurde",
+      "description": "Zweimal gemessen: die .3d-Datei entstand (rund 2 MB) und liess sich in einem neuen Cadwork-Prozess oeffnen, die Rueckgabe war aber nicht wahr, Fehlertexte leer.",
+      "workaround": "Nicht an der Rueckgabe entscheiden und NICHT wiederholen: in einem eigenen lesenden Auftrag Datei, Bestand und Werte pruefen.",
+      "affected_functions": [
+        "fc.export_3d_file"
+      ],
+      "nachweis": {
+        "klasse": "nativ_gemessen",
+        "cadwork": "Cadwork 2026 (Build 317), API 33, lokales SDK 2026.307",
+        "stand": "2026-09-26",
+        "alter_versuch": {
+          "belege": "KURVEN_PLATTEN_20260926 09/10_after_export_check, KURVEN_FASER_20260926 04/05_export",
+          "wiedergeoeffnet": true
+        }
+      },
+      "stichworte": [
+        "export",
+        "3d-datei",
+        "speichern",
+        "rueckgabe"
+      ]
+    }
+  ]
+}

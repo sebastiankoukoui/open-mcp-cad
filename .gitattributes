@@ -1,0 +1,15 @@
+# Zeilenenden festnageln.
+#
+# Der Generator prueft die Kern-Kopien ueber einen SHA-256 ueber die Bytes.
+# Wandelt Git die Zeilenenden beim Auschecken um, ist dieser Nachweis auf
+# einem anderen System ein anderer — und ein Unterschied, den niemand
+# gemacht hat, sieht aus wie ein Fehler.
+* text=auto eol=lf
+
+# Binaerdateien nie anfassen.
+*.png binary
+*.jpg binary
+*.ico binary
+
+# SVG ist Text, soll aber nicht umgebrochen werden.
+*.svg text eol=lf
