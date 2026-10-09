@@ -1075,20 +1075,50 @@ CODEX_AUS = ("apps", "computer_use", "browser_use", "in_app_browser",
              "plugins", "shell_tool", "image_generation")
 
 
-def codex_pfad():
-    """`codex.cmd` der npm-Installation — die Store-App taugt nicht.
+def codex_kandidaten():
+    """Wo die Codex-CLI liegen kann, in der Reihenfolge, in der gesucht wird.
 
-    Deren codex.exe liegt unter WindowsApps und laesst sich von aussen
-    nicht starten ("Zugriff verweigert", gemessen 2026-09-24).
+    Seit 2026-10-09 auch der Installer, den OpenAI fuer Windows nennt
+    (`irm https://chatgpt.com/codex/install.ps1 | iex`, ohne Node, ohne
+    Adminrechte, learn.chatgpt.com/docs/codex/cli): sein Skript legt
+    `codex.exe` nach `%LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin`
+    (`CODEX_INSTALL_DIR` aendert das). Vorher fand der Chat nur `codex.cmd`
+    von npm. Reihenfolge wie bei Claude Code (`cli_kandidaten` im Chat):
+    feste Orte vor dem PATH, der eigene Installer vor npm. Die ChatGPT-App
+    aus dem Store taugt nicht: ihr codex.exe liegt unter WindowsApps und
+    laesst sich von aussen nicht starten ("Zugriff verweigert", gemessen
+    2026-09-24) - ein Treffer dort zaehlt nie. DIESELBE Reihenfolge hat
+    `Cli-Pfad codex` in verteilung/install.ps1 (test_installer I28).
     """
-    kandidat = os.path.join(os.environ.get("APPDATA", ""), "npm", "codex.cmd")
-    if os.path.isfile(kandidat):
-        return kandidat
-    gefunden = shutil.which("codex.cmd")
-    if gefunden:
-        return gefunden
-    raise AnbieterFehler("Codex-CLI ist nicht installiert (npm i -g "
-                         "@openai/codex). Die Codex-App allein genuegt nicht.")
+    lokal = os.environ.get("LOCALAPPDATA", "")
+    eigen = os.environ.get("CODEX_INSTALL_DIR", "")
+    aus = []
+    if eigen:
+        aus.append(("datei", os.path.join(eigen, "codex.exe")))
+    if lokal:
+        aus.append(("datei", os.path.join(lokal, "Programs", "OpenAI",
+                                          "Codex", "bin", "codex.exe")))
+    aus += [("datei", os.path.join(os.environ.get("APPDATA", ""), "npm",
+                                   "codex.cmd")),
+            ("path", "codex.exe"), ("path", "codex.cmd")]
+    return aus
+
+
+def codex_pfad():
+    """Der volle Pfad auf die Codex-CLI (`codex.exe` des Installers von
+    OpenAI oder `codex.cmd` von npm, s. `codex_kandidaten`)."""
+    for art, wert in codex_kandidaten():
+        if art == "datei":
+            gefunden = wert if os.path.isabs(wert) and os.path.isfile(wert) \
+                else None
+        else:
+            gefunden = shutil.which(wert)
+        if gefunden and "\\windowsapps\\" not in gefunden.lower():
+            return gefunden
+    raise AnbieterFehler("Codex-CLI ist nicht installiert (in PowerShell: "
+                         "irm https://chatgpt.com/codex/install.ps1 | iex, "
+                         "oder npm i -g @openai/codex). Die ChatGPT-App "
+                         "allein genuegt nicht.")
 
 
 def codex_fremde_server():

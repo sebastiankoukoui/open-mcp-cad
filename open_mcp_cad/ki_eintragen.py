@@ -122,13 +122,17 @@ def finden(env=None):
     config = os.path.join(heim, "config.toml")
     app = []
     if env.get("LOCALAPPDATA"):
+        # Die ChatGPT-Desktop-App mit Codex (frueher "Codex-App") behielt
+        # beim Umbenennen ihr Store-Paket: OpenAI.Codex_2p2nqsd0c76g0, im
+        # Startmenue "ChatGPT" (gemessen 2026-10-09 mit Get-AppxPackage /
+        # Get-StartApps, Version 26.1002.7124.0).
         app = glob.glob(os.path.join(env["LOCALAPPDATA"], "Packages",
                                      "OpenAI.Codex_*"))
     grund = ("config.toml da" if os.path.isfile(config) else
              "Ordner .codex da" if os.path.isdir(heim) else
              "codex auf dem PATH" if (_which("codex.cmd", env)
                                       or _which("codex.exe", env)) else
-             "Codex-App installiert" if app else None)
+             "ChatGPT-App (Codex) installiert" if app else None)
     if grund:
         aus.append({"programm": "codex", "name": PROGRAMME["codex"],
                     "ort": config, "grund": grund})

@@ -20,6 +20,9 @@ ist):
         Open MCP CAD/         der Plugin-Ordner fuer Cadwork
         server/               das Paket open_mcp_cad + pyproject
         install.ps1           der eigentliche Installer
+        install_fenster.ps1   das Einrichtungsfenster (seit 2026-10-09), mit
+        install_fenster.xaml  seinen Seiten und Texten und
+        logo.png              dem Logo; es startet install.ps1
         ANLEITUNG*.md         die ausfuehrliche Anleitung, vier Sprachen
         FUER_KI_ASSISTENTEN.md  der Abschnitt "Fuer KI-Assistenten" aus
                               den vier Anleitungen (erzeugt, KI_HINWEIS)
@@ -74,6 +77,10 @@ import deployment_pruefen as DP                             # noqa: E402
 
 PLUGIN = "Open MCP CAD"
 VERTEILUNG = os.path.join(REPO, "verteilung")
+#: Das Einrichtungsfenster (seit 2026-10-09): der Doppelklick ohne Schalter
+#: startet es, es startet dann install.ps1.
+FENSTER = "install_fenster.ps1"
+FENSTER_XAML = "install_fenster.xaml"
 #: Der Doppelklick oben im Paket; er startet UNTERORDNER\install.ps1
 #: (`bauen` prueft, dass die Datei genau diesen Pfad nennt).
 INSTALLIEREN = "1_INSTALLIEREN.cmd"
@@ -225,6 +232,11 @@ def paket_dateien():
                             os.path.join(u, name)))
     dateien += [
         (os.path.join(VERTEILUNG, "install.ps1"), os.path.join(u, "install.ps1")),
+        # Das Einrichtungsfenster (Doppelklick ohne Schalter, seit
+        # 2026-10-09): Skript, Seiten mit Texten, Logo.
+        (os.path.join(VERTEILUNG, FENSTER), os.path.join(u, FENSTER)),
+        (os.path.join(VERTEILUNG, FENSTER_XAML), os.path.join(u, FENSTER_XAML)),
+        (os.path.join(REPO, "assets", "logo.png"), os.path.join(u, "logo.png")),
         (os.path.join(REPO, "LICENSE"), os.path.join(u, "LICENSE")),
         # Lizenzen fremder Teile (seit 2026-09-28: Lucide-Symbole im Plugin;
         # der Text steht zusaetzlich in omcad_a_symbole.py selbst).
@@ -333,9 +345,10 @@ def installieren_pruefen(pfad=None):
     pfad = pfad or os.path.join(VERTEILUNG, INSTALLIEREN)
     with io.open(pfad, encoding="ascii") as fh:
         text = fh.read()
-    soll = '"%%~dp0%s\\install.ps1"' % UNTERORDNER
-    if soll not in text:
-        return "%s startet nicht %s" % (INSTALLIEREN, soll)
+    for ziel in ("install.ps1", FENSTER):
+        soll = '"%%~dp0%s\\%s"' % (UNTERORDNER, ziel)
+        if soll not in text:
+            return "%s startet nicht %s" % (INSTALLIEREN, soll)
     return None
 
 

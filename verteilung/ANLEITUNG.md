@@ -38,7 +38,7 @@ Deine Aufgabe ist nur:
    Konsolenfenster). Vorher eine Sicherungskopie der Datei anlegen, nur den
    Eintrag `open-mcp-cad` hinzufügen, alle anderen Einträge unverändert
    lassen.
-   - **Codex** (CLI und Codex-App): `%USERPROFILE%\.codex\config.toml`
+   - **Codex** (CLI und Desktop-App mit Codex): `%USERPROFILE%\.codex\config.toml`
      (bzw. `%CODEX_HOME%\config.toml`)
      ```toml
      [mcp_servers.open-mcp-cad]
@@ -65,8 +65,10 @@ Deine Aufgabe ist nur:
    kleine Leiste oben rechts **Bereit** zeigt. Danach stehen die Werkzeuge von Open MCP CAD
    (etwa `get_document_info`) im KI-Programm bereit.
 
-ChatGPT (die normale Chat-App) kann keine lokalen MCP-Server benutzen. Mit
-demselben ChatGPT-Konto geht es in der Codex-App.
+ChatGPT im Browser oder am Handy kann keine lokalen MCP-Server benutzen.
+Am PC geht es in der ChatGPT-Desktop-App mit Codex (früher Codex-App);
+laut OpenAI nutzt sie dasselbe Heim `%USERPROFILE%\.codex` wie die
+Codex-CLI.
 <!-- ki-assistenten:ende -->
 
 ## Voraussetzungen
@@ -91,7 +93,19 @@ demselben ChatGPT-Konto geht es in der Codex-App.
    schliessen**. Oben im entpackten Ordner liegen nur
    `1_INSTALLIEREN.cmd`, die Anleitung als PDF und der Ordner
    `Programmdateien` (darin alles andere, auch diese Anleitung).
-2. `1_INSTALLIEREN.cmd` doppelklicken. Das Skript
+2. `1_INSTALLIEREN.cmd` doppelklicken. Es öffnet sich das
+   Einrichtungsfenster (seit 2026-10-09, statt des schwarzen Fensters).
+   Es fragt zuerst alles, was es wissen muss: welche KI-Apps (gefundene
+   sind angehakt; ist keine da, führen zwei Knöpfe zu den offiziellen
+   Seiten von Claude Desktop und der ChatGPT-App), wo du mit der KI arbeitest (KI-App, Chat in Cadwork oder beides) und welche KI der Chat nimmt (Claude Code bzw. Codex: installiert mit dem offiziellen Befehl des Herstellers, ohne Node.js; danach meldest du dich einmal im Browser an), bei mehreren
+   Cadwork-Profilen welches, bei einer anderen Cadwork-Version ob
+   trotzdem, bei fehlendem Python ob es mitinstallieren darf. Nach
+   **Installieren** führt es `Programmdateien\install.ps1` mit diesen
+   Antworten aus und zeigt jeden Schritt; das Protokoll steht in
+   `C:\Users\Public\OpenMcpCad_installer.log`. Mit einem Schalter (etwa
+   `-Konsole` oder `-Profil "…"`) läuft dasselbe im Textfenster und fragt
+   dort; lässt sich das Einrichtungsfenster nicht öffnen, ebenfalls. Das
+   Skript
    1. wählt das Cadwork-Profil
       (`C:\Users\Public\Documents\cadwork\userprofil_<JAHR>\3d\API.x64\`):
       vorgeschlagen wird `userprofil_2026`, sonst das neueste Profil, zu
@@ -113,9 +127,10 @@ demselben ChatGPT-Konto geht es in der Codex-App.
       keines passt,
    5. setzt die Benutzervariable `OPEN_MCP_CAD_PYTHON` (für den Chat im
       Plugin),
-   6. sucht Codex (auch die Codex-App), Claude Code und Claude Desktop
-      und fragt je gefundenem Programm «Open MCP CAD in … eintragen?
-      [J/n]». Mit Enter trägt es Open MCP CAD dort ein: vorher legt es
+   6. sucht Codex (auch die ChatGPT-Desktop-App mit Codex), Claude Code und Claude Desktop
+      und trägt Open MCP CAD in jedes ein, das im Fenster angehakt ist
+      (im Textfenster fragt es je Programm «Open MCP CAD in …
+      eintragen? [J/n]», Enter = ja): vorher legt es
       neben der Datei eine Sicherungskopie
       `<Datei>.vor-open-mcp-cad-<Datum-Zeit>.bak` an, andere Einträge
       bleiben, wie sie sind, ein vorhandener eigener Eintrag wird nie
@@ -236,7 +251,7 @@ auf: einen Hinweis antippen zeigt seine Bauteile im Modell; im Chat
 mit deiner Nachricht).
 
 **Briefkasten:** für die Arbeit mit einem KI-Programm ausserhalb des
-Plugins (Codex-App, Claude Desktop, Claude Code). Oben steht, was gerade
+Plugins (ChatGPT-App, Claude Desktop, Claude Code). Oben steht, was gerade
 läuft, darunter „Letzte Aufträge“ (aufklappbar, die Aufträge stehen nur
 hier) und „Notizen für die KI“: eine Zeile schreiben, „Ablegen“; die Notiz
 wartet, bis die KI sie abholt.
@@ -272,7 +287,7 @@ bzw. Briefkasten): vier Karten, Chat, Verbindung, Zeichenmodus und
   `%USERPROFILE%\.local\bin`), oder mit Node.js
   `npm i -g @anthropic-ai/claude-code`. Der Chat findet beide. Er braucht
   einen Arbeitsordner (siehe unten).
-- **Codex (ChatGPT-Abo)**: braucht die Codex-CLI `npm i -g @openai/codex`.
+- **Codex (ChatGPT-Abo)**: braucht die Codex-CLI `irm https://chatgpt.com/codex/install.ps1 | iex` oder `npm i -g @openai/codex`.
   Arbeitet hier nur mit den Cadwork-Werkzeugen.
 - **OpenAI, Anthropic oder OpenRouter (Schlüssel, ohne Abo)**: ein einfacher Chat
   nur mit den Cadwork-Werkzeugen, ohne Zugriff auf deine Dateien. Jede

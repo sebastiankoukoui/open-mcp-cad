@@ -54,7 +54,7 @@ Il tuo compito è solo questo:
    finestra di console). Prima fare una copia di sicurezza del file,
    aggiungere solo la voce `open-mcp-cad` e lasciare invariate tutte le
    altre voci.
-   - **Codex** (CLI e app Codex): `%USERPROFILE%\.codex\config.toml`
+   - **Codex** (CLI e app desktop con Codex): `%USERPROFILE%\.codex\config.toml`
      (oppure `%CODEX_HOME%\config.toml`)
      ```toml
      [mcp_servers.open-mcp-cad]
@@ -82,8 +82,10 @@ Il tuo compito è solo questo:
    CAD (per esempio `get_document_info`) sono disponibili nel programma di
    IA.
 
-ChatGPT (la normale app di chat) non può usare server MCP locali. Con lo
-stesso account ChatGPT funziona nell'app Codex.
+ChatGPT nel browser o sul telefono non può usare server MCP locali. Sul
+PC funziona nell'app desktop ChatGPT con Codex (prima app Codex);
+secondo OpenAI usa la stessa cartella `%USERPROFILE%\.codex` della CLI
+Codex.
 <!-- ki-assistenten:ende -->
 
 ## Perché esiste
@@ -261,10 +263,12 @@ installa Python 3.13 tramite winget dopo averlo chiesto, oppure, senza
 winget, direttamente da python.org con verifica della firma).
 
 **Come utente:** costruire il pacchetto (oppure prendere lo ZIP dalle
-release), estrarlo, fare doppio clic su `1_INSTALLIEREN.cmd`. Copia il plugin nel
+release), estrarlo, fare doppio clic su `1_INSTALLIEREN.cmd`. Apre una finestra di
+configurazione (dal 2026-10-09; con `-Konsole` o un'altra opzione la finestra di
+testo), chiede delle app di IA e poi copia il plugin nel
 profilo di Cadwork 2026 (se ci sono più profili chiede quale, e non
 copia nel profilo di un'altra versione di Cadwork), installa il server in un proprio Python e
-mostra la voce per il programma di IA. Dettagli:
+lo inserisce nei programmi di IA scelti. Dettagli:
 [`verteilung/ANLEITUNG.it.md`](verteilung/ANLEITUNG.it.md).
 
 ```bash
@@ -348,7 +352,7 @@ il bootstrap dei file, tutti i test. Il pannello e i messaggi dell'installazione
 per ora in tedesco.
 
 **Una sola finestra per tutto:** Claude Code (abbonamento), Codex
-(abbonamento ChatGPT, richiede la CLI Codex `npm i -g @openai/codex`) o
+(abbonamento ChatGPT, richiede la CLI Codex `irm https://chatgpt.com/codex/install.ps1 | iex` o `npm i -g @openai/codex`) o
 qualsiasi interfaccia compatibile con OpenAI: OpenAI, Anthropic, OpenRouter
 con una chiave API (salvata nella Gestione credenziali di Windows, il
 pannello mostra solo gli ultimi quattro caratteri), Ollama e LM Studio in

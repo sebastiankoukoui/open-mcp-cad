@@ -7,6 +7,16 @@ Open MCP CAD - Installation (Plugin + MCP-Server).
     1_INSTALLIEREN.cmd -PythonInstallieren       fehlendes Python ohne Rueckfrage holen
     1_INSTALLIEREN.cmd -TrotzdemKopieren         auch in ein Profil, das nicht
                                                  zu Cadwork 2026 gehoert (startet dort nicht)
+    1_INSTALLIEREN.cmd -Konsole                  dieses Textfenster statt des
+                                                 Einrichtungsfensters
+
+Seit 2026-10-09 oeffnet der Doppelklick OHNE Schalter das Einrichtungsfenster
+(install_fenster.ps1, Rueckmeldung: das schwarze Fenster schreckte ab). Das
+Fenster stellt seine Fragen vorher und startet DIESE Datei dann mit den
+Antworten als Schalter (-Profil, -TrotzdemKopieren, -PythonInstallieren,
+-KiNur, -OhnePause) - es gibt nur diese eine Installation. Jeder Schalter
+(auch -Konsole) fuehrt wie bisher in dieses Textfenster; scheitert das
+Einrichtungsfenster, ebenfalls.
 
 Diese Datei liegt im Paket unter Programmdateien\ (seit 2026-09-29: oben
 liegen nur 1_INSTALLIEREN.cmd, die Anleitung als PDF und dieser Ordner).
@@ -68,11 +78,30 @@ param(
     [switch]$OhneKiEintrag,
     [string]$CadworkWurzel = "C:\Users\Public\Documents\cadwork",
     [string]$CadworkProgramm = "C:\Program Files\cadwork.dir",
+    # Fuer das Einrichtungsfenster (install_fenster.ps1): nur diese
+    # Programme eintragen, ohne Frage (Kommaliste aus ki_eintragen, etwa
+    # "codex,claude_desktop"); -File reicht nur Text weiter, keine Liste.
+    [string]$KiNur = "",
+    # ... den Stand am Ende als JSON in diese Datei, ...
+    [string]$ErgebnisDatei = "",
+    # ... und die Ausgabe in UTF-8 (Umlaute in Pfaden; sonst Codepage).
+    [switch]$Utf8Ausgabe,
+    # Nur zum Erzwingen des Textfensters (1_INSTALLIEREN.cmd -Konsole).
+    [switch]$Konsole,
+    # Die KI fuer den Chat in Cadwork mitinstallieren (seit 2026-10-09):
+    # "claude" (Claude Code) oder "codex" (Codex-CLI), je ueber den
+    # offiziellen Installer des Herstellers. Im Textfenster meldet er danach
+    # gleich an (ohne -OhnePause), das Einrichtungsfenster tut das selbst.
+    [ValidateSet("", "claude", "codex")]
+    [string]$ChatKi = "",
     [switch]$NurFunktionen
 )
 
 $ErrorActionPreference = "Stop"
 $hier = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($Utf8Ausgabe -and -not $NurFunktionen) {
+    try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch { }
+}
 
 # Die einzige Cadwork-Version, fuer die das Plugin gebaut ist (Python 3.14,
 # PyQt6). Rueckmeldung Kollege zu 0.1.0 (2026-09-26): in Cadwork 2025
@@ -216,6 +245,110 @@ function Version-Pruefen([string]$api, $installiert, [string]$programm) {
     return [pscustomobject]@{ Passt = $true; Nummer = $nr; Text = $text }
 }
 
+# --- Die KI fuer den Chat in Cadwork (seit 2026-10-09) -------------------
+# Der Chat im Plugin startet Claude Code (omcad_a_chat.cli_kandidaten) bzw.
+# die Codex-CLI ueber "codex app-server" (omcad_a_anbieter.codex_pfad); die
+# ChatGPT-App aus dem Store kann er nicht starten (ihr codex.exe liegt unter
+# WindowsApps, "Zugriff verweigert", gemessen 2026-09-24; einen
+# Startbefehl "codex.exe" in %LOCALAPPDATA%\Microsoft\WindowsApps legt sie
+# nicht an, gemessen 2026-10-09). Installiert wird je mit dem OFFIZIELLEN
+# Befehl des Herstellers, ohne Node.js und ohne Adminrechte:
+#   Claude Code: irm https://claude.ai/install.ps1 | iex
+#     (code.claude.com/docs/en/setup -> %USERPROFILE%\.local\bin\claude.exe)
+#   Codex-CLI:   irm https://chatgpt.com/codex/install.ps1 | iex
+#     (learn.chatgpt.com/docs/codex/cli; das Skript legt codex.exe nach
+#     %LOCALAPPDATA%\Programs\OpenAI\Codex\bin, prueft SHA-256, setzt den
+#     PATH des Benutzers)
+# Beide Befehle sind an keinem PC dieses Repos ausgefuehrt worden.
+$CLI_INSTALL = @{
+    claude = "https://claude.ai/install.ps1"
+    codex  = "https://chatgpt.com/codex/install.ps1"
+}
+# Anmelden (oeffnet den Browser) und Stand pruefen (0 = angemeldet, 1 =
+# nicht; gemessen an claude 2.1.263 und codex-cli 0.156.1, je mit leerem
+# Einstellungsordner in Temp).
+$CLI_ANMELDEN = @{ claude = @("auth", "login", "--claudeai"); codex = @("login") }
+$CLI_STATUS = @{ claude = @("auth", "status"); codex = @("login", "status") }
+$CLI_NAME = @{ claude = "Claude Code"; codex = "Codex" }
+
+function Cli-Pfad([string]$ki) {
+    # Wo der Chat im Plugin das Programm sucht, in DERSELBEN Reihenfolge
+    # (claude: omcad_a_chat.cli_kandidaten, codex: omcad_a_anbieter.
+    # codex_pfad; test_installer I28 vergleicht in denselben Welten).
+    # -> voller Pfad oder $null.
+    $heim = $env:USERPROFILE
+    if (-not $heim) { $heim = [Environment]::GetFolderPath("UserProfile") }
+    if ($ki -eq "claude") {
+        $fest = @((Join-Path $heim ".local\bin\claude.exe"))
+        if ($env:APPDATA) { $fest += (Join-Path $env:APPDATA "npm\claude.cmd") }
+        $namen = @("claude.exe", "claude.cmd")
+    } elseif ($ki -eq "codex") {
+        $fest = @()
+        if ($env:CODEX_INSTALL_DIR) { $fest += (Join-Path $env:CODEX_INSTALL_DIR "codex.exe") }
+        if ($env:LOCALAPPDATA) { $fest += (Join-Path $env:LOCALAPPDATA "Programs\OpenAI\Codex\bin\codex.exe") }
+        if ($env:APPDATA) { $fest += (Join-Path $env:APPDATA "npm\codex.cmd") }
+        $namen = @("codex.exe", "codex.cmd")
+    } else {
+        return $null
+    }
+    foreach ($k in $fest) { if (Test-Path -LiteralPath $k -PathType Leaf) { return $k } }
+    foreach ($n in $namen) {
+        $g = Im-Pfad $n
+        # Die Store-App (WindowsApps) laesst sich von aussen nicht starten
+        # (nur bei Codex geprueft, wie omcad_a_anbieter.codex_pfad).
+        if ($g -and -not ($ki -eq "codex" -and $g -match '\\WindowsApps\\')) { return $g }
+    }
+    return $null
+}
+
+function Cli-Befehl-Ausfuehren([string]$url) {
+    # Genau der offizielle Weg ("irm <url> | iex") in einer eigenen
+    # Windows PowerShell; die Ausgabe geht ins Fenster. -> Rueckgabewert.
+    $ps = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    $befehl = "[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; irm '" + $url + "' | iex"
+    & $ps -NoProfile -ExecutionPolicy Bypass -Command $befehl | Out-Host
+    return $LASTEXITCODE
+}
+
+function Cli-Installieren([string]$ki) {
+    # -> Ok, Pfad, Text. Ist das Programm schon da, wird nichts geladen.
+    $name = $CLI_NAME[$ki]
+    $da = Cli-Pfad $ki
+    if ($da) {
+        return [pscustomobject]@{ Ok = $true; Pfad = $da; Text = ($name + " war schon da: " + $da) }
+    }
+    Write-Host ("Lade das offizielle Installationsprogramm von " + $name + ": " + $CLI_INSTALL[$ki])
+    try {
+        $rc = Cli-Befehl-Ausfuehren $CLI_INSTALL[$ki]
+    } catch {
+        return [pscustomobject]@{ Ok = $false; Pfad = $null; Text = ($name + ": Installation ging nicht (" + $_.Exception.Message + ")") }
+    }
+    $pfad = Cli-Pfad $ki
+    if (-not $pfad) {
+        return [pscustomobject]@{ Ok = $false; Pfad = $null; Text = ($name + ": nach der Installation nicht gefunden (Rueckgabe " + $rc + "). Internet pruefen und nochmals starten.") }
+    }
+    $sig = ""
+    try {
+        $s = Get-AuthenticodeSignature -LiteralPath $pfad
+        $sig = " - Signatur " + $s.Status
+        if ($s.SignerCertificate) { $sig += " (" + $s.SignerCertificate.Subject.Split(",")[0] + ")" }
+    } catch { }
+    return [pscustomobject]@{ Ok = $true; Pfad = $pfad; Text = ($name + " installiert: " + $pfad + $sig) }
+}
+
+function Cli-Angemeldet([string]$ki, [string]$pfad) {
+    # Rueckgabe 0 von "claude auth status" bzw. "codex login status" =
+    # angemeldet. Wirft nie.
+    try {
+        $ErrorActionPreference = "Continue"
+        $argumente = $CLI_STATUS[$ki]
+        $null = & $pfad @argumente 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
 function Zusammenfassung($stand) {
     # Jeder Teil einzeln - nie "fertig", wenn ein Teil fehlt.
     $zeilen = @()
@@ -235,10 +368,15 @@ function Zusammenfassung($stand) {
     if ($stand.KI) {
         $zeilen += ("KI-Programme:   " + $stand.KI)
     }
+    if ($stand.Chat) {
+        $zeilen += ("Chat-KI:        " + $stand.Chat)
+    }
     if ($stand.Plugin -eq "ok" -or $stand.Plugin -eq "version") {
         $zeilen += ("Noch offen:     in Cadwork einmal auf 'Open MCP CAD' klicken. Klappt es nicht, steht der Grund in " + $START_LOG)
     }
     $fertig = ($stand.Plugin -eq "ok") -and ($stand.Server -eq "ok" -or $stand.Server -eq "uebersprungen")
+    # Die KI fuer den Chat, wenn sie gewollt war (-ChatKi), gehoert dazu.
+    if ($stand.Chat -and -not $stand.ChatOk) { $fertig = $false }
     if ($fertig -and $stand.Server -eq "ok") {
         $zeilen += "Beide Teile sind installiert. Offen ist nur noch der erste Klick in Cadwork."
     } elseif ($fertig) {
@@ -440,7 +578,8 @@ function KI-Programme-Eintragen([string]$helfer, [string]$serverPy, [scriptblock
     foreach ($p in $programme) {
         Write-Host ""
         Write-Host ("Gefunden: " + $p.name + "  (" + $p.ort + ")")
-        if ($alle) { $ja = $true } else { $ja = [bool](& $frage ("Open MCP CAD in " + $p.name + " eintragen? [J/n]")) }
+        # $p geht mit: das Einrichtungsfenster antwortet nach p.programm.
+        if ($alle) { $ja = $true } else { $ja = [bool](& $frage ("Open MCP CAD in " + $p.name + " eintragen? [J/n]") $p) }
         if (-not $ja) {
             Write-Host "  nicht eingetragen (so gewollt)."
             $ergebnisse += [pscustomobject]@{ Name = $p.name; Status = "abgelehnt"; Text = "" }
@@ -465,6 +604,14 @@ function KI-Programme-Eintragen([string]$helfer, [string]$serverPy, [scriptblock
     return , $ergebnisse
 }
 
+function KI-Nur-Frage([string]$liste) {
+    # -KiNur (aus dem Einrichtungsfenster, das schon gefragt hat): die
+    # Frage je Programm beantwortet die Liste - "ja" genau fuer die ids
+    # darin (codex, claude_code, claude_desktop), sonst "nein".
+    $nur = @($liste.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    return { param($t, $p) return ($nur -contains "$($p.programm)") }.GetNewClosure()
+}
+
 function KI-Zeile($ergebnisse) {
     # Eine Zeile fuer das Ergebnis: je Programm, was geschah.
     $teile = @()
@@ -481,6 +628,82 @@ function KI-Zeile($ergebnisse) {
     return ($teile -join "; ")
 }
 
+function Im-Pfad([string]$name) {
+    # Wie shutil.which(name, path=PATH) fuer einen Namen MIT Endung: die
+    # erste Datei dieses Namens in einem Ordner des PATH, sonst $null.
+    foreach ($o in @("$env:Path".Split(";"))) {
+        if (-not $o) { continue }
+        try { $k = Join-Path $o $name } catch { continue }
+        if (Test-Path -LiteralPath $k -PathType Leaf) { return $k }
+    }
+    return $null
+}
+
+function KI-Finden {
+    # Welche KI-Programme da sind, fuer das Einrichtungsfenster VOR der
+    # Installation: auf einem frischen PC gibt es dann noch kein Python fuer
+    # open_mcp_cad.ki_eintragen. DIESELBE Suche wie dessen finden() - nur
+    # lesen, nichts aendern; test_installer I21 vergleicht beide in
+    # denselben Welten. Eingetragen wird spaeter IMMER ueber ki_eintragen.
+    # -> Liste von @{ programm; name }, Reihenfolge wie finden().
+    $aus = @()
+    $heim = $env:USERPROFILE
+    if (-not $heim) { $heim = [Environment]::GetFolderPath("UserProfile") }
+    $codexHeim = $env:CODEX_HOME
+    if (-not $codexHeim) { $codexHeim = Join-Path $heim ".codex" }
+    $app = @()
+    if ($env:LOCALAPPDATA) {
+        # Die ChatGPT-Desktop-App mit Codex (frueher "Codex-App"): Store-
+        # Paket OpenAI.Codex_2p2nqsd0c76g0, im Startmenue "ChatGPT"
+        # (gemessen 2026-10-09, Get-AppxPackage / Get-StartApps).
+        $app = @(Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA "Packages") -Filter "OpenAI.Codex_*" -ErrorAction SilentlyContinue)
+    }
+    if ((Test-Path -LiteralPath (Join-Path $codexHeim "config.toml") -PathType Leaf) -or
+        (Test-Path -LiteralPath $codexHeim -PathType Container) -or
+        (Im-Pfad "codex.cmd") -or (Im-Pfad "codex.exe") -or $app.Count -gt 0) {
+        $aus += [pscustomobject]@{ programm = "codex"; name = "Codex" }
+    }
+    $claude = @((Join-Path $heim ".local\bin\claude.exe"))
+    if ($env:APPDATA) { $claude += (Join-Path $env:APPDATA "npm\claude.cmd") }
+    $da = $false
+    foreach ($k in $claude) { if (Test-Path -LiteralPath $k -PathType Leaf) { $da = $true } }
+    if ($da -or (Im-Pfad "claude.exe") -or (Im-Pfad "claude.cmd")) {
+        $aus += [pscustomobject]@{ programm = "claude_code"; name = "Claude Code" }
+    }
+    $desktop = @()
+    if ($env:APPDATA) { $desktop += (Join-Path $env:APPDATA "Claude") }
+    if ($env:LOCALAPPDATA) {
+        foreach ($d in @(Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA "Packages") -Directory -Filter "Claude_*" -ErrorAction SilentlyContinue)) {
+            $desktop += (Join-Path $d.FullName "LocalCache\Roaming\Claude")
+        }
+    }
+    $da = $false
+    foreach ($k in $desktop) { if (Test-Path -LiteralPath $k -PathType Container) { $da = $true } }
+    if ($da) {
+        $aus += [pscustomobject]@{ programm = "claude_desktop"; name = "Claude Desktop" }
+    }
+    return , $aus
+}
+
+function Ergebnis-Schreiben([string]$datei, $stand, $ergebnis, $ki, $fehler) {
+    # Fuer das Einrichtungsfenster: der Stand als JSON (UTF-8). Wirft nie.
+    try {
+        $liste = @()
+        foreach ($e in @($ki)) { if ($e) { $liste += @{ name = "$($e.Name)"; status = "$($e.Status)" } } }
+        $text = $null
+        if ($fehler) { $text = "$($fehler.Exception.Message)" }
+        $daten = @{
+            fertig = [bool]$ergebnis.Fertig; plugin = "$($stand.Plugin)"; pluginText = "$($stand.PluginText)"
+            server = "$($stand.Server)"; serverText = "$($stand.ServerText)"; profil = "$($stand.Profil)"
+            python = "$($stand.Python)"; ki = "$($stand.KI)"; kiListe = $liste; fehler = $text
+            zeilen = @($ergebnis.Zeilen)
+            chat = "$($stand.Chat)"; chatOk = [bool]$stand.ChatOk; chatPfad = "$($stand.ChatPfad)"
+        }
+        $json = ConvertTo-Json -InputObject $daten -Depth 5
+        [IO.File]::WriteAllText($datei, $json, (New-Object System.Text.UTF8Encoding $false))
+    } catch { }
+}
+
 if ($NurFunktionen) { return }
 
 # Was am Ende gemeldet wird. Jeder Teil fuer sich: Rueckmeldung Kollege zu
@@ -493,14 +716,21 @@ $stand = @{
     Profil     = ""
     Python     = ""
     KI         = ""
+    Chat       = ""
+    ChatOk     = $false
+    ChatPfad   = ""
 }
 if ($OhneServer) { $stand.Server = "uebersprungen" }
+# Fuenf Schritte, mit -ChatKi sechs (das Einrichtungsfenster liest "n/N").
+$SCHRITTE = 5
+if ($ChatKi) { $SCHRITTE = 6 }
 $phase = "plugin"
 $fehler = $null
 $ergebnis = $null
+$ki = @()
 try {
     # --- 1. Profil waehlen und Cadwork-Version pruefen ---------------------
-    Schritt "1/5 Cadwork-Profil waehlen und Version pruefen"
+    Schritt ("1/" + $SCHRITTE + " Cadwork-Profil waehlen und Version pruefen")
     $installiert = @(Cadwork-Installiert $CadworkProgramm)
     if ($Profil) {
         $grund = "mit -Profil angegeben"
@@ -564,7 +794,7 @@ try {
     }
 
     # --- 2. Plugin ---------------------------------------------------------
-    Schritt "2/5 Plugin nach Cadwork kopieren"
+    Schritt ("2/" + $SCHRITTE + " Plugin nach Cadwork kopieren")
     $pluginZiel = Join-Path $Profil "Open MCP CAD"
     New-Item -ItemType Directory -Force -Path $pluginZiel | Out-Null
     Copy-Item -Path (Join-Path $hier "Open MCP CAD\*") -Destination $pluginZiel -Recurse -Force
@@ -593,7 +823,7 @@ try {
         # --- 3. Server ----------------------------------------------------
         $phase = "server"
         $stand.ServerText = "abgebrochen"
-        Schritt "3/5 MCP-Server einrichten"
+        Schritt ("3/" + $SCHRITTE + " MCP-Server einrichten")
         $py = Finde-Python
         if (-not $py) {
             Write-Host "Kein Python 3.10 bis 3.13 gefunden (ein Python 3.14 allein reicht nicht)."
@@ -632,7 +862,7 @@ try {
         Write-Host "Server: $vpy -m open_mcp_cad.server"
 
         # --- 4. Umgebungsvariable ------------------------------------------
-        Schritt "4/5 Umgebungsvariable fuer den Chat im Plugin"
+        Schritt ("4/" + $SCHRITTE + " Umgebungsvariable fuer den Chat im Plugin")
         if ($OhneUmgebungsvariable) {
             Write-Host "uebersprungen (-OhneUmgebungsvariable)"
         } else {
@@ -651,17 +881,21 @@ try {
         $vpyw = Join-Path $PythonZiel "Scripts\pythonw.exe"
         $serverPy = $vpy
         if (Test-Path $vpyw) { $serverPy = $vpyw }
-        Schritt "5/5 KI-Programme eintragen"
+        Schritt ("5/" + $SCHRITTE + " KI-Programme eintragen")
         $ki = @()
         if ($OhneKiEintrag) {
             Write-Host "uebersprungen (-OhneKiEintrag)"
             $stand.KI = "nicht eingetragen (-OhneKiEintrag)"
-        } elseif ($OhnePause -and -not $KiEintragen) {
+        } elseif ($OhnePause -and -not $KiEintragen -and -not $KiNur) {
             Write-Host "uebersprungen (-OhnePause ohne -KiEintragen: ohne Frage wird nichts eingetragen)"
             $stand.KI = "nicht eingetragen (ohne Rueckfrage)"
         } else {
+            # Mit -KiNur hat das Einrichtungsfenster schon gefragt: genau
+            # die gewaehlten Programme, die anderen gelten als abgelehnt.
+            $frage = ${function:Ja-Frage}
+            if ($KiNur) { $frage = KI-Nur-Frage $KiNur }
             try {
-                $ki = KI-Programme-Eintragen $vpy $serverPy ${function:Ja-Frage} ([bool]$KiEintragen)
+                $ki = KI-Programme-Eintragen $vpy $serverPy $frage ([bool]$KiEintragen)
                 $stand.KI = KI-Zeile $ki
             } catch {
                 Write-Host ("KI-Programme eintragen ging nicht: " + $_.Exception.Message) -ForegroundColor Yellow
@@ -685,11 +919,37 @@ try {
             Write-Host '    args = ["-m", "open_mcp_cad.server"]'
         }
     }
+
+    if ($ChatKi) {
+        # --- 6. Die KI fuer den Chat in Cadwork (seit 2026-10-09) -------
+        $phase = "chat"
+        $stand.Chat = "abgebrochen"
+        Schritt ("6/" + $SCHRITTE + " KI fuer den Chat in Cadwork einrichten")
+        $cli = Cli-Installieren $ChatKi
+        $stand.Chat = $cli.Text
+        $stand.ChatOk = [bool]$cli.Ok
+        $stand.ChatPfad = "$($cli.Pfad)"
+        Write-Host $cli.Text
+        if ($cli.Ok) {
+            if (Cli-Angemeldet $ChatKi $cli.Pfad) {
+                Write-Host "Angemeldet."
+            } elseif ($OhnePause) {
+                Write-Host ("Noch nicht angemeldet. Anmelden mit: """ + $cli.Pfad + """ " + ($CLI_ANMELDEN[$ChatKi] -join " "))
+            } else {
+                Write-Host "Jetzt anmelden: dein Browser oeffnet sich, danach geht es hier weiter."
+                $anmelden = $CLI_ANMELDEN[$ChatKi]
+                & $cli.Pfad @anmelden
+            }
+        }
+    }
 } catch {
     $fehler = $_
     Write-Host ""
     Write-Host ("FEHLER: " + $_.Exception.Message) -ForegroundColor Red
-    if ($phase -eq "server") {
+    if ($phase -eq "chat") {
+        $stand.Chat = "FEHLER: " + $_.Exception.Message
+        $stand.ChatOk = $false
+    } elseif ($phase -eq "server") {
         $stand.Server = "fehlt"
         $stand.ServerText = $_.Exception.Message
     } elseif ($stand.Plugin -eq "fehlt" -and $stand.PluginText -eq "abgebrochen") {
@@ -697,6 +957,7 @@ try {
     }
 } finally {
     $ergebnis = Zusammenfassung $stand
+    if ($ErgebnisDatei) { Ergebnis-Schreiben $ErgebnisDatei $stand $ergebnis $ki $fehler }
     Write-Host ""
     Write-Host "== Ergebnis" -ForegroundColor Cyan
     foreach ($z in $ergebnis.Zeilen) { Write-Host ("  " + $z) }

@@ -54,7 +54,7 @@ Votre tâche se limite à ceci :
    sans fenêtre de console). Faire d'abord une copie de sauvegarde du
    fichier, ajouter uniquement l'entrée `open-mcp-cad` et laisser toutes
    les autres entrées telles quelles.
-   - **Codex** (CLI et application Codex) :
+   - **Codex** (CLI et application de bureau avec Codex) :
      `%USERPROFILE%\.codex\config.toml` (ou `%CODEX_HOME%\config.toml`)
      ```toml
      [mcp_servers.open-mcp-cad]
@@ -83,9 +83,11 @@ Votre tâche se limite à ceci :
    Ensuite, les outils d'Open MCP CAD (par exemple `get_document_info`)
    sont disponibles dans le programme d'IA.
 
-ChatGPT (l'application de chat habituelle) ne peut pas utiliser de
-serveurs MCP locaux. Avec le même compte ChatGPT, cela fonctionne dans
-l'application Codex.
+ChatGPT dans le navigateur ou sur le téléphone ne peut pas utiliser de
+serveurs MCP locaux. Sur le PC, cela fonctionne dans l'application de
+bureau ChatGPT avec Codex (anciennement l'application Codex) ; selon
+OpenAI, elle utilise le même dossier `%USERPROFILE%\.codex` que la CLI
+Codex.
 <!-- ki-assistenten:ende -->
 
 ## Pourquoi ce projet existe
@@ -265,11 +267,13 @@ ou, sans winget, directement depuis python.org avec vérification de la
 signature).
 
 **En tant qu'utilisateur :** construire le paquet (ou prendre le ZIP dans
-les releases), le décompresser, double-cliquer sur `1_INSTALLIEREN.cmd`. Il copie
+les releases), le décompresser, double-cliquer sur `1_INSTALLIEREN.cmd`. Il ouvre
+une fenêtre d'installation (depuis le 2026-10-09 ; avec `-Konsole` ou une autre
+option, la fenêtre de texte), demande les applications d'IA, puis copie
 le plugin dans le profil de Cadwork 2026 (il demande s'il y a plusieurs
 profils et ne copie pas dans le profil d'une autre version de Cadwork),
 installe le serveur dans
-son propre Python et affiche l'entrée pour le programme d'IA. Détails :
+son propre Python et l'inscrit dans les programmes d'IA choisis. Détails :
 [`verteilung/ANLEITUNG.fr.md`](verteilung/ANLEITUNG.fr.md).
 
 ```bash
@@ -354,7 +358,7 @@ même fenêtre, l'amorçage de fichiers, tous les tests. Le panneau et les
 messages de l'installateur sont pour l'instant en allemand.
 
 **Une seule fenêtre pour tout :** Claude Code (abonnement), Codex
-(abonnement ChatGPT, nécessite la CLI Codex `npm i -g @openai/codex`) ou
+(abonnement ChatGPT, nécessite la CLI Codex `irm https://chatgpt.com/codex/install.ps1 | iex` ou `npm i -g @openai/codex`) ou
 toute interface compatible OpenAI : OpenAI, Anthropic, OpenRouter avec une
 clé API (enregistrée dans le gestionnaire d'identification de Windows, le
 panneau n'affiche que les quatre derniers caractères), Ollama et LM Studio

@@ -49,6 +49,11 @@ sys.path.insert(0, HIER)
 
 import paket_bauen as P                                     # noqa: E402
 
+#: Haken fuer `bilder_anleitung_web.py`: wird nach jedem Bild von
+#: `--ueberblick` gerufen als NACH_BILD(name, haupt, z, schwebend), solange
+#: die Fenster noch stehen (dort werden die Orte der Knoepfe gemessen).
+NACH_BILD = None
+
 #: Der Testsatz der Anleitung (SCHNELLSTART.md, Abschnitt 5) — gelesen,
 #: nicht abgeschrieben.
 def testsatz():
@@ -218,6 +223,8 @@ def ueberblick_rendern(T, Dienst, ziel, pumpen, satz):
         pfad = os.path.join(ziel, name)
         pm.save(pfad)
         print("%s  %dx%d" % (pfad, pm.width(), pm.height()))
+        if NACH_BILD is not None:
+            NACH_BILD(name, haupt, z, list(schwebend))
 
     def takt(n=4):
         for _ in range(n):

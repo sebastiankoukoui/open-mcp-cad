@@ -10,4 +10,4 @@ Zusaetzliche Werkzeuge kommen nur von aussen: ueber die Umgebungsvariable
 OPEN_MCP_CAD_ERWEITERUNGEN (siehe erweiterungen.py).
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"

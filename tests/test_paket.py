@@ -362,7 +362,8 @@ def ki_hinweis_pruefen():
              + "\n<!-- ki-assistenten:anfang -->\n" + a
              + "<!-- ki-assistenten:ende -->\n", de),
         "ohne ChatGPT-Absatz (en)":
-            (re.sub(r"ChatGPT \(the normal chat app\).*?(?=<!-- ki-)", "", en,
+            (re.sub(r"ChatGPT in the browser or on the phone.*?(?=<!-- ki-)",
+                    "", en,
                     flags=re.S), en),
     }
     rot = {t: m != o and bool(ki_luecken(m, quelle))
@@ -1282,11 +1283,18 @@ def main():
         cmd_alt = os.path.join(t, "alt.cmd")
         with open(cmd_alt, "w", encoding="ascii") as fh:
             fh.write('powershell -File "%~dp0install.ps1" %*\r\n')
-        pruefe("T13b %s nennt %s\\install.ps1; KONTROLLE: der alte Aufruf "
-               "(install.ps1 daneben) faellt auf" % (P.INSTALLIEREN,
-                                                     P.UNTERORDNER),
+        # Seit 2026-10-09 auch das Einrichtungsfenster: ein Doppelklick, der
+        # nur install.ps1 nennt (Stand vor dem Fenster), faellt auf.
+        cmd_ohne = os.path.join(t, "ohne_fenster.cmd")
+        with open(cmd_ohne, "w", encoding="ascii") as fh:
+            fh.write('powershell -File "%%~dp0%s\\install.ps1" %%*\r\n'
+                     % P.UNTERORDNER)
+        pruefe("T13b %s nennt %s\\install.ps1 und %s; KONTROLLEN: der alte "
+               "Aufruf (install.ps1 daneben) und einer ohne Fenster fallen auf"
+               % (P.INSTALLIEREN, P.UNTERORDNER, P.FENSTER),
                P.installieren_pruefen() is None
-               and P.installieren_pruefen(cmd_alt) is not None)
+               and P.installieren_pruefen(cmd_alt) is not None
+               and P.FENSTER in (P.installieren_pruefen(cmd_ohne) or ""))
 
         verboten = ("tests/", "/docs/", "__pycache__", ".egg-info",
                     "CLAUDE.md", "AGENTS.md", "UEBERGABE", "projektordner.txt",
@@ -1297,7 +1305,8 @@ def main():
                not schlecht, schlecht)
 
         pflicht = (P.INSTALLIEREN,) + tuple(u + p for p in (
-                   "ANLEITUNG.md", "LICENSE", "install.ps1",
+                   "ANLEITUNG.md", "LICENSE", "install.ps1", P.FENSTER,
+                   P.FENSTER_XAML, "logo.png",
                    "THIRD_PARTY_NOTICES.md",
                    "Open MCP CAD/omcad_a_symbole.py",
                    "server/pyproject.toml", "server/README.md",
@@ -1378,6 +1387,15 @@ def main():
                all(b < 128 for b in ps1),
                "erstes Nicht-ASCII bei Byte %s"
                % next((i for i, b in enumerate(ps1) if b >= 128), None))
+        fps1 = open(os.path.join(ordner, P.UNTERORDNER, P.FENSTER),
+                    "rb").read()
+        fxaml = open(os.path.join(ordner, P.UNTERORDNER, P.FENSTER_XAML),
+                     "rb").read()
+        pruefe("T5 %s ist reines ASCII, die Texte stehen in %s (UTF-8 mit "
+               "Umlauten, ohne BOM)" % (P.FENSTER, P.FENSTER_XAML),
+               all(b < 128 for b in fps1)
+               and not fxaml.startswith(b"\xef\xbb\xbf")
+               and "ü".encode("utf-8") in fxaml)
 
         harte, _w = P.pruefen(ordner, [])
         pruefe("T6 kein lokaler Benutzerpfad im Paket", not harte, harte[:5])

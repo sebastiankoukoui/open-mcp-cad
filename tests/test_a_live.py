@@ -9770,8 +9770,15 @@ def _einstieg_lauf(laden=None):
                        (_einst_lesen() or {}).get("anbieter"))
         w["chat_willkommen_codex"].click()
         _APP.processEvents()
+        # Seit 2026-10-09 der offizielle Befehl von OpenAI (ohne Node.js),
+        # derselbe, den install.ps1 -ChatKi codex nimmt (aus der Quelle).
+        import re as _re
+        _url = _re.search(r'codex\s*=\s*"(https://[^"]+)"', open(
+            os.path.join(REPO, "verteilung", "install.ps1"),
+            encoding="ascii").read()).group(1)
         m["codex"] = (D._gewaehlter_anbieter(z)["id"],
-                      "npm install -g @openai/codex" in schritt.text())
+                      ("irm %s | iex" % _url) in schritt.text()
+                      and "codex login" in schritt.text())
         # Schluessel: OpenAI, die Chat-Einstellungen mit dem Feld
         w["chat_willkommen_schluessel"].click()
         _APP.processEvents()

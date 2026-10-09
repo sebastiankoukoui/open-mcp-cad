@@ -51,7 +51,7 @@ Deine Aufgabe ist nur:
    Konsolenfenster). Vorher eine Sicherungskopie der Datei anlegen, nur den
    Eintrag `open-mcp-cad` hinzufügen, alle anderen Einträge unverändert
    lassen.
-   - **Codex** (CLI und Codex-App): `%USERPROFILE%\.codex\config.toml`
+   - **Codex** (CLI und Desktop-App mit Codex): `%USERPROFILE%\.codex\config.toml`
      (bzw. `%CODEX_HOME%\config.toml`)
      ```toml
      [mcp_servers.open-mcp-cad]
@@ -78,8 +78,10 @@ Deine Aufgabe ist nur:
    kleine Leiste oben rechts **Bereit** zeigt. Danach stehen die Werkzeuge von Open MCP CAD
    (etwa `get_document_info`) im KI-Programm bereit.
 
-ChatGPT (die normale Chat-App) kann keine lokalen MCP-Server benutzen. Mit
-demselben ChatGPT-Konto geht es in der Codex-App.
+ChatGPT im Browser oder am Handy kann keine lokalen MCP-Server benutzen.
+Am PC geht es in der ChatGPT-Desktop-App mit Codex (früher Codex-App);
+laut OpenAI nutzt sie dasselbe Heim `%USERPROFILE%\.codex` wie die
+Codex-CLI.
 <!-- ki-assistenten:ende -->
 
 ## Warum das existiert
@@ -251,10 +253,12 @@ Python 3.14), Python 3.10–3.13 für den MCP-Server (fehlt es, installiert
 signaturgeprüft direkt von python.org).
 
 **Als Anwender:** das Paket bauen (oder das ZIP aus den Releases nehmen),
-entpacken, `1_INSTALLIEREN.cmd` doppelklicken. Es kopiert das Plugin ins Profil
+entpacken, `1_INSTALLIEREN.cmd` doppelklicken. Es öffnet ein Einrichtungsfenster
+(seit 2026-10-09; mit `-Konsole` oder einem anderen Schalter das Textfenster),
+fragt nach den KI-Apps und kopiert dann das Plugin ins Profil
 von Cadwork 2026 (bei mehreren Profilen fragt es nach, in ein Profil einer
-anderen Cadwork-Version kopiert es nicht), richtet den Server in einem eigenen Python ein und zeigt den
-Eintrag für das KI-Programm an. Details: [`verteilung/ANLEITUNG.md`](verteilung/ANLEITUNG.md)
+anderen Cadwork-Version kopiert es nicht), richtet den Server in einem eigenen Python ein und trägt ihn in die gewählten
+KI-Programme ein. Details: [`verteilung/ANLEITUNG.md`](verteilung/ANLEITUNG.md)
 (auch auf [Englisch](verteilung/ANLEITUNG.en.md),
 [Französisch](verteilung/ANLEITUNG.fr.md) und
 [Italienisch](verteilung/ANLEITUNG.it.md)).
@@ -336,7 +340,7 @@ Menüeintrag, das Dashboard mit Verbindungen, Verlauf, Prüfhinweisen und
 Briefkasten, der Chat im selben Fenster, der Datei-Bootstrap, alle Gates.
 
 **Ein Fenster für alles:** Claude Code (Abo), Codex (ChatGPT-Abo, braucht
-die Codex-CLI `npm i -g @openai/codex`) oder jede OpenAI-kompatible
+die Codex-CLI `irm https://chatgpt.com/codex/install.ps1 | iex` oder `npm i -g @openai/codex`) oder jede OpenAI-kompatible
 Schnittstelle — OpenAI, Anthropic, OpenRouter per API-Schlüssel (liegt im
 Windows-Tresor, das Dock zeigt nur die letzten vier Zeichen), Ollama und LM
 Studio lokal (das Dock erkennt und startet sie und installiert sie nach

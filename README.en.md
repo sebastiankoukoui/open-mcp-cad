@@ -50,7 +50,7 @@ Your task is only this:
    `%LOCALAPPDATA%\OpenMcpCad\python\Scripts\pythonw.exe` (with **w**: no
    console window). First make a backup copy of the file, add only the
    entry `open-mcp-cad`, and leave every other entry unchanged.
-   - **Codex** (CLI and Codex app): `%USERPROFILE%\.codex\config.toml`
+   - **Codex** (CLI and the desktop app with Codex): `%USERPROFILE%\.codex\config.toml`
      (or `%CODEX_HOME%\config.toml`)
      ```toml
      [mcp_servers.open-mcp-cad]
@@ -77,8 +77,10 @@ Your task is only this:
    small bar at the top right shows **Bereit** (ready). After that the Open MCP CAD tools (for
    example `get_document_info`) are available in the AI program.
 
-ChatGPT (the normal chat app) cannot use local MCP servers. With the same
-ChatGPT account it works in the Codex app.
+ChatGPT in the browser or on the phone cannot use local MCP servers. On
+the PC it works in the ChatGPT desktop app with Codex (formerly the Codex
+app); according to OpenAI it uses the same home `%USERPROFILE%\.codex`
+as the Codex CLI.
 <!-- ki-assistenten:ende -->
 
 ## Why this exists
@@ -245,10 +247,12 @@ Python 3.14), Python 3.10–3.13 for the MCP server (if it is missing,
 without winget, directly from python.org with its signature checked).
 
 **As a user:** build the package (or take the ZIP from the releases),
-unzip it, double-click `1_INSTALLIEREN.cmd`. It copies the plugin into the
+unzip it, double-click `1_INSTALLIEREN.cmd`. It opens a setup window (since
+2026-10-09; with `-Konsole` or any other switch the text window), asks about
+the AI apps and then copies the plugin into the
 Cadwork 2026 profile (it asks if there are several profiles and does not
-copy into the profile of another Cadwork version), sets up the server in its own Python and shows the entry
-for the AI program. Details: [`verteilung/ANLEITUNG.en.md`](verteilung/ANLEITUNG.en.md).
+copy into the profile of another Cadwork version), sets up the server in its own Python and adds it to the chosen AI
+programs. Details: [`verteilung/ANLEITUNG.en.md`](verteilung/ANLEITUNG.en.md).
 
 ```bash
 python scripts/paket_bauen.py      # -> dist/Open-MCP-CAD-<version>.zip
@@ -327,7 +331,7 @@ the chat in the same window, the file bootstrap, all gates. The dock and the
 installer messages are in German for now.
 
 **One window for everything:** Claude Code (subscription), Codex (ChatGPT
-subscription, needs the Codex CLI `npm i -g @openai/codex`) or any
+subscription, needs the Codex CLI `irm https://chatgpt.com/codex/install.ps1 | iex` or `npm i -g @openai/codex`) or any
 OpenAI-compatible interface: OpenAI, Anthropic, OpenRouter with an API key
 (stored in the Windows Credential Manager, the dock only shows the last four
 characters), Ollama and LM Studio locally (the dock detects and starts them

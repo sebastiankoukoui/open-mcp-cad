@@ -4040,14 +4040,14 @@ EINSTIEG_SCHRITT = {
                "~\\.local\\bin\\claude.exe\n"
                "Geht die erste Zeile nicht (etwa auf einem Firmenrechner), "
                "steht in der Anleitung der Weg über Node.js."),
-    "codex": ("Einmal einrichten: Windows-Taste, «cmd» tippen, Enter. Dort "
-              "nacheinander eingeben:\n"
-              "winget install OpenJS.NodeJS.LTS\n"
-              "Dann ein NEUES Fenster (wieder «cmd»):\n"
-              "npm install -g @openai/codex\n"
-              "codex\n"
+    "codex": ("Einmal einrichten: Windows-Taste, «PowerShell» tippen, "
+              "Enter. Dort eingeben:\n"
+              "irm https://chatgpt.com/codex/install.ps1 | iex\n"
+              "Dann ein NEUES Fenster (wieder «PowerShell»):\n"
+              "codex login\n"
               "Mit deinem ChatGPT-Konto anmelden, danach hier «Nochmal "
-              "prüfen»."),
+              "prüfen». Einfacher: 1_INSTALLIEREN.cmd nochmals starten und "
+              "dort «Direkt in Cadwork im Chat» wählen."),
 }
 EINSTIEG_ANDERS = ("Oder nutze die Codex-App oder Claude Desktop direkt, "
                    "ohne diesen Chat. Wie, steht in der Anleitung.")
