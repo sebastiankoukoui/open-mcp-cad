@@ -485,6 +485,8 @@ def _gemerkte_wahl(C):
         _einstieg_p19(D, os.path.join(A, "omcad_a_dashboard.py"))
         _k12_p20_p21(D, C, os.path.join(A, "omcad_a_dashboard.py"))
         _laien_p22(D, os.path.join(A, "omcad_a_dashboard.py"))
+        _ruhe_p23(D, os.path.join(A, "omcad_a_dashboard.py"))
+        _updates_p24(D, os.path.join(A, "omcad_a_dashboard.py"))
     finally:
         for _n, _alt in vor.items():
             if _alt is None:
@@ -1614,7 +1616,8 @@ def _lokal_pruefen_offline():
             elif isinstance(knoten, ast.ImportFrom) and knoten.module:
                 gefunden.add(knoten.module.split(".")[0])
         return gefunden
-    verboten = {"PyQt6", "cwapi3d", "element_controller", "utility_controller"}
+    verboten = {"PyQt6", "PyQt5", "omcad_qt", "cwapi3d", "element_controller",
+                "utility_controller"}
     pruefe("P13 das Lokal-Modul importiert weder Qt noch cwapi3d",
            not (importe(quelle) & verboten), importe(quelle) & verboten)
     pruefe("P13 KONTROLLE: ein Qt-Import faellt auf",
@@ -2402,6 +2405,462 @@ def _k12_p20_p21(D, C, dash_pfad):
            sorted(D.STUFE_KURZ) != sorted(werte + ["turbo"]))
 
 
+def _ruhe_p23(D, dash_pfad):
+    """P23 (Ruhe in der Anzeige, Rueckmeldung 2026-10-10 "Disco"): der
+    Arbeitsblock, die geglaettete Pille, wann die Arbeitsanzeige steht, die
+    zusammengefassten Zeilen der Auftragsliste — ausgefuehrt, je mit
+    Kontrolle (alte Logik bzw. Mutant der Quelle)."""
+    quelle = lies(dash_pfad)
+
+    def mutant(name, alt, neu):
+        M = type(sys)(name)
+        M.__file__ = dash_pfad
+        exec(compile(quelle.replace(alt, neu), dash_pfad, "exec"),
+             M.__dict__)
+        return M, quelle.count(alt)
+
+    def folge(muster, dauer=0.05, pause=0.4, takt=0.5):
+        """Auftraege nach `muster` ("l" lesen, "z" zeichnen), je `dauer`
+        lang, dazwischen `pause`; der Takt des Docks alle `takt` s."""
+        ev, t, naechst = [], 0.0, 0.0
+        for m in muster:
+            ev.append((t, "zeichnen" if m == "z" else "lesen"))
+            t += dauer
+            ev.append((t, "takt"))
+            naechst = max(naechst, t)
+            while naechst + takt < t + pause:
+                naechst += takt
+                ev.append((naechst, "takt"))
+            t += pause
+        ev += [(t + 0.5 * i, "takt") for i in range(12)]
+        return ev
+
+    PL, B = D.PILLE, D._block_schritt
+    # -- Block -----------------------------------------------------------
+    b = D._block_auftrag(None, 0.0, "read")
+    b = D._block_auftrag(b, 0.3, "write")
+    b = D._block_auftrag(b, 0.6, "read")
+    pruefe("P23 Block: drei Auftraege hintereinander sind EIN Block, "
+           "'write' gewinnt, gezaehlt 3 (1 aendernd)",
+           b["aktiv"] and b["art"] == "write" and b["anzahl"] == 3
+           and b["schreibend"] == 1 and b["start"] == 0.0, b)
+    pruefe("P23 Block: endet erst RUHE_BEREIT_S nach dem letzten Auftrag",
+           B(b, 0.6 + D.RUHE_BEREIT_S - 0.01)["aktiv"]
+           and not B(b, 0.6 + D.RUHE_BEREIT_S)["aktiv"]
+           and D.RUHE_BEREIT_S >= 1.5 and D.RUHE_HALTEN_S >= 1.0,
+           (D.RUHE_BEREIT_S, D.RUHE_HALTEN_S))
+    pruefe("P23 Block: nach dem Ende beginnt ein neuer (Zaehler 1, lesend)",
+           D._block_auftrag(B(b, 10.0), 10.0, "read")["anzahl"] == 1
+           and D._block_auftrag(B(b, 10.0), 10.0, "read")["art"] == "read")
+    # -- Pille -----------------------------------------------------------
+    g, z1 = D._pille_ruhig(None, PL["busy_read"], b, 0.0)
+    g, z2 = D._pille_ruhig(g, PL["ready"], b, 0.7)
+    g2, z3 = D._pille_ruhig(g, PL[None], b, 0.8)
+    _g, z4 = D._pille_ruhig(g, D.PILLE_FREIGABE, b, 0.8)
+    _g, z5 = D._pille_ruhig(g, D.PILLE_CADWORK, b, 0.8)
+    pruefe("P23 Pille: im Block 'Zeichnet' (auch beim Lesen und dazwischen), "
+           "Aus/Freigabe sofort, 'Cadwork rechnet' bleibt sichtbar",
+           (z1[0], z2[0], z3[0], z4[0], z5[0])
+           == ("Zeichnet", "Zeichnet", "Aus", "Wartet auf dich",
+               "Cadwork rechnet"), (z1, z2, z3, z4, z5))
+    lb = D._block_auftrag(None, 0.0, "read")
+    g, _z = D._pille_ruhig(None, PL["busy_read"], lb, 0.0)
+    _g, halt = D._pille_ruhig(g, D.PILLE_DENKT, D._block_schritt(
+        dict(lb, aktiv=False), 0.5), 0.5)
+    _g, frei = D._pille_ruhig(g, D.PILLE_DENKT, D._block_schritt(
+        dict(lb, aktiv=False), 1.6), 1.6)
+    pruefe("P23 Pille: ein Arbeitszustand bleibt RUHE_HALTEN_S stehen "
+           "(auch wenn der Block schon vorbei waere)",
+           halt[0] == "Liest" and frei[0] == "Denkt nach", (halt, frei))
+    # -- Die Folge: 30 kurze Leseauftraege, gemischt ---------------------
+    lesen = folge("l" * 30)
+    gemischt = folge("zllll" * 6)
+    neu_l, alt_l = D._ruhe_folge(lesen), D._ruhe_folge(lesen, glatt=False)
+    neu_g, alt_g = D._ruhe_folge(gemischt), D._ruhe_folge(gemischt,
+                                                          glatt=False)
+    werte = {"lesen_pille": (D._wechsel(alt_l, 1), D._wechsel(neu_l, 1)),
+             "lesen_anzeige": (D._wechsel(alt_l, 2), D._wechsel(neu_l, 2)),
+             "gemischt_pille": (D._wechsel(alt_g, 1), D._wechsel(neu_g, 1)),
+             "gemischt_anzeige": (D._wechsel(alt_g, 2),
+                                  D._wechsel(neu_g, 2))}
+    print("  [info] P23 Folge (alt, neu): %s" % werte)
+    pruefe("P23 30 kurze Leseauftraege: die Pille wechselt EINMAL (Liest -> "
+           "Bereit am Ende), die Anzeige erscheint nie",
+           werte["lesen_pille"][1] == 1 and werte["lesen_anzeige"][1] == 0
+           and neu_l[-1][1:] == ("Bereit", False), werte)
+    pruefe("P23 gemischt (zeichnen + 4x lesen, 6 Runden): Pille einmal, "
+           "Anzeige einmal an, einmal aus; nie 'Liest' im Block",
+           werte["gemischt_pille"][1] == 1
+           and werte["gemischt_anzeige"][1] == 2
+           and not any(f[1] == "Liest" for f in neu_g), werte)
+    pruefe("P23 KONTROLLE: die alte Logik (Zustand je Auftrag) wechselt die "
+           "Pille bei jedem Auftrag (>= 50 Wechsel)",
+           werte["lesen_pille"][0] >= 50 and werte["gemischt_pille"][0] >= 50,
+           werte)
+    kurz = D._ruhe_folge([(0.0, "zeichnen"), (0.1, "takt"), (0.5, "takt"),
+                          (1.0, "takt"), (2.5, "takt"), (5.0, "takt")])
+    pruefe("P23 ein kurzer Einzelauftrag (aendernd, 0,1 s) blitzt nicht auf: "
+           "die Anzeige erscheint erst ab ANZEIGE_AB_S Blockdauer",
+           not any(f[2] for f in kurz[:2]) and D.ANZEIGE_AB_S >= 0.3,
+           kurz)
+    pruefe("P23 Anzeige nur fuer aendernde Bloecke, nie neu waehrend "
+           "Cadwork rechnet, angemeldeter Lauf gleich",
+           not D._anzeige_soll(lb, 5.0, False, lauf_aktiv=True)
+           and not D._anzeige_soll(b, 5.0, False, lauf_aktiv=True,
+                                   blockiert="Viewer")
+           and D._anzeige_soll(b, 0.1, False, lauf_aktiv=True,
+                               angemeldet=True)
+           and not D._anzeige_soll(b, 0.1, False, lauf_aktiv=True)
+           and D._anzeige_soll(b, 0.1, True))
+    M, n = mutant("p23_mutant", "RUHE_BEREIT_S = 2.0", "RUHE_BEREIT_S = 0.0")
+    rot = M._wechsel(M._ruhe_folge(lesen), 1)
+    pruefe("P23 KONTROLLE: ohne Nachlauf des Blocks (RUHE_BEREIT_S 0, "
+           "Mutant) wechselt die Pille wieder je Auftrag",
+           n == 1 and rot >= 8, (n, rot))
+    # -- Auftragsliste ---------------------------------------------------
+    jetzt = 1000.0
+    lesend = [{"methode": "execute_cwapi3d", "zugriff": "read", "ok": True,
+               "beschreibung": "Wand %d" % i, "beendet": jetzt - i}
+              for i in range(12)]
+    liste = ([{"methode": "execute_cwapi3d", "zugriff": "write", "ok": True,
+               "beschreibung": "Dach", "beendet": jetzt + 1}] + lesend
+             + [{"methode": "execute_cwapi3d", "zugriff": "read", "ok": False,
+                 "beschreibung": "Fehler", "beendet": jetzt - 20}])
+    gr = D._auftrag_gruppen(liste, jetzt + 2)
+    pruefe("P23 Auftragsliste: 12 Leseauftraege hintereinander sind EINE "
+           "Zeile 'KI schaut ins Modell (12×)', aendernde und fehlerhafte "
+           "einzeln",
+           [x["anzahl"] for x in gr] == [1, 12, 1]
+           and gr[1]["text"].startswith("KI schaut ins Modell (12×)")
+           and "Wand 0" in gr[1]["tipp"] and "… und 4 weitere" in gr[1]["tipp"],
+           [(x["anzahl"], x["text"]) for x in gr])
+    gr2 = D._auftrag_gruppen([dict(lesend[0], beendet=jetzt + 0.5)] + liste,
+                             jetzt + 2)
+    pruefe("P23 Auftragsliste: der Schluessel einer Zeile bleibt, wenn ein "
+           "neuer Leseauftrag dazukommt (Auswahl/Rollstand)",
+           [x["schluessel"] for x in gr2][2:] ==
+           [x["schluessel"] for x in gr][1:] and gr2[0]["anzahl"] == 1)
+    M, n = mutant("p23_mutant2", 'and a.get("methode") == b.get("methode"))',
+                  "and False)")
+    pruefe("P23 KONTROLLE: ohne Zusammenfassen (Mutant) 14 Zeilen",
+           n == 1 and len(M._auftrag_gruppen(liste, jetzt)) == 14)
+
+
+def _updates_p24(D, dash_pfad):
+    """P24 (Updates, 2026-10-10): Versionsvergleich, Takt 24 h,
+    abgeschaltet, fremde Antworten, lokaler HTTP-Dienst als API (ephemerer
+    Port, umgelenkte Basis), Download mit falscher Pruefsumme/Groesse,
+    ZIP ohne install.ps1 und mit Pfad nach draussen, Start des
+    Einrichtungsfensters ueber einen ersetzten Starter, fehlende Profile in
+    Temp-Welten, die Zeile des Docks. Ein Stolperdraht auf
+    socket.create_connection: nichts geht an einen anderen Rechner."""
+    import http.server
+    import json as _json
+    import shutil
+    import tempfile
+    import threading
+    import zipfile
+    U = D._update_modul()
+    # -- Version und Takt ------------------------------------------------
+    vt = U.version_tupel
+    pruefe("P24 Versionen: v0.3.1/0.3.1 lesbar, Unsinn nicht; 0.10.0 > 0.9.9"
+           " (semantisch, nicht als Text)",
+           vt("v0.3.1") == (0, 3, 1) and vt("0.3.1") == (0, 3, 1)
+           and vt("0.3.1-rc1") is None and vt("..\\x") is None
+           and vt(None) is None and U.neuer("0.10.0", "0.9.9")
+           and not U.neuer("0.2.2", "0.2.2") and not U.neuer("0.2.1", "0.2.2")
+           and not U.neuer("kaputt", "0.2.2"))
+    pruefe("P24 KONTROLLE: als Text verglichen waere 0.10.0 aelter",
+           not ("0.10.0" > "0.9.9"))
+    t0 = 1_000_000.0
+    pruefe("P24 Takt: noch nie -> jetzt; nach 23 h nicht, nach 24 h ja; "
+           "abgeschaltet nie; Zeit in der Zukunft zaehlt als nie",
+           U.faellig(None, t0) and not U.faellig(t0 - 23 * 3600, t0)
+           and U.faellig(t0 - 24 * 3600, t0)
+           and not U.faellig(None, t0, an=False)
+           and U.faellig(t0 + 7200, t0) and U.TAKT_S == 24 * 3600)
+    pruefe("P24 Version des Moduls == open_mcp_cad.__version__",
+           U.VERSION == re.search(r'__version__\s*=\s*"([^"]+)"', lies(
+               os.path.join(REPO, "open_mcp_cad", "__init__.py"))).group(1),
+           U.VERSION)
+    erlaubt = re.search(r"^\$CADWORK_ERLAUBT_AB\s*=\s*(\d+)", lies(
+        os.path.join(REPO, "verteilung", "install.ps1")), re.M)
+    pruefe("P24 CADWORK_ERLAUBT_AB == install.ps1 (aus der Quelle)",
+           erlaubt and int(erlaubt.group(1)) == U.CADWORK_ERLAUBT_AB,
+           erlaubt and erlaubt.group(1))
+    # -- Fremde Antworten (rein) -----------------------------------------
+    basis = U.API_URL
+    gut = {"tag_name": "v9.0.1", "assets": [{
+        "name": U.ASSET_NAME, "size": 10,
+        "browser_download_url": U.DOWNLOAD_PRAEFIX + "v9.0.1/"
+        + U.ASSET_NAME, "digest": "sha256:" + "a" * 64}]}
+    r = U.antwort_lesen(_json.dumps(gut).encode(), basis)
+    falsch = [
+        dict(gut, tag_name="v9.0.1/../x"), dict(gut, prerelease=True),
+        dict(gut, assets=[dict(gut["assets"][0], name="Anderes.zip")]),
+        dict(gut, assets=[dict(gut["assets"][0],
+                               browser_download_url="https://boese.example/"
+                               + U.ASSET_NAME)]),
+        dict(gut, assets=[dict(gut["assets"][0], size=U.MAX_BYTES + 1)])]
+    rf = [U.antwort_lesen(_json.dumps(f).encode(), basis) for f in falsch]
+    pruefe("P24 API-Antwort: Version, neuer, Asset mit Groesse und SHA-256",
+           r["ok"] and r["version"] == "9.0.1" and r["neuer"]
+           and r["asset"]["sha256"] == "a" * 64 and r["asset"]["groesse"] == 10,
+           r)
+    pruefe("P24 fremde Eingabe: Pfad als Version, Pre-release, anderer "
+           "Asset-Name, fremde Adresse, zu gross -> kein Paket",
+           [x.get("asset") for x in rf] == [None] * 5
+           and not rf[0]["ok"] and not rf[1]["ok"],
+           [(x.get("ok"), x.get("grund")) for x in rf])
+    pruefe("P24 unlesbare Antwort -> ok False, wirft nicht",
+           not U.antwort_lesen(b"\xff{", basis)["ok"]
+           and not U.antwort_lesen(b"[]", basis)["ok"])
+    # -- Lokaler Dienst --------------------------------------------------
+    tmp = tempfile.mkdtemp(prefix="omcad_p24_")
+    alt_env = {k: os.environ.get(k) for k in (U.UMGEBUNG_URL,
+                                              U.UMGEBUNG_ORDNER)}
+    fremd = []
+    echt_verbinden = socket.create_connection
+
+    def draht(adresse, *a, **kw):
+        if adresse[0] not in ("127.0.0.1", "localhost"):
+            fremd.append(adresse)
+            raise OSError("Stolperdraht: %r" % (adresse,))
+        return echt_verbinden(adresse, *a, **kw)
+
+    def zip_bauen(name, dateien):
+        p = os.path.join(tmp, name)
+        with zipfile.ZipFile(p, "w") as zf:
+            for n, inhalt in dateien.items():
+                zf.writestr(n, inhalt)
+        with open(p, "rb") as fh:
+            return fh.read()
+    gutes_zip = zip_bauen("gut.zip", {
+        "Open-MCP-CAD-9.0.1/1_INSTALLIEREN.cmd": "@echo off\r\n",
+        "Open-MCP-CAD-9.0.1/Programmdateien/install.ps1": "# probe\n",
+        "Open-MCP-CAD-9.0.1/Programmdateien/x/y.txt": "y"})
+    ohne_ps1 = zip_bauen("ohne.zip", {
+        "Open-MCP-CAD-9.0.1/1_INSTALLIEREN.cmd": "@echo off\r\n"})
+    draussen = zip_bauen("draussen.zip", {
+        "1_INSTALLIEREN.cmd": "x", "Programmdateien/install.ps1": "x",
+        "../boese.txt": "x"})
+    inhalte = {"/gut.zip": gutes_zip, "/ohne.zip": ohne_ps1,
+               "/draussen.zip": draussen}
+    abrufe = []
+
+    class Dienst(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):                             # noqa: N802
+            abrufe.append((self.path, self.headers.get("User-Agent"),
+                           self.headers.get("Cookie")))
+            if self.path == "/api":
+                daten = _json.dumps(antwort[0]).encode()
+            else:
+                daten = inhalte.get(self.path)
+            if daten is None:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(daten)))
+            self.end_headers()
+            self.wfile.write(daten)
+
+    s = _ephemerer_socket()
+    srv = http.server.HTTPServer(("127.0.0.1", 0), Dienst,
+                                 bind_and_activate=False)
+    srv.socket.close()
+    srv.socket = s
+    srv.server_address = s.getsockname()
+    srv.server_activate()
+    port = s.getsockname()[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    ursprung = "http://127.0.0.1:%d" % port
+
+    def asset(pfad, daten, sha=True, groesse=None):
+        return {"name": U.ASSET_NAME, "size": groesse or len(daten),
+                "browser_download_url": ursprung + pfad,
+                "digest": ("sha256:" + hashlib.sha256(daten).hexdigest()
+                           if sha is True else sha)}
+    def paket(*a, **kw):
+        """Ein Asset, wie `antwort_lesen` es aus der API macht."""
+        return U.antwort_lesen({"tag_name": "v9.0.1", "assets": [
+            asset(*a, **kw)]}, ursprung + "/api")["asset"]
+    antwort = [{"tag_name": "v9.0.1",
+                "assets": [asset("/gut.zip", gutes_zip)]}]
+    socket.create_connection = draht
+    gestartet = []
+    alt_starten = U.STARTEN
+    U.STARTEN = gestartet.append
+    try:
+        os.environ[U.UMGEBUNG_URL] = ursprung + "/api"
+        os.environ[U.UMGEBUNG_ORDNER] = os.path.join(tmp, "updates")
+        n = U.nachsehen("0.2.2")
+        pruefe("P24 nachsehen gegen den lokalen Dienst: neuere Version mit "
+               "Paket; EIN Abruf, neutraler User-Agent, kein Cookie",
+               n["ok"] and n["neuer"] and n["version"] == "9.0.1"
+               and _ausserhalb([port]) and len(abrufe) == 1
+               and abrufe[0][1] == U.USER_AGENT and abrufe[0][2] is None,
+               (n, abrufe, port))
+        pruefe("P24 gleiche Version: nicht neuer",
+               not U.nachsehen("9.0.1")["neuer"])
+        ordner_alt = os.path.join(tmp, "updates", "9.0.1")
+        os.makedirs(ordner_alt)
+        with open(os.path.join(ordner_alt, "alt.txt"), "w") as fh:
+            fh.write("alt")
+        prozente = []
+        zp = U.laden(n["asset"], fortschritt=lambda a, b: prozente.append(
+            (a, b)))
+        ordner = U.entpacken(zp, n["version"])
+        cmd = U.einrichten(ordner)
+        pruefe("P24 laden + pruefen + entpacken nach updates/<version>/ "
+               "(alter Inhalt weg), dann das Einrichtungsfenster ueber den "
+               "ERSETZTEN Starter (nie echt)",
+               os.path.isfile(os.path.join(ordner, "Programmdateien",
+                                           "install.ps1"))
+               and not os.path.exists(os.path.join(ordner, "alt.txt"))
+               and ordner == ordner_alt and gestartet == [cmd]
+               and cmd.endswith("1_INSTALLIEREN.cmd") and prozente
+               and prozente[-1] == (len(gutes_zip), len(gutes_zip)),
+               (ordner, gestartet, prozente[-1:]))
+        os.remove(zp)
+
+        def scheitert(a, text):
+            vorher = set(os.listdir(tempfile.gettempdir()))
+            try:
+                U.laden(a)
+            except U.UpdateFehler as exc:
+                rest = [x for x in set(os.listdir(tempfile.gettempdir()))
+                        - vorher if x.startswith("open-mcp-cad-")]
+                return text in str(exc) and not rest
+            return False
+        pruefe("P24 falsche Pruefsumme -> abgelehnt, keine Temp-Datei bleibt",
+               scheitert(paket("/gut.zip", gutes_zip, sha="sha256:" + "0"
+                               * 64), "Prüfsumme"))
+        pruefe("P24 falsche Groesse -> abgelehnt",
+               scheitert(paket("/gut.zip", gutes_zip, sha=None,
+                               groesse=len(gutes_zip) + 5), "vollständig")
+               and scheitert(paket("/gut.zip", gutes_zip, sha=None,
+                                   groesse=len(gutes_zip) - 5), "grösser"))
+        pruefe("P24 ZIP ohne install.ps1 -> abgelehnt",
+               scheitert(paket("/ohne.zip", ohne_ps1),
+                         "Programmdateien/install.ps1"))
+        pruefe("P24 ZIP mit Pfad nach draussen -> abgelehnt",
+               scheitert(paket("/draussen.zip", draussen), "ausserhalb"))
+        n_abrufe = len(abrufe)
+        pruefe("P24 Adresse eines anderen Ursprungs -> abgelehnt, nie "
+               "abgerufen", _abgelehnt(U, {"url": "http://127.0.0.2:%d/gut."
+                                                  "zip" % port,
+                                           "groesse": 10})
+               and len(abrufe) == n_abrufe)
+        pruefe("P24 KONTROLLE: ohne Pruefung der Summe (Mutant) ginge die "
+               "falsche Summe durch",
+               _ohne_summe_durch(U, paket("/gut.zip", gutes_zip,
+                                          sha="sha256:" + "0" * 64)))
+        # Kein Netz: still.
+        os.environ[U.UMGEBUNG_URL] = "http://127.0.0.1:1/api"
+        kein = U.nachsehen()
+        pruefe("P24 kein Netz -> ok False mit Grund, wirft nicht",
+               kein["ok"] is False and "Verbindung" in kein["grund"], kein)
+        pruefe("P24 Stolperdraht: nichts ging an einen anderen Rechner",
+               not fremd, fremd)
+    finally:
+        socket.create_connection = echt_verbinden
+        U.STARTEN = alt_starten
+        srv.shutdown()
+        srv.server_close()
+        for k, v in alt_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    # -- Fehlende Profile in Temp-Welten ---------------------------------
+    wurzel, programm = os.path.join(tmp, "cw"), os.path.join(tmp, "prog")
+    for name, mit_plugin in (("userprofil_2026", True),
+                             ("USERPROFIL_2027", False),
+                             ("userprofil_2025", False),
+                             ("userprofil_2024", False),
+                             ("userprofil_2028", False), ("anders", False)):
+        api = os.path.join(wurzel, name, "3d", "API.x64")
+        os.makedirs(os.path.join(api, "Open MCP CAD") if mit_plugin
+                    else api)
+    for jahr in (2024, 2026, 2027, 2025):
+        os.makedirs(os.path.join(programm, "EXE_%d" % jahr))
+    hier = os.path.join(wurzel, "userprofil_2025", "3d", "API.x64",
+                        "Open MCP CAD")
+    fp = U.fehlende_profile(wurzel, programm)
+    fp_hier = U.fehlende_profile(wurzel, programm, hier=hier)
+    pruefe("P24 fehlende Profile: 2025 und 2027 (GROSS geschrieben) — nicht "
+           "2026 (hat es), 2024 (zu alt), 2028 (Cadwork fehlt); das eigene "
+           "Profil zaehlt nie",
+           [p["jahr"] for p in fp] == [2025, 2027]
+           and fp[1]["profil"] == "USERPROFIL_2027"
+           and [p["jahr"] for p in fp_hier] == [2027], (fp, fp_hier))
+    pruefe("P24 KONTROLLE: mit erlaubt_ab 2024 kaeme 2024 dazu (die Grenze "
+           "wirkt)", [p["jahr"] for p in U.fehlende_profile(
+               wurzel, programm, erlaubt_ab=2024)] == [2024, 2025, 2027])
+    pruefe("P24 fehlende Profile ohne Ordner: leer, wirft nicht",
+           U.fehlende_profile(os.path.join(tmp, "gibtsnicht"), programm)
+           == [])
+    shutil.rmtree(tmp, ignore_errors=True)
+    # -- Die Zeile des Docks (rein) --------------------------------------
+    zi = D._update_zeile_inhalt
+    neu = {"ok": True, "neuer": True, "version": "0.3.0", "asset": {"x": 1}}
+    prof = [{"jahr": 2027}]
+    faelle = [
+        (zi({}, set(), 0), None),
+        (zi({"ergebnis": neu}, set(), 0)[1:], ("Aktualisieren", "neu")),
+        (zi({"ergebnis": neu, "weg": "0.3.0"}, set(), 0), None),
+        (zi({"ergebnis": dict(neu, neuer=False)}, set(), 0), None),
+        (zi({"profile": prof}, set(), 0)[0],
+         "Open MCP CAD auch in Cadwork 2027 einrichten?"),
+        (zi({"profile": prof}, {2027}, 0), None),
+        (zi({"laden": {"laeuft": True, "prozent": 45, "version": "0.3.0"}},
+            set(), 0)[0], "Update 0.3.0 wird geladen … 45 %"),
+        (zi({"laden": {"fertig": True}}, set(), 0)[0], D.UPDATE_SCHLIESSEN),
+        (zi({"laden": {"fehler": "x"}}, set(), 0)[2], "nochmal"),
+        (zi({"meldung": ("m", 5)}, set(), 4)[0], "m"),
+        (zi({"meldung": ("m", 5)}, set(), 6), None)]
+    falsch = [(i, a, b) for i, (a, b) in enumerate(faelle) if a != b]
+    pruefe("P24 Zeile: neu/Später/gleich alt/Profil/Nein danke/laden/fertig/"
+           "Fehler/Meldung mit Ablauf", not falsch, falsch)
+    pruefe("P24 'Schliesse Cadwork …' steht im Text",
+           "Schliesse Cadwork" in D.UPDATE_SCHLIESSEN)
+    pruefe("P24 chat.json: Vorgabe an, kaputte Werte an; profil_frage_weg "
+           "nur ganze Jahre",
+           D._updates_an({}) and D._updates_an({"updates_suchen": "nein"})
+           and not D._updates_an({"updates_suchen": False})
+           and D._profil_weg({"profil_frage_weg": [2027, "x", True, 2.5]})
+           == {2027})
+
+
+def _abgelehnt(U, a):
+    try:
+        U.laden(a)
+    except U.UpdateFehler as exc:
+        return "nicht die erwartete" in str(exc)
+    return False
+
+
+def _ohne_summe_durch(U, a):
+    """KONTROLLE: das Modul mit ausgeschalteter Summenpruefung."""
+    pfad = U.__file__
+    quelle = lies(pfad)
+    alt = 'if asset.get("sha256") and sha.hexdigest() != asset["sha256"]:'
+    M = type(sys)("p24_mutant")
+    M.__file__ = pfad
+    exec(compile(quelle.replace(alt, "if False:"), pfad, "exec"),
+         M.__dict__)
+    try:
+        p = M.laden(a)
+    except M.UpdateFehler:
+        return False
+    os.remove(p)
+    return quelle.count(alt) == 1
+
+
 def _laien_p22(D, dash_pfad):
     """P22 (Gegenpruefung Laien-Sicht K12): die reinen Entscheidungen —
     die Zahl offener Hinweise steht EINMAL (als Chip nur in der Pille), der
@@ -2951,7 +3410,7 @@ def main():
            bool(importe("import element_controller\n" + chat) & cwapi),
            "eine Pruefung, die nie anspringt, ist keine Pruefung")
     pruefe("P9 der Gespraechsteil kennt kein Qt",
-           "PyQt6" not in chat,
+           not any(q in chat for q in ("PyQt6", "PyQt5", "omcad_qt")),
            "so laesst er sich ohne Cadwork pruefen — und genau das wurde er")
 
     # -- 9c. Kein Warten im Qt-Takt ---------------------------------------

@@ -175,7 +175,11 @@ import traceback
 #   Zustandspille im Kopf des Docks sagt "Zeichnet"/"Liest" WAEHREND des
 #   Auftrags, nicht erst im naechsten Takt (der waehrend des Auftrags nicht
 #   laeuft). Wirft er dort, steht es einmal im Log; der Auftrag laeuft.
-CORE_VERSION = "2.19.1"
+# 2.20.0 (2026-10-10, Cadwork 2025): der Qt-Antrieb, die Sonden und das
+#   eigene Fenster laufen mit PyQt6 ODER PyQt5 (`_qt_bindung`, `_qt_namen`);
+#   Cadwork 2025 bringt nur PyQt5 mit. Status und Log nennen den Qt-Stand
+#   (`qt`, "Qt-Antrieb mit …").
+CORE_VERSION = "2.20.0"
 PROTOKOLL_VERSION = 2
 
 # Eigener Logger statt des Root-Loggers: sonst wandern Cadwork-fremde
@@ -183,6 +187,79 @@ PROTOKOLL_VERSION = 2
 # Zeilen aller Steckplaetze in DERSELBEN Datei, ohne dass man sie einer
 # Instanz zuordnen konnte.
 LOG = logging.getLogger("omcad.connect")
+
+
+# --- Qt: PyQt6 (Cadwork 2026) oder PyQt5 (Cadwork 2025) --------------------
+#
+# Anlass (gemessen vom Maintainer, 2026-10-10): Cadwork 3D 2025 bringt
+# Python 3.12.7 und PyQt5 mit, kein PyQt6. Der Kern importierte nur PyQt6 —
+# der Qt-Antrieb fiel dort aus, und ohne `require_qtimer` waere er auf
+# 'mainthread' zurueckgefallen (Cadwork blockiert).
+#
+# DIESELBE Regel wie `omcad_qt.waehlen` im Dock (die Kopie ist Absicht: der
+# Kern laeuft auch in den Ordnern B-F, die keine UI-Module haben;
+# `test_offline` Q1 misst beide in denselben Welten):
+#   1. eine schon GELADENE Bindung gewinnt (zuerst PyQt6) — mit ihr hat
+#      Cadwork seine QApplication gebaut;
+#   2. sonst PyQt6, wenn es sich importieren laesst;
+#   3. sonst PyQt5.
+# Was in Qt 6 in QtGui liegt und in Qt 5 in QtWidgets (QAction, QShortcut)
+# sucht `_qt_namen` im jeweils anderen Modul. Voll qualifizierte Enums
+# (`Qt.WindowType.Tool`) gehen in PyQt5 5.15 auch (gemessen 5.15.11).
+
+QT_BINDUNGEN = ("PyQt6", "PyQt5")
+
+
+def _qt_bindung(module=None, importieren=None):
+    """-> "PyQt6" | "PyQt5". ImportError, wenn keine da ist.
+
+    `module`/`importieren` ersetzen nur die Gates (Q1).
+    """
+    import importlib                                   # noqa: PLC0415
+    module = sys.modules if module is None else module
+    importieren = importieren or importlib.import_module
+    for name in QT_BINDUNGEN:
+        if (name + ".QtCore") in module:
+            return name
+    gruende = []
+    for name in QT_BINDUNGEN:
+        try:
+            importieren(name + ".QtCore")
+            return name
+        except Exception as exc:                       # noqa: BLE001
+            gruende.append("%s: %s" % (name, exc))
+    raise ImportError("Weder PyQt6 noch PyQt5 (%s)" % "; ".join(gruende))
+
+
+def _qt_namen(teil, *namen):
+    """Namen aus `<Bindung>.<teil>` — einer allein, mehrere als Tupel."""
+    import importlib                                   # noqa: PLC0415
+    bindung = _qt_bindung()
+    modul = importlib.import_module(bindung + "." + teil)
+    werte = []
+    for name in namen:
+        wert = getattr(modul, name, None)
+        if wert is None:
+            ander = {"QtGui": "QtWidgets", "QtWidgets": "QtGui"}.get(teil)
+            if ander:
+                wert = getattr(importlib.import_module(
+                    bindung + "." + ander), name, None)
+        if wert is None:
+            raise ImportError("%s.%s hat kein %s" % (bindung, teil, name))
+        werte.append(wert)
+    return werte[0] if len(werte) == 1 else tuple(werte)
+
+
+def qt_stand():
+    """'PyQt5 5.15.11 / Qt 5.15.2' — fuer Log und Status. Wirft nie."""
+    try:
+        bindung = _qt_bindung()
+        qtcore = sys.modules.get(bindung + ".QtCore")
+        return "%s %s / Qt %s" % (bindung,
+                                  getattr(qtcore, "PYQT_VERSION_STR", "?"),
+                                  getattr(qtcore, "QT_VERSION_STR", "?"))
+    except Exception as exc:                           # noqa: BLE001
+        return "kein Qt (%s)" % exc
 
 
 # --- Zustaende ------------------------------------------------------------
@@ -303,7 +380,7 @@ class Konfiguration:
         # ("D gestartet, cadwork laesst sich bedienen"). Mit 'mainthread'
         # war es das im selben Test NICHT.
         #
-        # Faellt der Qt-Antrieb aus (kein PyQt6, keine QApplication), geht
+        # Faellt der Qt-Antrieb aus (kein PyQt6/PyQt5, keine QApplication), geht
         # serve() automatisch auf 'mainthread' zurueck und schreibt den
         # Grund ins Log. OPEN_MCP_CAD_ANTRIEB=mainthread erzwingt das alte
         # Verhalten.
@@ -1245,6 +1322,7 @@ class Verbindungsdienst:
         self.blockiert_seit_mono = None
         self.zurueckhaltungen = 0      # wie oft schon zurueckgehalten
         self.sonden = []               # Namen der aktiven Sonden (Status)
+        self.qt = ""                   # Qt-Stand des Antriebs (Status)
         # Wann der letzte Qt-Takt fertig war, und wie lange der Takt zuletzt
         # stillstand, weil Cadwork den Hauptthread hatte. Nur Messung: sie
         # soll im echten Cadwork zeigen, welche Sonde waehrend einer langen
@@ -1442,6 +1520,7 @@ class Verbindungsdienst:
                     if self.blockiert_seit_mono is not None else None),
                 "zurueckhaltungen": self.zurueckhaltungen,
                 "sonden": list(self.sonden),
+                "qt": self.qt,
                 "takt_stau_s": self.letzter_stau_s,
             }
         with self.verbindungs_sperre:
@@ -3036,10 +3115,11 @@ def _popup_bauen(d):
     Folge davon, dass cwapi3d nicht thread-safe ist und ein Auftrag am
     Stueck im Hauptthread laeuft.
     """
-    from PyQt6.QtCore import Qt                       # noqa: PLC0415
-    from PyQt6.QtWidgets import (QApplication, QHBoxLayout,   # noqa: PLC0415
-                                 QLabel, QProgressBar,
-                                 QPushButton, QVBoxLayout, QWidget)
+    Qt = _qt_namen("QtCore", "Qt")
+    (QApplication, QHBoxLayout, QLabel, QProgressBar, QPushButton,
+     QVBoxLayout, QWidget) = _qt_namen(
+        "QtWidgets", "QApplication", "QHBoxLayout", "QLabel", "QProgressBar",
+        "QPushButton", "QVBoxLayout", "QWidget")
     if QApplication.instance() is None:
         return None
     # KIND von Cadworks Hauptfenster, und KEIN WindowStaysOnTopHint.
@@ -3598,10 +3678,10 @@ def _fenstername(w):
 
 
 def _qt_sonden():
-    """Die Qt-Sonden `modal`, `popup`, `schleife`. Braucht PyQt6."""
-    from PyQt6.QtCore import QThread                   # noqa: PLC0415
-    from PyQt6.QtGui import QGuiApplication            # noqa: PLC0415
-    from PyQt6.QtWidgets import QApplication           # noqa: PLC0415
+    """Die Qt-Sonden `modal`, `popup`, `schleife`. Braucht PyQt6 oder PyQt5."""
+    QThread = _qt_namen("QtCore", "QThread")
+    QGuiApplication = _qt_namen("QtGui", "QGuiApplication")
+    QApplication = _qt_namen("QtWidgets", "QApplication")
 
     flachste = {"ebene": None}
 
@@ -3798,9 +3878,9 @@ def _cadwork_hauptfenster():
     Liefert (fenster, weg) — `weg` sagt, wie es gefunden wurde, damit im Log
     nachvollziehbar bleibt, worauf angedockt wurde.
     """
-    from PyQt6.QtGui import QWindow                    # noqa: PLC0415
-    from PyQt6.QtWidgets import (QApplication,         # noqa: PLC0415
-                                 QMainWindow, QWidget)
+    QWindow = _qt_namen("QtGui", "QWindow")
+    (QApplication, QMainWindow, QWidget) = _qt_namen(
+        "QtWidgets", "QApplication", "QMainWindow", "QWidget")
 
     app = QApplication.instance()
     if app is None:
@@ -3858,10 +3938,11 @@ def _qt_fenster(d):
     Steckplaetze bleibt das eigenstaendige Fenster "Open MCP CAD Verbindungen" —
     das sieht auch die Steckplaetze in ANDEREN Cadwork-Prozessen.
     """
-    from PyQt6.QtCore import Qt, QTimer                # noqa: PLC0415
-    from PyQt6.QtGui import QColor                     # noqa: PLC0415
-    from PyQt6.QtWidgets import (QHBoxLayout, QLabel,  # noqa: PLC0415
-                                 QPushButton, QVBoxLayout, QWidget)
+    Qt, QTimer = _qt_namen("QtCore", "Qt", "QTimer")
+    QColor = _qt_namen("QtGui", "QColor")
+    (QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
+     QWidget) = _qt_namen("QtWidgets", "QHBoxLayout", "QLabel", "QPushButton",
+                          "QVBoxLayout", "QWidget")
 
     inhalt = QWidget()
     inhalt.setMinimumWidth(380)
@@ -3914,8 +3995,9 @@ def _qt_fenster(d):
     aussen.addLayout(reihe)
 
     # --- Register: Auftraege und Pruefhinweise ---------------------------
-    from PyQt6.QtWidgets import (QAbstractItemView,      # noqa: PLC0415
-                                 QListWidget, QListWidgetItem, QTabWidget)
+    (QAbstractItemView, QListWidget, QListWidgetItem,
+     QTabWidget) = _qt_namen("QtWidgets", "QAbstractItemView", "QListWidget",
+                             "QListWidgetItem", "QTabWidget")
 
     register = QTabWidget()
     aussen.addWidget(register, 1)
@@ -3982,7 +4064,7 @@ def _qt_fenster(d):
     # 2026-08-06, und die Grenze ist gemessen: das Anmelden kostet rund
     # 2,6 ms je Bauteil, 100 Sparren also 0,26 s — erst im vierstelligen
     # Bereich wird daraus Wartezeit.
-    from PyQt6.QtWidgets import QComboBox                  # noqa: PLC0415
+    QComboBox = _qt_namen("QtWidgets", "QComboBox")
     _undo_setzen = _worker_methoden(d)["undo_aenderungen"]
     reihe_ua = QHBoxLayout()
     reihe_ua.addWidget(QLabel("Änderungen rücknehmbar:"))
@@ -4038,7 +4120,7 @@ def _qt_fenster(d):
     # soll, z.B. dass angezoomt wird oder nicht, Default auf anzoomen ein.
     # Dann ob nur aktivierte angezeigt werden sollen, das man es auch
     # wirklich sieht."
-    from PyQt6.QtWidgets import QCheckBox as _QCheckBox   # noqa: PLC0415
+    _QCheckBox = _qt_namen("QtWidgets", "QCheckBox")
     reihe_opt = QHBoxLayout()
     chk_zoom = _QCheckBox("beim Zeigen anzoomen")
     chk_zoom.setChecked(True)
@@ -4054,7 +4136,7 @@ def _qt_fenster(d):
     # Antwort auf einen Hinweis — landet im Briefkasten, mit Bezug auf die
     # Hinweis-Nummer. Rueckmeldung: "eine Funktion, dass man zu einem Hinweis eine
     # Notiz in den Briefkasten direkt schreiben kann".
-    from PyQt6.QtWidgets import QLineEdit                 # noqa: PLC0415
+    QLineEdit = _qt_namen("QtWidgets", "QLineEdit")
     reihe_antwort = QHBoxLayout()
     eingabe_antwort = QLineEdit()
     eingabe_antwort.setPlaceholderText("Notiz zu diesem Hinweis …")
@@ -4133,7 +4215,8 @@ def _qt_fenster(d):
     eingabe_antwort.returnPressed.connect(hinweis_antworten)
 
     # -- Briefkasten -------------------------------------------------------
-    from PyQt6.QtWidgets import (QCheckBox, QPlainTextEdit)  # noqa: PLC0415
+    (QCheckBox, QPlainTextEdit) = _qt_namen(
+        "QtWidgets", "QCheckBox", "QPlainTextEdit")
 
     tab_post = QWidget()
     lp = QVBoxLayout(tab_post)
@@ -4194,7 +4277,7 @@ def _qt_fenster(d):
         lambda: _in_queue("neu_zeichnen", {}, "Ansicht neu zeichnen"))
     reihe.addWidget(btn_neu)
 
-    from PyQt6.QtWidgets import QSlider                    # noqa: PLC0415
+    QSlider = _qt_namen("QtWidgets", "QSlider")
 
     # Der Regler bedient dieselbe Methode wie ein Client — eine Quelle fuer
     # Fenster und Fernsteuerung, statt zweier Wege in denselben Zustand.
@@ -4498,7 +4581,7 @@ def _qt_fenster(d):
     dock = None
     if haupt is not None:
         try:
-            from PyQt6.QtWidgets import QDockWidget    # noqa: PLC0415
+            QDockWidget = _qt_namen("QtWidgets", "QDockWidget")
             dock = QDockWidget(d.cfg.anzeigename, haupt)
             # Stabiler objectName: daran wird ein vorhandenes Dock
             # wiedererkannt, statt ein zweites danebenzustellen.
@@ -4551,8 +4634,8 @@ def _qtimer_antrieb(d, aufraeumen):
     bereits geladen und `QApplication.instance()` liefert Cadworks eigene
     Anwendung ("3D", 30 Fenster).
     """
-    from PyQt6.QtCore import QTimer                    # noqa: PLC0415
-    from PyQt6.QtWidgets import QApplication           # noqa: PLC0415
+    QTimer = _qt_namen("QtCore", "QTimer")
+    QApplication = _qt_namen("QtWidgets", "QApplication")
 
     app = QApplication.instance()
     if app is None:
@@ -4576,6 +4659,8 @@ def _qtimer_antrieb(d, aufraeumen):
     if fenster_sonde is not None:
         sonden.insert(0, fenster_sonde)
     d.sonden = [s.__name__ for s in sonden]
+    d.qt = qt_stand()
+    LOG.info("Qt-Antrieb mit %s", d.qt)
     LOG.info("Sonden aktiv: %s%s", ", ".join(d.sonden) or "keine",
              "" if getattr(d.cfg, "zurueckhalten", True) else
              " — ABGESCHALTET (OPEN_MCP_CAD_ZURUECKHALTEN=0)")

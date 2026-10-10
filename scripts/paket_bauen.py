@@ -7,7 +7,9 @@
                                                   # Persoenliches drin ist
     python scripts/paket_bauen.py --ziel <ordner> # statt dist/
 
-Ergebnis: dist/Open-MCP-CAD-<version>/ und dist/Open-MCP-CAD-<version>.zip
+Ergebnis: dist/Open-MCP-CAD-<version>/, dist/Open-MCP-CAD-<version>.zip und
+dieselbe ZIP als dist/Open-MCP-CAD.zip (fester Name, das Asset fuer das Update
+im Dock).
 
 OBEN liegt nur, was ein Nutzer anfassen soll (Rueckmeldung 2026-09-29:
 Kollegen ohne IT-Kenntnisse fanden in vielen Dateien nicht, was zu tun
@@ -21,7 +23,8 @@ ist):
         server/               das Paket open_mcp_cad + pyproject
         install.ps1           der eigentliche Installer
         install_fenster.ps1   das Einrichtungsfenster (seit 2026-10-09), mit
-        install_fenster.xaml  seinen Seiten und Texten und
+        install_fenster.xaml  seinen Seiten,
+        install_fenster_texte.xml  seinen Texten in vier Sprachen und
         logo.png              dem Logo; es startet install.ps1
         ANLEITUNG*.md         die ausfuehrliche Anleitung, vier Sprachen
         FUER_KI_ASSISTENTEN.md  der Abschnitt "Fuer KI-Assistenten" aus
@@ -81,6 +84,8 @@ VERTEILUNG = os.path.join(REPO, "verteilung")
 #: startet es, es startet dann install.ps1.
 FENSTER = "install_fenster.ps1"
 FENSTER_XAML = "install_fenster.xaml"
+#: Seine Texte in vier Sprachen (seit 2026-10-10, Deutsch verbindlich).
+FENSTER_TEXTE = "install_fenster_texte.xml"
 #: Der Doppelklick oben im Paket; er startet UNTERORDNER\install.ps1
 #: (`bauen` prueft, dass die Datei genau diesen Pfad nennt).
 INSTALLIEREN = "1_INSTALLIEREN.cmd"
@@ -194,6 +199,22 @@ def version():
     return treffer.group(1)
 
 
+#: Das Asset mit festem Namen fuer das Update im Dock (omcad_a_update.
+#: ASSET_NAME; CLAUDE.md "Release" Schritt 4).
+ASSET_FEST = "Open-MCP-CAD.zip"
+
+
+def update_version():
+    """`VERSION` aus omcad_a_update.py des ausgerollten Ordners — gelesen,
+    nicht importiert. Sie muss `__version__` gleichen: sonst meldete das
+    Dock nach einem Update weiter die alte Version (und boete es erneut
+    an)."""
+    pfad = os.path.join(REPO, "cad_plugin", "Open MCP CAD", "omcad_a_update.py")
+    with io.open(pfad, encoding="utf-8") as fh:
+        treffer = re.search(r'^VERSION\s*=\s*"([^"]+)"', fh.read(), re.M)
+    return treffer.group(1) if treffer else None
+
+
 def _eingecheckt(pfad):
     aus = subprocess.run(["git", "ls-files", pfad], cwd=REPO,
                          capture_output=True, text=True, check=True).stdout
@@ -236,6 +257,7 @@ def paket_dateien():
         # 2026-10-09): Skript, Seiten mit Texten, Logo.
         (os.path.join(VERTEILUNG, FENSTER), os.path.join(u, FENSTER)),
         (os.path.join(VERTEILUNG, FENSTER_XAML), os.path.join(u, FENSTER_XAML)),
+        (os.path.join(VERTEILUNG, FENSTER_TEXTE), os.path.join(u, FENSTER_TEXTE)),
         (os.path.join(REPO, "assets", "logo.png"), os.path.join(u, "logo.png")),
         (os.path.join(REPO, "LICENSE"), os.path.join(u, "LICENSE")),
         # Lizenzen fremder Teile (seit 2026-09-28: Lucide-Symbole im Plugin;
@@ -336,6 +358,22 @@ def oben_abweichung(ordner):
         if (n == UNTERORDNER) != os.path.isdir(os.path.join(ordner, n)):
             aus.append("falsche Art: %s" % n)
     return aus
+
+
+def fenster_texte(pfad=None):
+    """Die Texte des Einrichtungsfensters (FENSTER_TEXTE) -> (Sprachen,
+    {Schluessel: {sprache: text}}, {Schluessel: Sprachen aus gleich=".."},
+    in denen der Text dem deutschen gleichen darf). Liest wie
+    install_fenster.ps1 (Texte-Laden): je <t id> ein Element je Sprache."""
+    import xml.etree.ElementTree as ET
+    wurzel = ET.parse(pfad or os.path.join(VERTEILUNG, FENSTER_TEXTE)).getroot()
+    sprachen = wurzel.get("sprachen", "").split()
+    texte, gleich = {}, {}
+    for t in wurzel.findall("t"):
+        texte[t.get("id")] = {k.tag: (k.text or "") for k in t}
+        if t.get("gleich"):
+            gleich[t.get("id")] = set(t.get("gleich").split())
+    return sprachen, texte, gleich
 
 
 def installieren_pruefen(pfad=None):
@@ -1150,6 +1188,10 @@ def bauen(ziel_basis=None, oeffentlich=False, muster=None, edge=None,
         raise PaketFehler("--oeffentlich braucht Spuren-Muster in %s — ohne "
                           "sie prueft es nichts" % PRIVAT_SPUREN)
     ziel_basis = os.path.abspath(ziel_basis or os.path.join(REPO, "dist"))
+    if update_version() != version():
+        raise PaketFehler("VERSION in omcad_a_update.py (%s) ist nicht "
+                          "__version__ (%s) - beide zusammen heben"
+                          % (update_version(), version()))
     name = "Open-MCP-CAD-%s" % version()
     ordner = os.path.join(ziel_basis, name)
     archiv = ordner + ".zip"
@@ -1230,6 +1272,12 @@ def bauen(ziel_basis=None, oeffentlich=False, muster=None, edge=None,
             for n in sorted(namen):
                 p = os.path.join(wurzel, n)
                 z.write(p, os.path.join(name, os.path.relpath(p, ordner)))
+    # Dieselbe ZIP unter festem Namen: das Asset, das das Dock laedt.
+    try:
+        shutil.copyfile(archiv, os.path.join(ziel_basis, ASSET_FEST))
+    except OSError as exc:
+        raise PaketFehler("%s laesst sich nicht schreiben (offen?): %s"
+                          % (ASSET_FEST, exc))
     return ordner, archiv, weiche, warnungen
 
 
@@ -1246,6 +1294,8 @@ def main():
     n = sum(len(f) for _w, _d, f in os.walk(ordner))
     print("Paket:  %s  (%d Dateien)" % (ordner, n))
     print("ZIP:    %s  (%.0f KB)" % (archiv, os.path.getsize(archiv) / 1024))
+    print("Asset:  %s  (gleich, fester Name fuer das Update im Dock)"
+          % os.path.join(os.path.dirname(archiv), ASSET_FEST))
     print("Oben:   %s" % ", ".join(oben_soll(ordner)))
     for w in warnungen:
         print("WARNUNG: %s — die Anleitung liegt oben als HTML. Microsoft "

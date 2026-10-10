@@ -9,7 +9,10 @@ Rueckmeldung Kollege zu 0.1.0 (2026-09-26):
   * die Profile wurden als TEXT absteigend sortiert - userprofil_30 kam vor
     userprofil_2025, das Plugin landete im falschen Profil;
   * Cadwork 2025 (Python 3.12, PyQt5) wurde nicht erkannt, das Plugin
-    startet dort nicht;
+    startete dort nicht (seit 2026-10-10 laeuft es ueber eine Qt-Schicht
+    auch mit PyQt5 und ist seit der Messung des Maintainers dort getestet:
+    2025 wird ohne Hinweis kopiert, aelter als $CADWORK_ERLAUBT_AB warnt;
+    die Jahre liest das Gate aus install.ps1);
   * am Ende stand "erfolgreich", obwohl nur der Server geprueft war.
 
 Gemessen wird mit Windows PowerShell 5.1 (`powershell.exe`, wie
@@ -28,11 +31,14 @@ I21-I27, OHNE ein Fenster zu zeigen: XAML laden, Knoepfe per Click-Ereignis,
 Ereignisschleife ohne Fenster, Seiten per RenderTargetBitmap; jeder
 Kindprozess ohne Konsole. `--nur-fenster` laeuft nur diese Zellen (dazu
 I28-I30: Chat in Cadwork mit -ChatKi und Anmelden gegen ein falsches
-claude.exe, Unterzeile, "Text kopieren").
+claude.exe, Unterzeile, "Text kopieren"). I39/I40 (seit 2026-10-10):
+mehrere Cadwork-Versionen auf einem PC - Haken je Profil, Vorauswahl,
+install.ps1 -Profile "a;b".
 """
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -45,6 +51,7 @@ sys.path.insert(0, os.path.join(REPO, "scripts"))
 import paket_bauen as P                                     # noqa: E402
 FENSTER = os.path.join(P.VERTEILUNG, P.FENSTER)
 FENSTER_XAML = os.path.join(P.VERTEILUNG, P.FENSTER_XAML)
+FENSTER_TEXTE = os.path.join(P.VERTEILUNG, P.FENSTER_TEXTE)
 #: Das Store-Paket der ChatGPT-Desktop-App mit Codex (frueher "Codex-App"),
 #: gemessen 2026-10-09 am Rechner des Maintainers: Get-AppxPackage ->
 #: PackageFamilyName, Get-StartApps -> Name "ChatGPT", Version 26.1002.7124.0.
@@ -158,6 +165,7 @@ def paket_attrappe(cmd_quelle=None, pdf=True, name=None, ps1=None,
     if fenster is True:
         shutil.copy(FENSTER, os.path.join(unter, P.FENSTER))
         shutil.copy(FENSTER_XAML, os.path.join(unter, P.FENSTER_XAML))
+        shutil.copy(FENSTER_TEXTE, os.path.join(unter, P.FENSTER_TEXTE))
     elif fenster:
         shutil.copy(fenster, os.path.join(unter, P.FENSTER))
     # Wie paket_bauen: der Doppelklick mit CRLF.
@@ -677,6 +685,51 @@ def pruefe_ki_teil():
     pruefe("I18c Pfad mit ' bleibt in TOML lesbar",
            tomllib.loads(block)["mcp_servers"]["open-mcp-cad"]["command"]
            == obrien and "'" + obrien + "'" not in block, block)
+
+    # I18d Rueckmeldung 2026-10-10: "KI-Programme: Claude Desktop
+    # eingetragen; Claude Desktop eingetragen" - Claude Desktop hat zwei
+    # Orte (%APPDATA%\Claude und das Store-Paket Packages\Claude_*). Jedes
+    # Programm steht EINMAL in der Zeile; Gleiches an zwei Orten "(2 Orte)",
+    # Verschiedenes bleibt unterscheidbar.
+    def zwei_orte():
+        w = ki_welt(programme=("claude_desktop",))
+        store = os.path.join(w["local"], "Packages", "Claude_test123",
+                             "LocalCache", "Roaming", "Claude")
+        os.makedirs(store)
+        with open(os.path.join(store, "claude_desktop_config.json"), "wb") \
+                as fh:
+            fh.write(json.dumps(DESKTOP_ALT, indent=2).encode("utf-8"))
+        return w
+    erg, aus = ki_lauf(zwei_orte(), ["", "", ""])
+    gemischt = ps_funktionen(
+        "$e = @([pscustomobject]@{ Name = 'Codex'; Status = 'eingetragen' },"
+        " [pscustomobject]@{ Name = 'Claude Desktop'; Status = 'eingetragen' },"
+        " [pscustomobject]@{ Name = 'Claude Desktop'; Status = 'schon_da' },"
+        " [pscustomobject]@{ Name = 'Claude Code'; Status = 'abgelehnt' })\n"
+        "@{ ki = (KI-Zeile $e) } | ConvertTo-Json -Compress")
+    pruefe("I18d Claude Desktop an zwei Orten (APPDATA + Store-Paket): beide "
+           "eingetragen, die Zeile nennt es EINMAL ('(2 Orte)'); verschiedene "
+           "Ergebnisse desselben Programms bleiben unterscheidbar",
+           erg.get("zeilen") == ["Claude Desktop|eingetragen",
+                                 "Claude Desktop|eingetragen"]
+           and erg.get("ki") == "Claude Desktop eingetragen (2 Orte)"
+           and gemischt.get("ki") == "Codex eingetragen; Claude Desktop "
+           "eingetragen, war schon eingetragen; Claude Code nicht gewollt",
+           (erg, gemischt, aus[-400:]))
+    # KONTROLLE: die Fassung vor 2026-10-10 (Commit 12ccf52, aus git) nennt
+    # Claude Desktop in derselben Welt zweimal.
+    alt_ps1 = os.path.join(tempfile.mkdtemp(prefix="omcad_kialt_"),
+                           "install.ps1")
+    _temp.append(os.path.dirname(alt_ps1))
+    with open(alt_ps1, "wb") as fh:
+        fh.write(subprocess.run(["git", "show", "12ccf52:verteilung/"
+                                 "install.ps1"], cwd=REPO, capture_output=True,
+                                check=True).stdout)
+    erg_k, aus_k = ki_lauf(zwei_orte(), ["", "", ""], ps1=alt_ps1)
+    pruefe("I18d-K KONTROLLE: die alte KI-Zeile (12ccf52) schreibt "
+           "'Claude Desktop eingetragen; Claude Desktop eingetragen'",
+           erg_k.get("ki") == "Claude Desktop eingetragen; Claude Desktop "
+           "eingetragen", (erg_k, aus_k[-300:]))
 
     # KONTROLLEN: Mutanten von ki_eintragen.py (auf dem Suchpfad des
     # Helfers) und von install.ps1 — jede MUSS eine Zelle oben rot machen.
@@ -1335,11 +1388,15 @@ def _ps_text(s):
 
 
 def fenster_lauf(wurzel, programm, schritte="", vorher="", env=None,
-                 ohne_server=False, fenster=None, protokoll=None, aus=""):
+                 ohne_server=False, fenster=None, protokoll=None, aus="",
+                 sprache="de", texte=None, schalter=""):
     """Das Fenster (oder eine Mutante `fenster`) ohne es zu zeigen: bauen,
     verdrahten, Willkommen, pruefen wie beim Start; dann `schritte`
     (PowerShell, `K 'knopf'` klickt und merkt die Seite). `vorher`:
-    Ersatz-Funktionen (etwa Finde-Python). -> (JSON, Text)."""
+    Ersatz-Funktionen (etwa Finde-Python). `sprache`: -Sprache (Vorgabe
+    de, damit die deutschen Saetze unten nicht von der Anzeigesprache des
+    Rechners abhaengen; "" = die von Windows). `texte`: -TexteDatei.
+    -> (JSON, Text)."""
     assert wurzel.startswith(tempfile.gettempdir())
     assert programm.startswith(tempfile.gettempdir())
     if protokoll is None:
@@ -1349,9 +1406,12 @@ def fenster_lauf(wurzel, programm, schritte="", vorher="", env=None,
     skript = "\n".join([
         "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false",
         ". %s -NurFunktionen -CadworkWurzel %s -CadworkProgramm %s "
-        "-Protokoll %s%s" % (_ps_text(fenster or FENSTER), _ps_text(wurzel),
-                             _ps_text(programm), _ps_text(protokoll),
-                             " -OhneServer" if ohne_server else ""),
+        "-Protokoll %s%s%s%s%s" % (
+            _ps_text(fenster or FENSTER), _ps_text(wurzel),
+            _ps_text(programm), _ps_text(protokoll),
+            " -OhneServer" if ohne_server else "",
+            " -Sprache %s" % _ps_text(sprache) if sprache else "",
+            " -TexteDatei %s" % _ps_text(texte) if texte else "", schalter),
         "Wpf-Laden",
         "$global:urls = @()",
         "function Url-Oeffnen($u) { $global:urls += @($u) }",
@@ -1365,6 +1425,9 @@ def fenster_lauf(wurzel, programm, schritte="", vorher="", env=None,
         "Lage-Pruefen $S; Willkommen-Fuellen $U $S",
         "$global:v = @($S.Seite)",
         "function K($n) { Klick $U $n; $global:v += $S.Seite }",
+        # "Nochmal suchen" sucht seit 2026-10-10 im Hintergrund: warten.
+        "function KN($n) { Klick $U $n; $null = Pumpen { -not $S.Suche } 30;"
+        " $global:v += $S.Seite }",
         # Willkommen, dann "In deiner KI-App" (die Faelle vor der Seite "wo")
         "function KW { K 'willkommen_weiter'; (El $U 'wo_app').IsChecked = $true; K 'wo_weiter' }",
         schritte,
@@ -1567,22 +1630,25 @@ def pruefe_fenster():
                "t_fehler_server", "t_fehler_version"]
            and r.get("g") == [True, False, False, False], (r, aus[-300:]))
     # Jeder Schluessel, den das Skript fuer einen Text nennt, steht in der
-    # XAML (aus der Quelle gelesen); jedes Teil, das es sucht, auch.
+    # Textdatei (seit 2026-10-10 dort statt in der XAML; aus der Quelle
+    # gelesen); jedes Teil, das es sucht, steht in der XAML.
     quelle = open(FENSTER, encoding="ascii").read()
     xaml = open(FENSTER_XAML, encoding="utf-8").read()
+    _sp, schluessel, _gl = P.fenster_texte()
     texte = set(re.findall(r'"(t_[a-z_]+)"', quelle))
     texte |= {"t_name_" + i for i in re.findall(
         r'\$KI_PROGRAMME = @\(([^)]*)\)', quelle)[0].replace('"', "").replace(
             " ", "").split(",")}
     fehlt = sorted(x for x in texte if not x.endswith("_")
-                   and 'x:Key="%s"' % x not in xaml)
+                   and x not in schluessel)
     teile = set(re.findall(r'El \$(?:F\.)?U "([a-z_0-9]+)"', quelle))
     teile |= {"Seite_" + s for s in re.findall(
         r'\$SEITEN = @\(([^)]*)\)', quelle)[0].replace('"', "").replace(
             " ", "").split(",")}
     teile_fehlt = sorted(x for x in teile if 'x:Name="%s"' % x not in xaml)
     pruefe("I22 jeder Text (%d) und jedes Teil (%d), das install_fenster.ps1 "
-           "nennt, steht in der XAML; das Skript ist reines ASCII"
+           "nennt, steht in der Textdatei bzw. der XAML; das Skript ist reines "
+           "ASCII"
            % (len(texte), len(teile)),
            not fehlt and not teile_fehlt and len(texte) > 20
            and all(ord(c) < 128 for c in quelle), (fehlt, teile_fehlt))
@@ -1600,14 +1666,15 @@ def pruefe_fenster():
     a = r.get("args") or []
     pruefe("I23a Normalfall (ein Profil 2026, Python da, Codex + Claude "
            "Desktop gefunden): Willkommen -> KI-App -> Bereit; beide "
-           "angehakt, Claude Code ohne Karte; Argumente: -Profil 2026, "
+           "angehakt, Claude Code (nicht gefunden) mit Karte und 'Holen' "
+           "(seit 2026-10-10); Argumente: -Profil 2026, "
            "-KiNur claude_desktop,codex, -OhnePause, kein -TrotzdemKopieren "
            "und kein -PythonInstallieren; 'Los geht's' erst nach dem Pruefen",
            r.get("v") == ["willkommen", "wo", "ki", "bereit"]
            and r.get("haken") == {"claude_desktop": [True, True],
                                   "codex": [True, True],
                                   "claude_code": [False, False]}
-           and r.get("code_karte") is False and r.get("vor") is False
+           and r.get("code_karte") is True and r.get("vor") is False
            and _wert(a, "-Profil") == pfad26
            and _wert(a, "-KiNur") == "claude_desktop,codex"
            and "-OhnePause" in a and "-Utf8Ausgabe" in a
@@ -1627,26 +1694,32 @@ def pruefe_fenster():
            r.get("aus") is False and r.get("seite") == "ki"
            and r.get("haken", {}).get("codex") == [True, False], (r, aus[-300:]))
     zu = ("$global:zu = $false; $U.W.Add_Closed({ $global:zu = $true })")
-    t, w, p = attrappe(["userprofil_2026", "userprofil_2025"],
-                       ["2026", "2025"])
-    pfad25 = os.path.join(w, "userprofil_2025", "3d", "API.x64")
+    # Die Warnung gilt einer NICHT erlaubten Version: ALT_JAHR (das Jahr vor
+    # $CADWORK_ERLAUBT_AB aus der Quelle, seit 2026-10-10: 2024).
+    alt = "userprofil_%d" % ALT_JAHR
+    t, w, p = attrappe(["userprofil_2026", alt], ["2026", str(ALT_JAHR)])
+    pfad_alt = os.path.join(w, alt, "3d", "API.x64")
+    # Seit 2026-10-10 Haken statt einer Wahl: 2026 (vorab angehakt) ab-,
+    # ALT_JAHR anhaken - dann gilt NUR dieses (wie vorher die eine Wahl).
     r, aus = fenster_lauf(
         w, p, "KW; K 'ki_weiter'; "
-        "(El $U 'profil_wahl_1').IsChecked = $true; K 'profil_weiter'; "
+        "(El $U 'profil_wahl_1').IsChecked = $true; "
+        "(El $U 'profil_wahl_0').IsChecked = $false; K 'profil_weiter'; "
         "K 'version_trotzdem'", vorher=py_da, env=env)
     a = r.get("args") or []
-    pruefe("I23b zwei Profile: Seite 'Welches Cadwork?', 2025 gewaehlt -> "
-           "Warnung, 'Trotzdem installieren' -> Bereit; Argumente -Profil 2025 "
-           "und -TrotzdemKopieren",
+    pruefe("I23b zwei Profile: Seite 'Welches Cadwork?', nur %d angehakt -> "
+           "Warnung, 'Trotzdem installieren' -> Bereit; Argumente -Profil %d "
+           "(kein -Profile) und -TrotzdemKopieren" % (ALT_JAHR, ALT_JAHR),
            r.get("v") == ["willkommen", "wo", "ki", "profil", "version", "bereit"]
-           and _wert(a, "-Profil") == pfad25 and "-TrotzdemKopieren" in a,
+           and _wert(a, "-Profil") == pfad_alt and "-Profile" not in a
+           and "-TrotzdemKopieren" in a,
            (r, aus[-500:]))
-    t, w, p = attrappe(["userprofil_2025"], ["2025"])
+    t, w, p = attrappe([alt], [str(ALT_JAHR)])
     r, aus = fenster_lauf(w, p, zu + "\nKW; K 'ki_weiter';"
                           " Klick $U 'version_schliessen'", vorher=py_da,
                           env=env, aus="$global:zu")
-    pruefe("I23c nur Cadwork 2025: die Warnung kommt, 'Schliessen' schliesst, "
-           "nichts gestartet, Rueckgabe 3",
+    pruefe("I23c nur Cadwork %d: die Warnung kommt, 'Schliessen' schliesst, "
+           "nichts gestartet, Rueckgabe 3" % ALT_JAHR,
            r.get("v") == ["willkommen", "wo", "ki", "version"] and r.get("aus") is True
            and r.get("rc") == 3, (r, aus[-400:]))
     t, w, p = attrappe(["userprofil_2026"], ["2026"])
@@ -1670,7 +1743,7 @@ def pruefe_fenster():
     codex_ordner = os.path.join(leer["heim"], ".codex")
     r, aus = fenster_lauf(
         w, p, "KW; K 'keine_claude'; K 'keine_codex'; "
-        "New-Item -ItemType Directory -Path %s | Out-Null; K 'keine_nochmal';"
+        "New-Item -ItemType Directory -Path %s | Out-Null; KN 'keine_nochmal';"
         " K 'ki_weiter'" % _ps_text(codex_ordner), vorher=py_da, env=env_leer)
     pruefe("I23e keine KI-App: 'Du brauchst zuerst eine KI-App', die zwei "
            "Knoepfe oeffnen die offiziellen Seiten (Anthropic, Microsoft "
@@ -1704,14 +1777,14 @@ def pruefe_fenster():
         assert q.count(alt) == 1, alt
         d = tempfile.mkdtemp(prefix="omcad_fmut_")
         _temp.append(d)
-        for n in (P.FENSTER_XAML,):
+        for n in (P.FENSTER_XAML, P.FENSTER_TEXTE):
             shutil.copy(os.path.join(P.VERTEILUNG, n), os.path.join(d, n))
         shutil.copy(INSTALL, os.path.join(d, "install.ps1"))
         ziel = os.path.join(d, P.FENSTER)
         with open(ziel, "w", encoding="ascii") as fh:
             fh.write(q.replace(alt, neu))
         return ziel
-    t, w, p = attrappe(["userprofil_2025"], ["2025"])
+    t, w, p = attrappe(["userprofil_%d" % ALT_JAHR], [str(ALT_JAHR)])
     k1, _a = fenster_lauf(w, p, "KW; K 'ki_weiter'",
                           vorher=py_da, env=env, fenster=fmut(
                               '"version" { return ($S.Version -and',
@@ -1724,10 +1797,10 @@ def pruefe_fenster():
                           vorher=py_fehlt, env=env, fenster=fmut(
                               '"python"  { return ($S.PythonFehlt',
                               '"python"  { return ($false'))
-    pruefe("I23-K KONTROLLEN: ohne Versionswarnung kaeme Cadwork 2025 ohne "
+    pruefe("I23-K KONTROLLEN: ohne Versionswarnung kaeme Cadwork %d ohne "
            "Frage auf 'Bereit' (I23c), ohne die Wahl ginge Codex trotz "
            "Abwahl mit (I23a2), ohne Python-Seite fehlte -PythonInstallieren "
-           "(I23d)",
+           "(I23d)" % ALT_JAHR,
            k1.get("v") == ["willkommen", "wo", "ki", "bereit"]
            and "codex" in (_wert(k2.get("args") or [], "-KiNur") or "")
            and "-PythonInstallieren" not in (k3.get("args") or ["-Python"
@@ -1773,19 +1846,20 @@ def pruefe_fenster():
     t2 = tempfile.mkdtemp(prefix="omcad_kette_")
     _temp.append(t2)
     w2, p2 = os.path.join(t2, "cadwork"), os.path.join(t2, "cadwork.dir")
-    os.makedirs(os.path.join(w2, "userprofil_2025", "3d", "API.x64"))
-    os.makedirs(os.path.join(p2, "EXE_2025"))
+    os.makedirs(os.path.join(w2, "userprofil_%d" % ALT_JAHR, "3d",
+                             "API.x64"))
+    os.makedirs(os.path.join(p2, "EXE_%d" % ALT_JAHR))
     r2, aus2 = fenster_lauf(w2, p2, "KW; K 'ki_weiter'; "
                             "K 'version_trotzdem'; K 'bereit_installieren'; "
                             + warten + "; $global:v += $S.Seite; "
                             "K 'fehler_kopieren'", vorher=py_da, env=env,
                             ohne_server=True, fenster=fenster,
                             aus="$global:ok")
-    pruefe("I24b Cadwork 2025 'trotzdem': kopiert, aber Fehlerseite mit dem "
-           "Satz zur Version, Rueckgabe 3 (wie das Textfenster)",
+    pruefe("I24b Cadwork %d 'trotzdem': kopiert, aber Fehlerseite mit dem "
+           "Satz zur Version, Rueckgabe 3 (wie das Textfenster)" % ALT_JAHR,
            r2.get("v", [])[-1:] == ["fehler"] and r2.get("rc") == 3
            and r2.get("fehler") == "t_fehler_version"
-           and kopiert_in(w2) == ["userprofil_2025"]
+           and kopiert_in(w2) == ["userprofil_%d" % ALT_JAHR]
            # "Details kopieren": das ganze Protokoll in die Ablage
            and "== 2/5" in (r2.get("ablage") or "")
            and "NICHT vollstaendig" in (r2.get("ablage") or ""),
@@ -1828,13 +1902,22 @@ def pruefe_fenster():
 
     pruefe_fenster_chat(env, py_da, py_fehlt, fmut)
 
+    # --- I31 vier Sprachen, I32 das alte Plugin (seit 2026-10-10) -------
+    pruefe_sprachen(env, py_da)
+    pruefe_alte_version(env, py_da)
+    pruefe_kopieren_details(env, py_da)
+    pruefe_wahl_suche_zurueck(env, py_da)
+    pruefe_logos(env, py_da)
+    pruefe_versionen(env, py_da)
+    pruefe_mehrere_profile(env, py_da)
+
     # --- I25 -ErgebnisDatei: der Stand fuer das Fenster ------------------
     t, w, p = attrappe(["userprofil_2026"], ["2026"])
     datei = os.path.join(t, "ergebnis.json")
     rc, aus = installer(w, p, "-ErgebnisDatei", datei)
     erg = json.load(open(datei, encoding="utf-8")) \
         if os.path.isfile(datei) else {}
-    t, w, p = attrappe(["userprofil_2025"], ["2025"])
+    t, w, p = attrappe(["userprofil_%d" % ALT_JAHR], [str(ALT_JAHR)])
     datei2 = os.path.join(t, "ergebnis.json")
     rc2, _aus = installer(w, p, "-ErgebnisDatei", datei2)
     erg2 = json.load(open(datei2, encoding="utf-8")) \
@@ -1847,7 +1930,8 @@ def pruefe_fenster():
                    for z in erg.get("zeilen", []))
            and rc2 == 3 and erg2.get("fertig") is False
            and erg2.get("plugin") == "fehlt"
-           and "Cadwork 2025" in (erg2.get("fehler") or ""), (erg, erg2))
+           and "Cadwork %d" % ALT_JAHR in (erg2.get("fehler") or ""),
+           (erg, erg2))
 
     # --- I26 die Seiten als Bilder, ohne Fenster -------------------------
     bilder = tempfile.mkdtemp(prefix="omcad_seiten_")
@@ -1863,8 +1947,12 @@ def pruefe_fenster():
         seiten = {}
     seiten_q = re.findall(r'\$SEITEN = @\(([^)]*)\)', quelle)[0].replace(
         '"', "").replace(" ", "").split(",")
-    # dazu die Bilder der Seite "laeuft" mit Unterzeile (aus der Quelle)
+    # dazu die Bilder der Seite "laeuft" mit Unterzeile und die weiteren
+    # Lagen (seit 2026-10-10; aus der Quelle)
     seiten_q += re.findall(r'(?m)^    (laeuft_\w+) += @\(', quelle)
+    weitere = re.findall(r'(?m)^    (\w+) += "\w+"$', quelle.split(
+        "$WEITERE_BILDER = [ordered]@{", 1)[1].split("}", 1)[0])
+    seiten_q += weitere
 
     def png_masse(pfad):
         import struct
@@ -1877,9 +1965,9 @@ def pruefe_fenster():
             else None
     masse = {s: png_masse(os.path.join(bilder, "fenster-%s.png" % s))
              for s in seiten_q}
-    pruefe("I26 -Rendern: jede Seite (%d) als PNG in doppelter Aufloesung "
-           "(1280x960), seiten.json mit den Teilen fuer die Marken der "
-           "Anleitung" % len(seiten_q),
+    pruefe("I26 -Rendern: jede Seite und Lage (%d) als PNG in doppelter "
+           "Aufloesung (1280x960), seiten.json mit den Teilen fuer die Marken "
+           "der Anleitung" % len(seiten_q),
            r.returncode == 0 and set(seiten) == set(seiten_q)
            and all(m == (1280, 960) for m in masse.values())
            and {"ki_claude_desktop", "ki_codex", "ki_weiter"}
@@ -1896,7 +1984,14 @@ def pruefe_fenster():
                "ziele", {})
            and any("numpy" in x for x in seiten.get("laeuft_pip", {}).get(
                "texte", []))
-           and len(seiten_q) == 15,
+           and "bereit_alt_haken" in seiten.get("bereit_alt", {}).get(
+               "ziele", {})
+           and "bereit_alt" not in seiten.get("bereit", {}).get("ziele", {})
+           # seit 2026-10-10: die Haken der Seite "Welches Cadwork?" (zwei
+           # Profile, beide angehakt) und die Lagen mit zwei Cadwork
+           and {"profil_wahl_0", "profil_wahl_1", "profil_weiter"}
+           <= set(seiten.get("profil", {}).get("ziele", {}))
+           and len(seiten_q) == 23 and len(weitere) == 8,
            (r.returncode, masse, r.stderr[-300:]))
     # Was man sieht: keine Pfade (ausser dem Protokoll auf der Fehlerseite),
     # keine Fachwoerter (Python nur auf der Seite, die es mitinstalliert).
@@ -1908,7 +2003,7 @@ def pruefe_fenster():
         for s, info in seiten.items():
             for x in info.get("texte", []):
                 y = x.replace("Open MCP CAD", "")
-                if re.search(r"[A-Za-z]:\\", y) and s != "fehler":
+                if re.search(r"[A-Za-z]:\\", y) and not s.startswith("fehler"):
                     aus.append((s, x))
                 if fach.search(y) or ("Python" in y and s not in (
                         "python", "laeuft_python")):
@@ -1957,6 +2052,24 @@ def pruefe_fenster():
     rc10, a10, s10 = klick(10)
     rcs, _as, ss = klick(0, "-OhnePause")
     rco, _ao, so = klick(0, ohne_fenster=True)
+    # Seit 2026-10-10: "-Sprache fr" allein oeffnet das Fenster in dieser
+    # Sprache; ein unbekannter Wert oder ein weiterer Schalter das
+    # Textfenster; faellt das Fenster aus, bekommt install.ps1 -Sprache mit
+    # (es nimmt den Schalter an).
+    _r, _a, sfr = klick(0, "-Sprache", "FR")
+    _r, _a, sxx = klick(0, "-Sprache", "xx")
+    _r, _a, sfp = klick(0, "-Sprache", "fr", "-OhnePause")
+    _r, _a, s10f = klick(10, "-Sprache", "it")
+    pruefe("I27s Doppelklick mit -Sprache: 'fr' allein -> Fenster mit "
+           "-Sprache fr; unbekannter Wert oder ein Schalter mehr -> "
+           "Textfenster; Fenster faellt aus -> Textfenster mit denselben "
+           "Schaltern",
+           sfr == ["fenster|STA|-Sprache", "fr"]
+           and sxx == ["konsole|STA|-Sprache", "xx"]
+           and sfp == ["konsole|STA|-Sprache", "fr", "-OhnePause"]
+           and s10f == ["fenster|STA|-Sprache", "it", "konsole|STA|-Sprache",
+                        "it"],
+           dict(sfr=sfr, sxx=sxx, sfp=sfp, s10f=s10f))
     pruefe("I27 Doppelklick ohne Schalter: NUR das Fenster (im STA), dessen "
            "Rueckgabe 0/3 gilt; Rueckgabe 10 -> Hinweis und das Textfenster; "
            "mit Schalter oder ohne Fenster-Datei gleich das Textfenster",
@@ -2495,6 +2608,1863 @@ def pruefe_fenster_chat(env, py_da, py_fehlt, fmut):
            " ".join((text + " Extra").split()) not in schnell)
 
 
+# --- I31 das Einrichtungsfenster in vier Sprachen (seit 2026-10-10) ---------
+#
+# Rueckmeldung: Website, README und Anleitungen gibt es auf Deutsch,
+# Franzoesisch, Italienisch und Englisch, das Fenster war nur deutsch. Die
+# Texte stehen jetzt in install_fenster_texte.xml (eine Quelle, Deutsch
+# verbindlich), die Sprache kommt aus der Anzeigesprache von Windows.
+
+#: Woerter, die in einem franzoesischen, italienischen oder englischen Text
+#: des Fensters nur als deutscher Rest stehen koennen (nach dem Entfernen
+#: von «…», Datei- und Ordnernamen).
+DEUTSCHE_WOERTER = re.compile(
+    r"(?i)(?<![\w-])(und|nicht|wird|werden|ist|mit|für|fuer|ich|dein|"
+    r"deine|deinen|deiner|bitte|noch|oder|schon|jetzt|kein|keine|eine|einen|"
+    r"der|das|dem|auf|wenn|dann|alles|nochmals|weiter|zurück|"
+    r"schliessen|einrichten|installieren|herunterladen|anmelden|"
+    r"später|gefunden|fertig)(?![\w-])")
+
+
+def _ohne_namen(text):
+    """Ohne «…» (Beschriftungen von Cadwork und Plugin, die deutsch
+    bleiben), Adressen und Datei-/Ordnernamen."""
+    t = re.sub("«[^»]*»", " ", text)
+    t = re.sub(r"https?://\S+", " ", t)
+    return " ".join(w for w in t.split() if not re.search(r"[\\/_.]\w", w))
+
+
+def texte_luecken(sprachen, texte, gleich, xaml):
+    """-> Liste dessen, was an den Texten des Fensters nicht stimmt: jede
+    Sprache jeden Schluessel, nichts leer, dieselben Platzhalter wie das
+    Deutsche, in fr/it/en kein deutscher Rest (gleich wie Deutsch nur, wo
+    gleich="..." die Sprache nennt; kein deutsches Wort, kein Umlaut); in
+    der XAML kein sichtbarer Text ausser Zeichen und dem Namen, jeder
+    Schluessel dort in der Textdatei."""
+    aus = []
+    if sprachen != ["de", "fr", "it", "en"]:
+        aus.append("Sprachen: %s" % sprachen)
+    for k, je in sorted(texte.items()):
+        de = je.get("de", "")
+        for sp in sprachen:
+            v = je.get(sp)
+            if v is None:
+                aus.append("%s fehlt in %s" % (k, sp))
+                continue
+            if not v.strip():
+                aus.append("%s leer in %s" % (k, sp))
+                continue
+            if sorted(re.findall(r"\{\d\}", v)) != sorted(
+                    re.findall(r"\{\d\}", de)):
+                aus.append("%s: andere Platzhalter in %s" % (k, sp))
+            if sp == "de":
+                continue
+            if v == de and sp not in gleich.get(k, ()):
+                aus.append("%s in %s wie im Deutschen: %r" % (k, sp, v[:40]))
+            rest = _ohne_namen(v)
+            if v != de and (DEUTSCHE_WOERTER.search(rest)
+                            or re.search("[äöüÄÖ"
+                                         "Üß]", rest)):
+                aus.append("%s in %s mit deutschem Rest: %r"
+                           % (k, sp, rest[:60]))
+    fest = re.findall(r'\s(?:Text|Content|Title)="([^"{][^"]*)"', xaml)
+    erlaubt = {"Open MCP CAD", "i", "!", "1", "2", "3", "4", " "}
+    aus += ["fester Text in der XAML: %r" % f for f in fest
+            if f not in erlaubt]
+    aus += ["XAML nennt %s, die Textdatei nicht" % k for k in sorted(set(
+        re.findall(r"\{DynamicResource (t_\w+)\}", xaml))) if k not in texte]
+    return aus
+
+
+def _texte_mutante(was):
+    """Eine Kopie der Textdatei, in der `was(text) -> text` geaendert hat."""
+    q = open(FENSTER_TEXTE, encoding="utf-8").read()
+    neu = was(q)
+    assert neu != q
+    d = tempfile.mkdtemp(prefix="omcad_texte_")
+    _temp.append(d)
+    ziel = os.path.join(d, P.FENSTER_TEXTE)
+    with open(ziel, "w", encoding="utf-8") as fh:
+        fh.write(neu)
+    return ziel
+
+
+def _schnellstart(sp):
+    name = "SCHNELLSTART.md" if sp == "de" else "SCHNELLSTART.%s.md" % sp
+    t = open(os.path.join(P.VERTEILUNG, name), encoding="utf-8").read()
+    return " ".join(t.replace("> ", " ").replace(" ", " ").split())
+
+
+def rendern_in(sprache, texte=None, xaml=None):
+    """install_fenster.ps1 -Rendern in einer Sprache (ohne Fenster).
+    -> (seiten.json als dict, Rueckgabe)"""
+    d = tempfile.mkdtemp(prefix="omcad_seiten_%s_" % sprache)
+    _temp.append(d)
+    arg = [PS, "-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy",
+           "Bypass", "-File", FENSTER, "-Rendern", d, "-Sprache", sprache]
+    if texte:
+        arg += ["-TexteDatei", texte]
+    if xaml:
+        arg += ["-XamlDatei", xaml]
+    r = subprocess.run(arg, capture_output=True, timeout=300,
+                       creationflags=OHNE_FENSTER)
+    try:
+        seiten = json.load(open(os.path.join(d, "seiten.json"),
+                                encoding="utf-8"))
+    except (OSError, ValueError):
+        seiten = {}
+    return seiten, r.returncode
+
+
+def _abgeschnitten(seiten):
+    return {s: [(a.get("teil"), a.get("text", "")[:40], a.get("gewuenscht"),
+                 a.get("verfuegbar")) for a in (info.get("abgeschnitten")
+                                                or [])]
+            for s, info in seiten.items() if info.get("abgeschnitten")}
+
+
+def _deutsch_auf_seiten(seiten, sp, texte):
+    """Texte einer gerenderten Seite in `sp`, die deutsch sind: ein ganzer
+    deutscher Text, der sich in `sp` unterscheidet, oder ein deutsches
+    Wort (ausser in «…», Pfaden und Dateinamen)."""
+    nur_de = {je["de"].replace(" ", " ") for je in texte.values()
+              if je.get(sp) != je["de"]}
+    aus = []
+    for s, info in seiten.items():
+        for x in info.get("texte", []):
+            y = x.replace(" ", " ")
+            if y in nur_de or DEUTSCHE_WOERTER.search(_ohne_namen(y)):
+                aus.append((s, x[:50]))
+    return aus
+
+
+def pruefe_sprachen(env, py_da):
+    sprachen, texte, gleich = P.fenster_texte()
+    xaml = open(FENSTER_XAML, encoding="utf-8").read()
+    luecken = texte_luecken(sprachen, texte, gleich, xaml)
+    pruefe("I31 Texte des Fensters (%d Schluessel) in de/fr/it/en: jeder "
+           "da, keiner leer, Platzhalter wie im Deutschen, in fr/it/en kein "
+           "deutscher Rest; die XAML ohne festen Text, jeder Schluessel dort "
+           "in der Textdatei" % len(texte), not luecken and len(texte) > 120,
+           luecken[:6])
+    # KONTROLLEN: je eine eingebaute Luecke MUSS auffallen.
+    k = {}
+    import copy
+    t2 = copy.deepcopy(texte)
+    t2["t_weiter"]["fr"] = t2["t_weiter"]["de"]
+    k["fr wie deutsch"] = t2
+    t2 = copy.deepcopy(texte)
+    del t2["t_installieren"]["it"]
+    k["it fehlt"] = t2
+    t2 = copy.deepcopy(texte)
+    t2["t_kopiert"]["en"] = " "
+    k["en leer"] = t2
+    t2 = copy.deepcopy(texte)
+    t2["t_bereit_ki"]["fr"] = "Connexion"
+    k["Platzhalter weg"] = t2
+    t2 = copy.deepcopy(texte)
+    t2["t_fertig_app_3"]["en"] += " Dann weiter."
+    k["deutsches Wort"] = t2
+    t2 = copy.deepcopy(texte)
+    t2["t_das_dauert_ein_paar"]["it"] = "Ci vogliono alcuni minuti über."
+    k["Umlaut"] = t2
+    rot = {n: bool(texte_luecken(sprachen, t, gleich, xaml))
+           for n, t in k.items()}
+    rot["fester Text in der XAML"] = bool(texte_luecken(
+        sprachen, texte, gleich, xaml.replace(
+            'Content="{DynamicResource t_weiter}"', 'Content="Weiter"', 1)))
+    rot["Schluessel fehlt in der Textdatei"] = bool(texte_luecken(
+        sprachen, {x: v for x, v in texte.items() if x != "t_beides"},
+        gleich, xaml))
+    pruefe("I31-K KONTROLLEN: jede eingebaute Luecke faellt auf (%d)"
+           % len(rot), all(rot.values()), [n for n, r in rot.items() if not r])
+
+    # I31b PowerShell (Texte-Laden) liest dasselbe wie Python.
+    code = ("[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding "
+            "$false\n"
+            ". '%s' -NurFunktionen\n$aus = @{}\nforeach ($sp in $SPRACHEN) "
+            "{ $aus[$sp] = Texte-Laden (Texte-Datei) $sp }\n"
+            "ConvertTo-Json -InputObject $aus -Compress -Depth 3" % FENSTER)
+    r, aus = _ps_fenster(code)
+    ps_gleich = sorted(r) == sorted(sprachen) and all(
+        r[sp] == {x: je[sp] for x, je in texte.items()} for sp in sprachen)
+    pruefe("I31b Texte-Laden (PowerShell) == paket_bauen.fenster_texte "
+           "(Python) in allen vier Sprachen", ps_gleich,
+           aus[-300:] if not isinstance(r, dict) or "_fehler" in r else
+           [sp for sp in sprachen if r.get(sp) != {
+               x: je[sp] for x, je in texte.items()}])
+
+    # I31c die Wahl der Sprache: -Sprache vor der Anzeigesprache.
+    faelle = [("", "de-CH", "de"), ("", "de-DE", "de"), ("", "gsw-CH", "de"),
+              ("", "fr-CH", "fr"), ("", "fr-FR", "fr"), ("", "it-CH", "it"),
+              ("", "it-IT", "it"), ("", "rm-CH", "en"), ("", "en-US", "en"),
+              ("", "es-ES", "en"), ("", "", "en"), ("fr", "de-CH", "fr"),
+              ("IT", "de-CH", "it"), ("en", "fr-CH", "en"),
+              ("xx", "fr-CH", "fr"), (" de ", "en-GB", "de")]
+
+    def wahl_lauf(fenster=None):
+        code = ". %s -NurFunktionen\n$aus = @(" % _ps_text(fenster or FENSTER)
+        code += ", ".join("(Sprache-Waehlen %s %s)" % (_ps_text(w), _ps_text(k))
+                          for w, k, _s in faelle)
+        code += ")\nConvertTo-Json -InputObject $aus -Compress"
+        return _ps_fenster(code)[0]
+    soll = [s for _w, _k, s in faelle]
+    r = wahl_lauf()
+    pruefe("I31c Sprache-Waehlen in %d Faellen: de*/fr*/it* (auch -CH, gsw) "
+           "-> diese, sonst en; -Sprache (eine der vier, Gross/Klein egal) geht "
+           "vor, ein unbekannter Wert zaehlt nicht" % len(faelle), r == soll,
+           r)
+    q = open(FENSTER, encoding="ascii").read()
+
+    def fmut2(alt, neu):
+        assert q.count(alt) == 1, alt
+        d = tempfile.mkdtemp(prefix="omcad_smut_")
+        _temp.append(d)
+        for n in (P.FENSTER_XAML, P.FENSTER_TEXTE):
+            shutil.copy(os.path.join(P.VERTEILUNG, n), os.path.join(d, n))
+        shutil.copy(INSTALL, os.path.join(d, "install.ps1"))
+        ziel = os.path.join(d, P.FENSTER)
+        with open(ziel, "w", encoding="ascii") as fh:
+            fh.write(q.replace(alt, neu))
+        return ziel
+    k1 = wahl_lauf(fmut2("    if ($SPRACHEN -contains $w) { return $w }\n", ""))
+    k2 = wahl_lauf(fmut2("-split '[-_]')[0]", "-split '[_]')[0]"))
+    pruefe("I31c-K KONTROLLEN: ohne Vorrang fuer -Sprache und ohne das "
+           "Abtrennen der Region (fr-CH) fiele es auf", k1 != soll
+           and k2 != soll, (k1, k2))
+
+    # I31d das echte Fenster mit der Anzeigesprache des Prozesses (ohne
+    # -Sprache): Titel, Knopf und "Text kopieren" je Sprache; der kopierte
+    # Text steht im Schnellstart DIESER Sprache.
+    for kultur, sp in (("de-CH", "de"), ("fr-CH", "fr"), ("it-IT", "it"),
+                       ("en-GB", "en"), ("es-ES", "en")):
+        vor = ("[Threading.Thread]::CurrentThread.CurrentUICulture = %s\n"
+               % _ps_text(kultur)) + py_da
+        t, w, p = attrappe(["userprofil_2026"], ["2026"])
+        r, aus = fenster_lauf(
+            w, p, "K 'willkommen_kopieren'", vorher=vor, env=env, sprache="",
+            aus="@{ titel = $U.W.Title; sprache = $U.Sprache; weiter = (El $U "
+                "'willkommen_weiter').Content; kopiert = (El $U "
+                "'willkommen_kopiert').Text }")
+        a = r.get("aus") or {}
+        text = " ".join((r.get("ablage") or "").replace(" ", " ").split())
+        pruefe("I31d Anzeigesprache %s -> Fenster in %s: Titel, 'Los geht's'"
+               ", 'Kopiert.' und der kopierte Text fuer die KI-App aus der "
+               "Textdatei; derselbe Text steht im Schnellstart (%s)"
+               % (kultur, sp, sp),
+               a.get("sprache") == sp
+               and a.get("titel") == texte["t_fenster_titel"][sp]
+               and a.get("weiter") == texte["t_los_gehts"][sp]
+               and a.get("kopiert") == texte["t_kopiert"][sp]
+               and r.get("ablage") == texte["t_ki_hilfe"][sp]
+               and len(text) > 200 and text in _schnellstart(sp),
+               (a, (r.get("ablage") or "")[:80], aus[-300:]))
+    t_fr = " ".join(texte["t_ki_hilfe"]["fr"].replace(" ", " ").split())
+    pruefe("I31d-K KONTROLLE: der franzoesische Text stuende nicht im "
+           "deutschen Schnellstart, ein veraenderter nicht im franzoesischen",
+           t_fr not in _schnellstart("de")
+           and (t_fr + " Extra") not in _schnellstart("fr"))
+
+    # I31e jede Seite in jeder Sprache: nichts abgeschnitten (gewuenschte
+    # gegen verfuegbare Groesse, Abgeschnitten im Skript), nichts Deutsches
+    # in fr/it/en, keine Pfade oder Fachwoerter.
+    fach = re.compile(r"(?<![\w-])(API|MCP-Server|Server|stdio|JSON|TOML|venv|"
+                      r"PATH|pip|winget|Terminal|CLI|Token)(?![\w])")
+    for sp in sprachen:
+        seiten, rc = rendern_in(sp)
+        ab = _abgeschnitten(seiten)
+        deutsch = _deutsch_auf_seiten(seiten, sp, texte) if sp != "de" else []
+        ungut = []
+        for s, info in seiten.items():
+            for x in info.get("texte", []):
+                y = x.replace("Open MCP CAD", "")
+                if re.search(r"[A-Za-z]:\\", y) and not s.startswith("fehler"):
+                    ungut.append((s, x[:50]))
+                if fach.search(y) or ("Python" in y and s not in (
+                        "python", "laeuft_python")):
+                    ungut.append((s, x[:50]))
+        titel = {info.get("titel") for info in seiten.values()}
+        pruefe("I31e alle %d Seiten und Lagen in %s: nichts abgeschnitten, "
+               "Titel %r, nichts Deutsches, kein Pfad und kein Fachwort"
+               % (len(seiten), sp, texte["t_fenster_titel"][sp]),
+               # 23 seit 2026-10-10 (dazu bereit_zwei, fertig_zwei,
+               # version_zwei: zwei Cadwork angehakt)
+               rc == 0 and len(seiten) == 23 and not ab and not deutsch
+               and not ungut and titel == {texte["t_fenster_titel"][sp]},
+               (rc, ab, deutsch[:4], ungut[:4], titel))
+    # KONTROLLEN: ein zu langer Knopf und ein zu langer Satz fallen auf, ein
+    # fester deutscher Text in der XAML auch.
+    lang = _texte_mutante(lambda q: q.replace(
+        "<fr>Suivant</fr>", "<fr>%s</fr>" % ("Suivant " * 16).strip(), 1)
+        .replace("<fr>Le chat est à côté du dessin.",
+                 "<fr>%s Le chat est à côté du dessin."
+                 % ("Le chat est à côté du dessin. " * 12), 1))
+    seiten, _rc = rendern_in("fr", texte=lang)
+    wo = (seiten.get("wo") or {}).get("abgeschnitten") or []
+    breit = [a for a in wo if (a.get("text") or "").startswith("Suivant Suivant")]
+    hoch = [a for a in wo if (a.get("gewuenscht") or [0, 0])[1]
+            > (a.get("verfuegbar") or [0, 0])[1] + 1.5]
+    xm = os.path.join(tempfile.mkdtemp(prefix="omcad_xmut_"), P.FENSTER_XAML)
+    _temp.append(os.path.dirname(xm))
+    with open(xm, "w", encoding="utf-8") as fh:
+        fh.write(xaml.replace('x:Name="wo_weiter" DockPanel.Dock="Right" '
+                              'Style="{StaticResource Haupt}" Content='
+                              '"{DynamicResource t_weiter}"',
+                              'x:Name="wo_weiter" DockPanel.Dock="Right" '
+                              'Style="{StaticResource Haupt}" Content='
+                              '"Weiter"', 1))
+    s_x, _rc = rendern_in("fr", xaml=xm)
+    pruefe("I31e-K KONTROLLEN: ein Knopf mit 16-fachem Wort (zu breit) und ein "
+           "Satz mit 13-facher Laenge (zu hoch) auf der Seite 'wo' gelten als "
+           "abgeschnitten; ein fester deutscher Knopf in der XAML faellt in "
+           "der franzoesischen Seite auf",
+           breit and hoch and _deutsch_auf_seiten(s_x, "fr", texte),
+           (wo[:3], _deutsch_auf_seiten(s_x, "fr", texte)[:2]))
+
+
+# --- I32 das alte Plugin "LignoAI Connect" (seit 2026-10-10) ----------------
+#
+# Rueckmeldung: auf einem Laptop lag noch das Plugin unter dem alten Namen;
+# dann stehen zwei Eintraege im Cadwork-Menue. Der Installer legt es
+# beiseite (verschiebt es in eine Sicherung), nie loeschen, nie ein fremdes.
+
+ALT_KERN = 'KERN_PFAD = os.path.join(HIER, "lignoai_bridge_core.py")\n'
+ALTE = {"LignoAI Connect", "lignoai connect b", "LignoAI Connect J"}
+BLEIBEN = {"Open MCP CAD", "LignoAI Connect C", "LignoAI Connect X",
+           "LignoAI Connect Tools", "Fremdes Plugin", "LignoAI Connect D"}
+
+
+def alte_welt():
+    """Ein Profil 2026 mit drei Fassungen des alten Plugins (Name in
+    verschiedener Schreibweise, Einstieg laedt lignoai_bridge_core) und
+    fuenf, die bleiben muessen: gleicher Name ohne alten Kern im Einstieg,
+    gleicher Name ohne Einstieg, aehnlicher Name, ein fremdes Plugin mit
+    dem Kern-Namen im Einstieg, eine DATEI mit dem alten Namen.
+    -> (t, wurzel, programm, api)"""
+    t, w, p = attrappe(["userprofil_2026"], ["2026"])
+    api = os.path.join(w, "userprofil_2026", "3d", "API.x64")
+
+    def plugin(name, einstieg=None, dateien=()):
+        d = os.path.join(api, name)
+        os.makedirs(d)
+        if einstieg is not None:
+            with open(os.path.join(d, name + ".py"), "w") as fh:
+                fh.write(einstieg)
+        for n in dateien:
+            with open(os.path.join(d, n), "w") as fh:
+                fh.write("Inhalt von %s\n" % n)
+    plugin("LignoAI Connect", ALT_KERN, ["lignoai_bridge_core.py",
+                                         "plugin_info.xml"])
+    plugin("lignoai connect b", "import lignoai_bridge_core\n")
+    plugin("LignoAI Connect J", 'NAME = "LIGNOAI_BRIDGE_CORE_J"\n',
+           ["icon.svg"])
+    plugin("LignoAI Connect C", "print('ein anderes Plugin')\n")
+    plugin("LignoAI Connect X", None, ["icon.svg"])
+    plugin("LignoAI Connect Tools", ALT_KERN)
+    plugin("Fremdes Plugin", ALT_KERN)
+    with open(os.path.join(api, "LignoAI Connect D"), "w") as fh:
+        fh.write("eine Datei, kein Ordner\n")
+    return t, w, p, api
+
+
+def alte_stand(w, api):
+    """-> (was in API.x64 liegt, {Name: Pfad} in der Sicherung)"""
+    weg = {}
+    sich = os.path.join(w, "OpenMcpCad_Backups")
+    if os.path.isdir(sich):
+        for z in os.listdir(sich):
+            for n in os.listdir(os.path.join(sich, z)):
+                weg[n] = os.path.join(sich, z, n)
+    return set(os.listdir(api)), weg
+
+
+def pruefe_alte_version(env, py_da):
+    # I32a Alte-Plugins findet genau die drei Fassungen.
+    t, w, p, api = alte_welt()
+    r = ps_funktionen("$a = Alte-Plugins '%s'\n@{ n = @($a | ForEach-Object "
+                      "{ $_.Name }) } | ConvertTo-Json -Compress" % api)
+    pruefe("I32a Alte-Plugins: genau die drei Ordner des alten Plugins (Name "
+           "in jeder Schreibweise, Einstieg laedt lignoai_bridge_core); "
+           "gleicher Name ohne alten Kern, ohne Einstieg, aehnlicher Name, "
+           "fremdes Plugin und eine Datei bleiben aussen vor",
+           set(r.get("n") or []) == ALTE, r)
+
+    # I32b -AltesWegraeumen: verschoben, nichts geloescht, Rueckweg genannt.
+    vorher = {n: open(os.path.join(api, n, n + ".py"), "rb").read()
+              for n in ALTE}
+    datei = os.path.join(t, "ergebnis.json")
+    rc, aus = installer(w, p, "-AltesWegraeumen", "-ErgebnisDatei", datei)
+    erg = json.load(open(datei, encoding="utf-8")) \
+        if os.path.isfile(datei) else {}
+    bleibt, weg = alte_stand(w, api)
+    pruefe("I32b -AltesWegraeumen: die drei liegen unter OpenMcpCad_Backups\\"
+           "<Zeit>_alte_Version (Inhalt unveraendert), die fuenf anderen und "
+           "das neue Plugin bleiben; Ergebnis nennt Sicherung und Rueckweg, "
+           "Rueckgabe 0",
+           rc == 0 and bleibt == BLEIBEN and set(weg) == ALTE
+           and all(re.search(r"\\\d{4}-\d\d-\d\d_\d{6}_alte_Version\\", x)
+                   for x in weg.values())
+           and all(open(os.path.join(weg[n], n + ".py"), "rb").read()
+                   == vorher[n] for n in ALTE)
+           and erg.get("altWeg") == 3 and erg.get("altFehler") is False
+           and "Rueckweg" in (erg.get("alt") or "") and api in erg.get("alt")
+           and any(z.startswith("Alte Version:") for z in erg.get("zeilen", [])),
+           (rc, sorted(bleibt), sorted(weg), erg.get("alt"), aus[-400:]))
+
+    # I32c ohne Schalter (-OhnePause): nichts verschoben, aber gesagt.
+    t, w, p, api = alte_welt()
+    datei = os.path.join(t, "ergebnis.json")
+    rc, aus = installer(w, p, "-ErgebnisDatei", datei)
+    erg = json.load(open(datei, encoding="utf-8")) \
+        if os.path.isfile(datei) else {}
+    bleibt, weg = alte_stand(w, api)
+    pruefe("I32c ohne -AltesWegraeumen und ohne Rueckfrage: nichts "
+           "verschoben, das Ergebnis sagt, dass es doppelt im Menue steht und "
+           "wie man es beiseitelegt; Rueckgabe 0",
+           rc == 0 and bleibt == BLEIBEN | ALTE and not weg
+           and "doppelt" in (erg.get("alt") or "")
+           and "-AltesWegraeumen" in (erg.get("alt") or "")
+           and erg.get("altWeg") == 0, (rc, erg.get("alt"), aus[-300:]))
+
+    # I32d das Textfenster fragt: "n" laesst es liegen, Enter legt beiseite.
+    def frage_lauf(eingabe):
+        t, w, p, api = alte_welt()
+        ps1 = paket_attrappe()
+        r = subprocess.run([PS, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                            "-File", ps1, "-OhneServer", "-CadworkWurzel", w,
+                            "-CadworkProgramm", p], input=eingabe,
+                           capture_output=True, timeout=180,
+                           creationflags=OHNE_FENSTER)
+        a = (r.stdout + r.stderr).decode("utf-8", errors="replace")
+        return r.returncode, a, alte_stand(w, api)
+    rc_n, a_n, (b_n, w_n) = frage_lauf(b"n\r\n\r\n")
+    rc_j, a_j, (b_j, w_j) = frage_lauf(b"\r\n\r\n")
+    pruefe("I32d Textfenster: es fragt ('Beiseitelegen ... [J/n]'); 'n' "
+           "laesst alles liegen, Enter legt die drei beiseite",
+           "Nicht beiseitegelegt." in a_n and "Beiseitegelegt: " in a_j and not w_n
+           and b_n == BLEIBEN | ALTE and set(w_j) == ALTE and b_j == BLEIBEN
+           and rc_n == 0 and rc_j == 0,
+           (rc_n, rc_j, sorted(w_n), sorted(w_j), a_n[-300:]))
+
+    # I32e eine Datei des alten Plugins ist offen (Cadwork laeuft noch):
+    # dieser Ordner bleibt, die anderen gehen, gemeldet statt Abbruch,
+    # Rueckgabe 3 ("nicht vollstaendig").
+    t, w, p, api = alte_welt()
+    datei = os.path.join(t, "ergebnis.json")
+    offen = open(os.path.join(api, "LignoAI Connect J", "icon.svg"), "rb")
+    try:
+        rc, aus = installer(w, p, "-AltesWegraeumen", "-ErgebnisDatei", datei)
+    finally:
+        offen.close()
+    erg = json.load(open(datei, encoding="utf-8")) \
+        if os.path.isfile(datei) else {}
+    bleibt, weg = alte_stand(w, api)
+    pruefe("I32e eine Datei im alten Ordner offen: dieser bleibt ganz (nichts "
+           "halb verschoben), die zwei anderen gehen; das Ergebnis nennt den "
+           "Fehler, das Plugin ist trotzdem kopiert, Rueckgabe 3",
+           rc == 3 and set(weg) == ALTE - {"LignoAI Connect J"}
+           and bleibt == BLEIBEN | {"LignoAI Connect J"}
+           and set(os.listdir(os.path.join(api, "LignoAI Connect J"))) == {
+               "LignoAI Connect J.py", "icon.svg"}
+           and erg.get("altFehler") is True and erg.get("plugin") == "ok"
+           and "NICHT beiseitegelegt" in (erg.get("alt") or "")
+           and "NICHT vollstaendig" in aus,
+           (rc, sorted(bleibt), sorted(weg), erg.get("alt"), aus[-400:]))
+
+    # KONTROLLEN: ohne die Pruefung des Einstiegs ginge auch "LignoAI Connect
+    # C" (ein anderes Plugin) mit; ohne das Verschieben bliebe alles liegen.
+    def mut_ohne(anfang, ende):
+        q = open(INSTALL, encoding="ascii").read()
+        a, e = q.index(anfang), q.index(ende)
+        d = tempfile.mkdtemp(prefix="omcad_amut_")
+        _temp.append(d)
+        z = os.path.join(d, "install.ps1")
+        with open(z, "w", encoding="ascii") as fh:
+            fh.write(q[:a] + q[e:])
+        return z
+    k1 = mut_ohne("        # KENNUNG-ANFANG", "        # KENNUNG-ENDE")
+    t, w, p, api = alte_welt()
+    r1 = ps_funktionen("$a = Alte-Plugins '%s'\n@{ n = @($a | ForEach-Object "
+                       "{ $_.Name }) } | ConvertTo-Json -Compress" % api, k1)
+    pruefe("I32-K KONTROLLE: ohne die Pruefung des Einstiegs ginge auch "
+           "'LignoAI Connect C' (gleicher Name, fremder Einstieg) mit",
+           "LignoAI Connect C" in (r1.get("n") or []), r1)
+
+    # I32f das Fenster: auf "Bereit" der Haken (vorausgewaehlt) -> install.ps1
+    # mit -AltesWegraeumen; abgewaehlt ohne; ohne altes Plugin keine Karte.
+    zeig = ("@{ sicht = (El $U 'bereit_alt').Visibility.ToString(); haken = "
+            "((El $U 'bereit_alt_haken').IsChecked -eq $true); name = (El $U "
+            "'bereit_alt_name').Text }")
+    t, w, p, api = alte_welt()
+    r1, a1 = fenster_lauf(w, p, "KW; K 'ki_weiter'", vorher=py_da, env=env,
+                          aus=zeig)
+    r2, a2 = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'bereit_alt_haken'",
+                          vorher=py_da, env=env, aus=zeig)
+    t, w0, p0 = attrappe(["userprofil_2026"], ["2026"])
+    r3, a3 = fenster_lauf(w0, p0, "KW; K 'ki_weiter'", vorher=py_da, env=env,
+                          aus=zeig)
+    pruefe("I32f Fenster: altes Plugin im Profil -> auf 'Bereit' die Karte mit "
+           "Haken (vorausgewaehlt) und den drei Namen, Argument "
+           "-AltesWegraeumen; Haken weg -> ohne; ohne altes Plugin keine Karte",
+           r1.get("seite") == "bereit" and (r1.get("aus") or {}).get("sicht")
+           == "Visible" and (r1.get("aus") or {}).get("haken") is True
+           and all(n in (r1.get("aus") or {}).get("name", "") for n in ALTE)
+           and "-AltesWegraeumen" in (r1.get("args") or [])
+           and (r2.get("aus") or {}).get("haken") is False
+           and "-AltesWegraeumen" not in (r2.get("args") or ["-Altes"
+                                                             "Wegraeumen"])
+           and (r3.get("aus") or {}).get("sicht") == "Collapsed"
+           and "-AltesWegraeumen" not in (r3.get("args") or ["-Altes"
+                                                             "Wegraeumen"]),
+           (r1.get("aus"), r1.get("args"), r2.get("aus"), r3.get("aus"),
+            a1[-300:]))
+    q = open(FENSTER, encoding="ascii").read()
+    alt_z = "        Alt = ((@($S.Alte).Count -gt 0) -and [bool]$S.AltWeg)\n"
+    assert q.count(alt_z) == 1
+    d = tempfile.mkdtemp(prefix="omcad_fmut_")
+    _temp.append(d)
+    for n in (P.FENSTER_XAML, P.FENSTER_TEXTE):
+        shutil.copy(os.path.join(P.VERTEILUNG, n), os.path.join(d, n))
+    shutil.copy(INSTALL, os.path.join(d, "install.ps1"))
+    fm = os.path.join(d, P.FENSTER)
+    with open(fm, "w", encoding="ascii") as fh:
+        fh.write(q.replace(alt_z, "        Alt = $false\n"))
+    t, w, p, api = alte_welt()
+    rk, _a = fenster_lauf(w, p, "KW; K 'ki_weiter'", vorher=py_da, env=env,
+                          fenster=fm)
+    pruefe("I32f-K KONTROLLE: ohne den Haken in der Wahl fehlte "
+           "-AltesWegraeumen trotz altem Plugin",
+           rk.get("seite") == "bereit"
+           and "-AltesWegraeumen" not in (rk.get("args") or []), rk.get("args"))
+
+    # I32g der ganze Weg im Fenster: beiseitegelegt -> 'Fertig' sagt es;
+    # Datei offen -> Fehlerseite mit dem Satz dazu.
+    _sp, texte, _gl = P.fenster_texte()
+    warten = ("$global:ok = Pumpen { $S.Seite -eq 'fertig' -or $S.Seite -eq "
+              "'fehler' } 240")
+    ps1 = paket_attrappe(fenster=True)
+    fenster = os.path.join(os.path.dirname(ps1), P.FENSTER)
+    t, w, p, api = alte_welt()
+    r, aus = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'bereit_installieren'; "
+                          + warten + "; $global:v += $S.Seite", vorher=py_da,
+                          env=env, ohne_server=True, fenster=fenster,
+                          aus="$global:ok")
+    bleibt, weg = alte_stand(w, api)
+    t, w2, p2, api2 = alte_welt()
+    offen = open(os.path.join(api2, "LignoAI Connect", "plugin_info.xml"),
+                 "rb")
+    try:
+        r2, aus2 = fenster_lauf(w2, p2, "KW; K 'ki_weiter'; K "
+                                "'bereit_installieren'; " + warten + "; "
+                                "$global:v += $S.Seite", vorher=py_da,
+                                env=env, ohne_server=True, fenster=fenster,
+                                aus="$global:ok")
+    finally:
+        offen.close()
+    pruefe("I32g Fenster -> install.ps1: altes Plugin beiseitegelegt, 'Fertig' "
+           "sagt es (Rueckgabe 0); ist eine Datei offen, Fehlerseite 'liess "
+           "sich nicht beiseitelegen' (Rueckgabe 3), das neue Plugin liegt "
+           "trotzdem da",
+           r.get("v", [])[-1:] == ["fertig"] and r.get("rc") == 0
+           and set(weg) == ALTE and texte["t_fertig_alt"]["de"]
+           in (r.get("fertig_ki") or "")
+           and r2.get("v", [])[-1:] == ["fehler"] and r2.get("rc") == 3
+           and r2.get("fehler") == "t_fehler_alt"
+           and kopiert_in(w2) == ["userprofil_2026"],
+           (r.get("v"), r.get("fertig_ki"), sorted(weg), r2.get("v"),
+            r2.get("fehler"), aus[-300:], aus2[-300:]))
+
+
+# --- I33 Doppelklick IN der ZIP-Datei: freundlich entpacken (seit 2026-10-10)
+#
+# Rueckmeldung 2026-10-10 (echter Test): 1_INSTALLIEREN.cmd direkt in der
+# ZIP doppelgeklickt -> schwarzes Fenster "... beliebige Taste", danach "wie
+# nichts". Jetzt sucht die .cmd die ZIP, bietet in einem Fenster das
+# Entpacken an und startet den Doppelklick aus dem entpackten Ordner. Im Gate
+# nie ein Fenster: OMCAD_HILFE_ANTWORT beantwortet es (gebaut wird es
+# trotzdem), OMCAD_HILFE_SPUR schreibt mit, was es zeigen wuerde,
+# OMCAD_ZIP_ORTE ersetzt Downloads/Desktop/Dokumente.
+
+def _hilfe_stub(spur, name, rc):
+    d = tempfile.mkdtemp(prefix="omcad_hstub_")
+    _temp.append(d)
+    pfad = os.path.join(d, "%s.ps1" % name)
+    with open(pfad, "w", encoding="ascii") as fh:
+        fh.write("Add-Content -LiteralPath '%s' -Value ('%s|' + ($args -join "
+                 "' '))\nexit %d\n" % (spur, name, rc))
+    return pfad
+
+
+def _zip_aus(ordner, ziel, oben, zone=False, mtime=None):
+    """Packt `ordner` wie paket_bauen (Ordner `oben` obendrueber)."""
+    import zipfile
+    os.makedirs(os.path.dirname(ziel), exist_ok=True)
+    with zipfile.ZipFile(ziel, "w", zipfile.ZIP_DEFLATED) as z:
+        for wurzel, _d, namen in os.walk(ordner):
+            for n in sorted(namen):
+                p = os.path.join(wurzel, n)
+                z.write(p, os.path.join(oben, os.path.relpath(p, ordner))
+                        if oben else os.path.relpath(p, ordner))
+    if zone:
+        with open(ziel + ":Zone.Identifier", "w") as fh:
+            fh.write("[ZoneTransfer]\nZoneId=3\n")
+    if mtime:
+        os.utime(ziel, (mtime, mtime))
+    return ziel
+
+
+def gepackt_welt(temp_name="Temp1_Open-MCP-CAD-0.2.2.zip", cmd_quelle=None):
+    """Downloads (unter einem Heim mit Umlaut und Leerzeichen) mit der
+    passenden ZIP, einer neueren gueltigen und einer neuesten UNgueltigen,
+    der Desktop mit einer aelteren; der Doppelklick liegt allein in einem
+    Ordner wie vom Explorer (%TEMP%\\Temp1_<zip>\\<oben>\\). -> dict"""
+    t = tempfile.mkdtemp(prefix="omcad_gepackt_")
+    _temp.append(t)
+    heim = os.path.join(t, "Jürg Müller")
+    w = {"t": t, "dl": os.path.join(heim, "Downloads"),
+         "desk": os.path.join(heim, "Desktop"),
+         "spur": os.path.join(t, "spur.txt"),
+         "hspur": os.path.join(t, "hilfe.jsonl")}
+    os.makedirs(w["desk"])
+    ps1 = paket_attrappe(ps1=_hilfe_stub(w["spur"], "konsole", 0),
+                         fenster=_hilfe_stub(w["spur"], "fenster", 0))
+    paket = os.path.dirname(os.path.dirname(ps1))
+    jetzt = __import__("time").time()
+    w["zip"] = _zip_aus(paket, os.path.join(w["dl"], "Open-MCP-CAD-0.2.2.zip"),
+                        "Open-MCP-CAD-0.2.2", zone=True, mtime=jetzt - 3600)
+    w["neuer"] = _zip_aus(paket, os.path.join(w["desk"],
+                                              "Open-MCP-CAD-0.2.3.zip"),
+                          "Open-MCP-CAD-0.2.3", mtime=jetzt - 600)
+    _zip_aus(paket, os.path.join(w["desk"], "Open-MCP-CAD-0.1.0.zip"),
+             "Open-MCP-CAD-0.1.0", mtime=jetzt - 86400)
+    leer = os.path.join(t, "leer")
+    os.makedirs(os.path.join(leer, "x"))
+    with open(os.path.join(leer, "x", "liesmich.txt"), "w") as fh:
+        fh.write("kein Paket\n")
+    _zip_aus(leer, os.path.join(w["dl"], "Open-MCP-CAD-kaputt.zip"), "",
+             mtime=jetzt)
+    _zip_aus(leer, os.path.join(w["dl"], "anderes.zip"), "", mtime=jetzt)
+    w["cmd"] = os.path.join(t, "Temp", temp_name, "Open-MCP-CAD-0.2.2",
+                            P.INSTALLIEREN)
+    os.makedirs(os.path.dirname(w["cmd"]))
+    with open(cmd_quelle or os.path.join(P.VERTEILUNG, P.INSTALLIEREN),
+              "rb") as fh:
+        roh = fh.read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    with open(w["cmd"], "wb") as fh:
+        fh.write(roh)
+    return w
+
+
+def gepackt_lauf(w, antwort, orte=None, sprache="de", schalter=()):
+    env = dict(os.environ)
+    env.update({"OMCAD_HILFE_ANTWORT": antwort, "OMCAD_HILFE_SPUR": w["hspur"],
+                "OMCAD_ZIP_ORTE": ";".join(orte if orte is not None
+                                           else (w["dl"], w["desk"])),
+                "OMCAD_HILFE_SPRACHE": sprache})
+    for d in (w["spur"], w["hspur"]):
+        if os.path.exists(d):
+            os.remove(d)
+    r = subprocess.run([w["cmd"]] + list(schalter), capture_output=True,
+                       timeout=180, env=env, stdin=subprocess.DEVNULL,
+                       creationflags=OHNE_FENSTER)
+    aus = (r.stdout + r.stderr).decode("cp850", "replace")
+    spur = open(w["spur"], encoding="utf-8", errors="replace").read().split() \
+        if os.path.exists(w["spur"]) else []
+    hilfe = [json.loads(z) for z in open(w["hspur"], encoding="utf-8")
+             .read().splitlines() if z.strip()] \
+        if os.path.exists(w["hspur"]) else []
+    return r.returncode, aus, spur, hilfe
+
+
+def _taste(aus):
+    return any(x in aus for x in ("Taste", "beliebige", "any key"))
+
+
+def hilfe_funktionen(code, env=None):
+    """Die Funktionen aus dem PowerShell-Teil von 1_INSTALLIEREN.cmd (ab der
+    Marke, wie die .cmd ihn liest), dann `code`. -> JSON der letzten Zeile"""
+    cmd = os.path.join(P.VERTEILUNG, P.INSTALLIEREN)
+    skript = ("[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding "
+              "$false\n$env:OMCAD_HILFE_NUR_FUNKTIONEN = '1'\n"
+              "$t = [IO.File]::ReadAllText(%s); . ([ScriptBlock]::Create("
+              "$t.Substring($t.IndexOf('#OMCAD' + '-HILFE'))))\n%s"
+              % (_ps_text(cmd), code))
+    r, aus = _ps_fenster(skript, env=env)
+    return r, aus
+
+
+def pruefe_gepackt():
+    w = gepackt_welt()
+    rc, aus, spur, hilfe = gepackt_lauf(w, "starten")
+    ziel = os.path.join(w["dl"], "Open-MCP-CAD-0.2.2")
+    zone = os.path.join(ziel, P.UNTERORDNER, "install.ps1") + ":Zone.Identifier"
+    pruefe("I33a Doppelklick IN der ZIP: Fenster 'Die Datei ist noch gepackt' "
+           "nennt die ZIP aus dem Temp-Ordnernamen (nicht die neuere, nicht "
+           "die ungueltige) und das Ziel; 'Entpacken und starten' -> "
+           "Downloads\\Open-MCP-CAD-0.2.2 (ohne Ordner obendrueber, mit der "
+           "Herkunftsmarke der ZIP), dort startet der Doppelklick das "
+           "Einrichtungsfenster; Rueckgabe 0, kein 'beliebige Taste'",
+           rc == 0 and spur == ["fenster|"] and len(hilfe) == 1
+           and hilfe[0].get("art") == "angebot"
+           and hilfe[0].get("zip") == w["zip"] and hilfe[0].get("ziel") == ziel
+           and hilfe[0].get("knoepfe") == ["Entpacken und starten",
+                                           "Abbrechen"]
+           and os.path.isfile(os.path.join(ziel, P.INSTALLIEREN))
+           and os.path.isfile(os.path.join(ziel, P.UNTERORDNER, "install.ps1"))
+           and os.path.exists(zone) and not _taste(aus),
+           (rc, spur, hilfe, aus[-400:]))
+    with open(os.path.join(ziel, "eigenes.txt"), "w") as fh:
+        fh.write("bleibt\n")
+    rc2, aus2, spur2, hilfe2 = gepackt_lauf(w, "starten")
+    ziel2 = ziel + " (2)"
+    pruefe("I33b nochmals: der vorhandene Ordner bleibt (nie ueberschrieben), "
+           "entpackt wird nach 'Open-MCP-CAD-0.2.2 (2)'",
+           rc2 == 0 and hilfe2 and hilfe2[0].get("ziel") == ziel2
+           and os.path.isfile(os.path.join(ziel2, P.INSTALLIEREN))
+           and os.path.isfile(os.path.join(ziel, "eigenes.txt")),
+           (rc2, hilfe2, aus2[-300:]))
+    w = gepackt_welt()
+    rc, aus, spur, hilfe = gepackt_lauf(w, "abbrechen")
+    pruefe("I33c 'Abbrechen': nichts entpackt, nichts gestartet, Rueckgabe 2, "
+           "kein 'beliebige Taste'",
+           rc == 2 and not spur and not os.path.exists(os.path.join(
+               w["dl"], "Open-MCP-CAD-0.2.2")) and not _taste(aus),
+           (rc, spur, aus[-300:]))
+    w = gepackt_welt(temp_name="Temp2_Download (3).zip")
+    rc, aus, spur, hilfe = gepackt_lauf(w, "starten")
+    pruefe("I33d ZIP unter anderem Namen geoeffnet: die NEUESTE gueltige "
+           "Open-MCP-CAD*.zip (0.2.3 auf dem Desktop, nicht die neueste "
+           "ungueltige), entpackt neben ihr",
+           rc == 0 and hilfe and hilfe[0].get("zip") == w["neuer"]
+           and os.path.isfile(os.path.join(w["desk"], "Open-MCP-CAD-0.2.3",
+                                           P.INSTALLIEREN)), (rc, hilfe))
+    leer = tempfile.mkdtemp(prefix="omcad_keinezip_")
+    _temp.append(leer)
+    rc, aus, spur, hilfe = gepackt_lauf(w, "ok", orte=[leer])
+    pruefe("I33e keine ZIP gefunden: Fenster 'Bitte zuerst entpacken' mit drei "
+           "Schritten (rechte Maustaste, 'Alle extrahieren', im neuen Ordner "
+           "doppelklicken), Knopf OK, Rueckgabe 2, kein 'beliebige Taste'",
+           rc == 2 and not spur and len(hilfe) == 1
+           and hilfe[0].get("art") == "anleitung"
+           and len(hilfe[0].get("texte", [])) == 5
+           and "Alle extrahieren" in " ".join(hilfe[0]["texte"])
+           and hilfe[0].get("knoepfe") == ["OK"] and not _taste(aus),
+           (rc, hilfe, aus[-300:]))
+    rc, aus, spur, hilfe = gepackt_lauf(w, "kaputt", orte=[leer])
+    rcp, ausp, _s, hilfep = gepackt_lauf(w, "ok", orte=[leer],
+                                        schalter=["-OhnePause"])
+    pruefe("I33f geht das Fenster nicht (hier: OMCAD_HILFE_ANTWORT=kaputt), "
+           "der Text wie frueher ('Alle extrahieren', wartet); mit -OhnePause "
+           "kein Fenster, nur der Text",
+           rc == 2 and "Alle extrahieren" in aus and _taste(aus)
+           and rcp == 2 and not hilfep and "Alle extrahieren" in ausp
+           and not _taste(ausp), (rc, aus[-300:], rcp, hilfep))
+    # Sprachen: dieselben Schluessel, nichts leer, kein deutscher Rest; die
+    # Wahl wie Sprache-Waehlen des Einrichtungsfensters.
+    r, aus = hilfe_funktionen(
+        "$aus = @{}\nforeach ($sp in $HILFE_TEXTE.Keys) { $aus[$sp] = @{}; "
+        "foreach ($k in $HILFE_TEXTE[$sp].Keys) { $aus[$sp][$k] = "
+        "[regex]::Unescape($HILFE_TEXTE[$sp][$k]) } }\n"
+        "ConvertTo-Json -InputObject $aus -Compress -Depth 3")
+    lu = []
+    if sorted(r) != ["de", "en", "fr", "it"]:
+        lu.append("Sprachen %s" % sorted(r))
+    else:
+        for sp in ("fr", "it", "en"):
+            if sorted(r[sp]) != sorted(r["de"]):
+                lu.append("%s: andere Schluessel" % sp)
+            for k, v in r[sp].items():
+                if not v.strip():
+                    lu.append("%s %s leer" % (sp, k))
+                elif v == r["de"].get(k) and k != "ok":
+                    lu.append("%s %s wie deutsch" % (sp, k))
+                elif DEUTSCHE_WOERTER.search(_ohne_namen(v)):
+                    lu.append("%s %s deutsch: %s" % (sp, k, v[:40]))
+        # Der Schnellstart je Sprache nennt Titel und Knopf wie das Fenster.
+        for sp in ("de", "fr", "it", "en"):
+            s = _schnellstart(sp)
+            for k in ("gepackt_titel", "starten"):
+                if " ".join(r[sp][k].split()) not in s:
+                    lu.append("SCHNELLSTART %s ohne %r" % (sp, r[sp][k]))
+    pruefe("I33g Texte der Fenster in de/fr/it/en: dieselben Schluessel, "
+           "nichts leer, kein deutscher Rest; Titel und Knopf stehen so im "
+           "Schnellstart der Sprache", not lu and r.get("de"),
+           lu[:5] or aus[-300:])
+    faelle = [("de-CH", "de"), ("gsw-CH", "de"), ("fr-CH", "fr"),
+              ("it-IT", "it"), ("en-US", "en"), ("es-ES", "en"),
+              ("rm-CH", "en")]
+    code = "$aus = @()\n"
+    for k, _s in faelle:
+        code += ("[Threading.Thread]::CurrentThread.CurrentUICulture = %s; "
+                 "$aus += @(Hilfe-Sprache)\n" % _ps_text(k))
+    env = dict(os.environ)
+    env.pop("OMCAD_HILFE_SPRACHE", None)
+    r, aus = hilfe_funktionen(code + "ConvertTo-Json -InputObject $aus "
+                              "-Compress", env=env)
+    pruefe("I33h Sprache der Fenster aus der Anzeigesprache wie im "
+           "Einrichtungsfenster (de*/gsw/fr*/it* -> diese, sonst en)",
+           r == [s for _k, s in faelle], (r, aus[-300:]))
+    w = gepackt_welt()
+    rc, aus, spur, hilfe = gepackt_lauf(w, "starten", sprache="fr")
+    pruefe("I33h-2 Windows auf Franzoesisch: das Fenster fragt franzoesisch",
+           rc == 0 and hilfe and hilfe[0].get("sprache") == "fr"
+           and hilfe[0].get("knoepfe") == ["Extraire et lancer", "Annuler"],
+           hilfe)
+    # KONTROLLE: der Doppelklick vor diesem Stand (d613809) zeigt in
+    # derselben Welt nur Text, wartet auf eine Taste und entpackt nichts.
+    alt_roh = subprocess.run(["git", "show", "d613809:verteilung/" +
+                              P.INSTALLIEREN], cwd=REPO, capture_output=True,
+                             check=True).stdout
+    alt = os.path.join(tempfile.mkdtemp(prefix="omcad_altcmd_"),
+                       P.INSTALLIEREN)
+    _temp.append(os.path.dirname(alt))
+    with open(alt, "wb") as fh:
+        fh.write(alt_roh)
+    w = gepackt_welt(cmd_quelle=alt)
+    rc, aus, spur, hilfe = gepackt_lauf(w, "starten")
+    pruefe("I33-K KONTROLLE: der Doppelklick von d613809 entpackt in derselben "
+           "Welt nichts und sagt 'beliebige Taste'",
+           rc == 2 and not hilfe and _taste(aus) and not os.path.exists(
+               os.path.join(w["dl"], "Open-MCP-CAD-0.2.2")), (rc, aus[-200:]))
+
+
+# --- I34 "diesen Text" kopiert, I35 Details ein/aus (seit 2026-10-10) -------
+
+def _fmut_neu(alt, neu):
+    """Eine Mutante von install_fenster.ps1 (mit XAML, Texten, install.ps1)."""
+    q = open(FENSTER, encoding="ascii").read()
+    assert q.count(alt) == 1, alt
+    d = tempfile.mkdtemp(prefix="omcad_fmut_")
+    _temp.append(d)
+    for n in (P.FENSTER_XAML, P.FENSTER_TEXTE):
+        shutil.copy(os.path.join(P.VERTEILUNG, n), os.path.join(d, n))
+    shutil.copy(INSTALL, os.path.join(d, "install.ps1"))
+    z = os.path.join(d, P.FENSTER)
+    with open(z, "w", encoding="ascii") as fh:
+        fh.write(q.replace(alt, neu))
+    return z
+
+
+def pruefe_kopieren_details(env, py_da):
+    _sp, texte, _gl = P.fenster_texte()
+    t, w, p = attrappe(["userprofil_2026"], ["2026"])
+    zeig = ("@{ kopiert = (El $U 'willkommen_kopiert').Text; symbol = (El $U "
+            "'willkommen_symbol_kopieren').Visibility.ToString(); haken = (El "
+            "$U 'willkommen_symbol_haken').Visibility.ToString() }")
+    for sp in ("de", "fr"):
+        r, aus = fenster_lauf(
+            w, p, "K 'willkommen_link'; $global:a1 = " + zeig + "; $null = "
+            "Pumpen { $false } 3; $global:a2 = " + zeig, vorher=py_da,
+            env=env, sprache=sp,
+            aus="@{ a1 = $global:a1; a2 = $global:a2; tip = (El $U "
+                "'willkommen_link').ToolTip; knopf_tip = (El $U "
+                "'willkommen_kopieren').ToolTip; name = [System.Windows."
+                "Automation.AutomationProperties]::GetName((El $U "
+                "'willkommen_kopieren')); inhalt_text = ((El $U "
+                "'willkommen_kopieren').Content -is [string]); satz = (New-Object "
+                "System.Windows.Documents.TextRange((El $U 'willkommen_ki_satz')"
+                ".ContentStart, (El $U 'willkommen_ki_satz').ContentEnd)).Text }")
+        a = r.get("aus") or {}
+        k = texte["t_ki_hilfe"][sp]
+        pruefe("I34 (%s) 'diesen Text' im Satz ist ein Verweis: Klick kopiert "
+               "den Text fuer die KI-App, zeigt Haken + 'Kopiert.' und nach "
+               "2,5 s wieder das Kopier-Symbol; Tooltip ueber dem Verweis = "
+               "Anfang des Texts; rechts nur ein Symbol mit Tooltip und Namen "
+               "'Text kopieren'" % sp,
+               r.get("ablage") == k
+               and a.get("a1") == {"kopiert": texte["t_kopiert"][sp],
+                                   "symbol": "Collapsed", "haken": "Visible"}
+               and a.get("a2") == {"kopiert": "", "symbol": "Visible",
+                                   "haken": "Collapsed"}
+               and (a.get("tip") or "").endswith("…")
+               and k.startswith((a.get("tip") or "x")[:-2].rstrip())
+               and a.get("knopf_tip") == texte["t_text_kopieren"][sp]
+               and a.get("name") == texte["t_text_kopieren"][sp]
+               and a.get("inhalt_text") is False
+               and a.get("satz") == texte["t_ki_hilfe_vor"][sp]
+               + texte["t_ki_hilfe_link"][sp] + texte["t_ki_hilfe_nach"][sp],
+               (a, (r.get("ablage") or "")[:60], aus[-300:]))
+    r, aus = fenster_lauf(w, p, "K 'willkommen_kopieren'", vorher=py_da,
+                          env=env)
+    km = _fmut_neu('    (El $U "willkommen_link").Add_Click({ $F = '
+                   '$global:OMCAD_F; KI-Hilfe-Kopieren $F.U $F.S })\n', "")
+    rk, _a = fenster_lauf(w, p, "K 'willkommen_link'", vorher=py_da, env=env,
+                          fenster=km)
+    pruefe("I34b das Kopier-Symbol kopiert dasselbe; KONTROLLE: ohne den "
+           "Verweis-Handler bliebe die Ablage leer",
+           r.get("ablage") == texte["t_ki_hilfe"]["de"]
+           and not rk.get("ablage"), (r.get("ablage", "")[:40], rk.get("ablage")))
+
+    # I35 Details ein/aus: der Knopf sagt, was er tut.
+    erg = ("$S.Ergebnis = [pscustomobject]@{ fertig = $true; kiListe = @() }; "
+           "[void]$S.Log.AppendLine('Zeile im Protokoll')")
+    schritte = []
+    for seite in ("laeuft", "fertig", "fehler"):
+        knopf = seite + "_details"
+        schritte.append(
+            "Seite-Zeigen $U $S '%s'; $global:d['%s'] = @(); foreach ($i in 1..2) "
+            "{ Klick $U '%s'; $global:d['%s'] += ,@((El $U '%s').Content, "
+            "(El $U '%s_protokoll').Visibility.ToString()) }"
+            % (seite, seite, knopf, seite, knopf, seite))
+    code = erg + "; $global:d = @{}; " + "; ".join(schritte)
+    for sp in ("de", "it"):
+        r, aus = fenster_lauf(w, p, code, vorher=py_da, env=env, sprache=sp,
+                              aus="$global:d")
+        d = r.get("aus") or {}
+        an, aus_t = texte["t_details_ausblenden"][sp], \
+            texte["t_details_anzeigen"][sp]
+        pruefe("I35 (%s) 'Details anzeigen' auf Fortschritt, Fertig und "
+               "Fehler: aufgeklappt 'Details ausblenden' mit Protokoll, "
+               "wieder zu 'Details anzeigen' (echte Click-Ereignisse)" % sp,
+               all(d.get(s) == [[an, "Visible"], [aus_t, "Collapsed"]]
+                   for s in ("laeuft", "fertig", "fehler")), (d, aus[-300:]))
+    km = _fmut_neu('(Text $U "t_details_ausblenden")',
+                 '(Text $U "t_details_anzeigen")')
+    r, aus = fenster_lauf(w, p, code, vorher=py_da, env=env, fenster=km,
+                          aus="$global:d")
+    pruefe("I35-K KONTROLLE: ohne den Wechsel stuende nach dem Aufklappen "
+           "weiter 'Details anzeigen'",
+           (r.get("aus") or {}).get("laeuft", [[None]])[0][0]
+           == texte["t_details_anzeigen"]["de"], r.get("aus"))
+
+
+# --- I36 jede Wahl sichtbar, "Nochmal suchen", Zurueck, Chat dazu ---------
+# --- I37 die echten Symbole der Apps (beide seit 2026-10-10) --------------
+
+def _lage(name):
+    """Welten fuer I36: alles gefunden, nur Apps, nur Claude Code, nichts.
+    -> (env, KiGefunden, CliDa claude/codex)"""
+    prog = {"alles": ("codex", "claude_code", "claude_desktop"),
+            "nur_apps": ("codex", "claude_desktop"),
+            "nur_code": ("claude_code",), "nichts": ()}[name]
+    w = ki_welt(programme=prog)
+    if name == "alles":
+        b = os.path.join(w["local"], "Programs", "OpenAI", "Codex", "bin")
+        os.makedirs(b)
+        with open(os.path.join(b, "codex.exe"), "wb") as fh:
+            fh.write(b"MZ Attrappe")
+    return w, _welt_env(w), set(prog), {
+        "claude": "claude_code" in prog, "codex": name == "alles"}
+
+
+def _png(pfad, groesse=48):
+    """Ein gueltiges PNG (eine Farbe), ohne fremde Bibliothek."""
+    import struct
+    import zlib
+    roh = b"".join(b"\x00" + b"\x5b\x3c\xc4\xff" * groesse
+                   for _ in range(groesse))
+
+    def stueck(art, daten):
+        return (struct.pack(">I", len(daten)) + art + daten
+                + struct.pack(">I", zlib.crc32(art + daten) & 0xffffffff))
+    os.makedirs(os.path.dirname(pfad), exist_ok=True)
+    with open(pfad, "wb") as fh:
+        fh.write(b"\x89PNG\r\n\x1a\n" + stueck(b"IHDR", struct.pack(
+            ">IIBBBBB", groesse, groesse, 8, 6, 0, 0, 0))
+            + stueck(b"IDAT", zlib.compress(roh)) + stueck(b"IEND", b""))
+
+
+def paket_attrappe_app(kaputt=False, nur_store=False):
+    """Ein Store-Paket in Temp: AppxManifest.xml mit Square44x44Logo und
+    Logo, die PNG-Dateien wie im echten Paket benannt."""
+    d = tempfile.mkdtemp(prefix="omcad_appx_")
+    _temp.append(d)
+    with open(os.path.join(d, "AppxManifest.xml"), "w", encoding="utf-8") as fh:
+        fh.write('<?xml version="1.0" encoding="utf-8"?>\n<Package><Properties>'
+                 '<Logo>Assets\\StoreLogo.png</Logo></Properties><Applications>'
+                 '<Application><uap:VisualElements xmlns:uap="x" '
+                 'Square44x44Logo="Assets\\Square44x44Logo.png"/></Application>'
+                 '</Applications></Package>\n')
+    a = os.path.join(d, "Assets")
+    os.makedirs(a)
+    _png(os.path.join(a, "StoreLogo.scale-100.png"), 50)
+    if not nur_store:
+        _png(os.path.join(a, "Square44x44Logo.scale-200.png"), 88)
+        _png(os.path.join(a, "Square44x44Logo.targetsize-48_altform-unplated.png"), 48)
+        ziel = os.path.join(a, "Square44x44Logo.targetsize-48_altform-lightunplated.png")
+        if kaputt:
+            with open(ziel, "wb") as fh:
+                fh.write(b"\x89PNG kein Bild")
+        else:
+            _png(ziel, 48)
+    return d
+
+
+def pruefe_wahl_suche_zurueck(env0, py_da):
+    _sp, texte, _gl = P.fenster_texte()
+    t, w, p = attrappe(["userprofil_2026"], ["2026"])
+    zeig = ("Seite-Zeigen $U $S 'ki'; $global:ki = @{}; foreach ($id in "
+            "$KI_PROGRAMME) { $global:ki[$id] = @((El $U ('ki_karte_' + $id))."
+            "Visibility.ToString(), (El $U ('ki_marke_' + $id)).Visibility."
+            "ToString(), (El $U ('ki_holen_' + $id)).Visibility.ToString(), "
+            "(El $U ('ki_' + $id)).IsEnabled) }; Seite-Zeigen $U $S 'chat_ki'; "
+            "$global:chat = @{}; foreach ($k in 'claude','codex') { "
+            "$global:chat[$k] = @((El $U ('chat_' + $k)).IsEnabled, (El $U "
+            "('chat_stand_' + $k)).Text, (El $U ('chat_marke_' + $k))."
+            "Visibility.ToString()) }; $S.Wo = 'chat'; (El $U 'chat_%s')."
+            "IsChecked = $true; K 'chat_weiter'")
+    aus_z = "@{ ki = $global:ki; chat = $global:chat }"
+
+    def lage_pruefen(r, gef, cli, wahl):
+        a = r.get("aus") or {}
+        aus = []
+        for id_ in ("claude_desktop", "codex", "claude_code"):
+            da = id_ in gef
+            soll = ["Visible", "Visible" if da else "Collapsed",
+                    "Collapsed" if da else "Visible", da]
+            if (a.get("ki") or {}).get(id_) != soll:
+                aus.append(("ki", id_, (a.get("ki") or {}).get(id_), soll))
+        for k in ("claude", "codex"):
+            soll = [True, texte["t_gefunden" if cli[k] else
+                               "t_wird_mitinstalliert"]["de"], "Visible"]
+            if (a.get("chat") or {}).get(k) != soll:
+                aus.append(("chat", k, (a.get("chat") or {}).get(k), soll))
+        if r.get("seite") != "bereit" or _wert(r.get("args") or [],
+                                                  "-ChatKi") != wahl:
+            aus.append(("wahl", r.get("seite"), r.get("args")))
+        return aus
+    for lage, wahl in (("alles", "codex"), ("nur_apps", "codex"),
+                       ("nur_code", "codex"), ("nichts", "claude")):
+        _w, env, gef, cli = _lage(lage)
+        r, aus = fenster_lauf(w, p, zeig % wahl, vorher=py_da, env=env,
+                              aus=aus_z)
+        luecken = lage_pruefen(r, gef, cli, wahl)
+        pruefe("I36 Lage '%s': auf 'Deine KI-App' jede App zu sehen (gefunden "
+               "-> Plakette, sonst 'Holen' und kein Haken); im Chat beide KI "
+               "waehlbar ('Gefunden' bzw. 'Wird mitinstalliert'); %s waehlbar "
+               "und installierbar (-ChatKi %s)" % (lage, wahl, wahl),
+               not luecken, (luecken, aus[-300:]))
+    # KONTROLLEN: die alte Regel (Claude Code nur, wenn gefunden; Plakette im
+    # Chat nur, wenn gefunden) faellt in der Lage "nichts" auf.
+    _w, env, gef, cli = _lage("nichts")
+    k1 = _fmut_neu('        Sichtbar (El $U ("ki_holen_" + $id)) (-not $da)\n',
+                   '        Sichtbar (El $U ("ki_holen_" + $id)) ($id -ne '
+                   '"claude_code" -and -not $da)\n        if ($id -eq '
+                   '"claude_code") { Sichtbar (El $U "ki_karte_claude_code") '
+                   '$da }\n')
+    k2 = _fmut_neu('        Sichtbar (El $U ("chat_marke_" + $k)) $true\n',
+                   '        Sichtbar (El $U ("chat_marke_" + $k)) '
+                   '([bool]$S.CliDa[$k])\n')
+    rk1, _a = fenster_lauf(w, p, zeig % "claude", vorher=py_da, env=env,
+                           aus=aus_z, fenster=k1)
+    rk2, _a = fenster_lauf(w, p, zeig % "claude", vorher=py_da, env=env,
+                           aus=aus_z, fenster=k2)
+    pruefe("I36-K KONTROLLEN: Claude Code ohne Karte und die Chat-Plakette nur "
+           "bei Gefundenem fielen auf",
+           lage_pruefen(rk1, gef, cli, "claude")
+           and lage_pruefen(rk2, gef, cli, "claude"))
+
+    # I36b "Nochmal suchen": Kreisel + "Suche ...", Knopf gesperrt, mindestens
+    # 600 ms, dann was neu ist; die Zeile verschwindet wieder.
+    welt, env, _g, _c = _lage("nur_apps")
+    neu = os.path.join(welt["heim"], ".local", "bin", "claude.exe")
+    zeile = ("@{ text = (El $U 'ki_suche_text').Text; zeile = (El $U "
+             "'ki_suche').Visibility.ToString(); kreisel = (El $U "
+             "'ki_kreisel').Visibility.ToString(); knopf = (El $U "
+             "'ki_nochmal').IsEnabled }")
+    schritte = ("KW; New-Item -ItemType Directory -Force -Path %s | Out-Null; "
+                "Set-Content -LiteralPath %s -Value x; $t0 = Get-Date; "
+                "K 'ki_nochmal'; $global:a1 = %s; $null = Pumpen { -not "
+                "$S.Suche } 30; $global:ms = ((Get-Date) - $t0)."
+                "TotalMilliseconds; $global:a2 = %s; $global:code = (El $U "
+                "'ki_claude_code').IsChecked; K 'ki_nochmal'; $null = Pumpen "
+                "{ -not $S.Suche } 30; $global:a3 = %s; $null = Pumpen { "
+                "$false } 4.6; $global:a4 = %s"
+                % (_ps_text(os.path.dirname(neu)), _ps_text(neu), zeile, zeile,
+                   zeile, zeile))
+    r, aus = fenster_lauf(w, p, schritte, vorher=py_da, env=env,
+                          aus="@{ a1 = $global:a1; a2 = $global:a2; a3 = "
+                              "$global:a3; a4 = $global:a4; ms = $global:ms; "
+                              "code = $global:code }")
+    a = r.get("aus") or {}
+    pruefe("I36b 'Nochmal suchen': sofort Kreisel und 'Suche ...', Knopf "
+           "gesperrt; nach >= 600 ms 'Gefunden: Claude Code' (neu, angehakt), "
+           "beim zweiten Mal 'Nichts Neues gefunden'; nach 4 s ist die Zeile "
+           "weg",
+           a.get("a1") == {"text": texte["t_suche_laeuft"]["de"],
+                           "zeile": "Visible", "kreisel": "Visible",
+                           "knopf": False}
+           and a.get("a2") == {"text": "Gefunden: Claude Code",
+                               "zeile": "Visible", "kreisel": "Collapsed",
+                               "knopf": True}
+           and (a.get("a3") or {}).get("text") == texte["t_suche_nichts"]["de"]
+           and (a.get("a4") or {}).get("zeile") == "Hidden"
+           and (a.get("ms") or 0) >= 600 and a.get("code") is True,
+           (a, aus[-300:]))
+    # Die Ereignisschleife laeuft waehrend der Suche weiter (Fenster bleibt
+    # bedienbar): mit einer Suche, die 1,5 s braucht.
+    langsam = ("function KI-Finden { Start-Sleep -Milliseconds 1500; return , "
+               "@() }")
+    mess = ("$global:takte = New-Object System.Collections.ArrayList; $tt = "
+            "New-Object System.Windows.Threading.DispatcherTimer; $tt.Interval "
+            "= [TimeSpan]::FromMilliseconds(40); $tt.Add_Tick({ [void]"
+            "$global:takte.Add([DateTime]::Now.Ticks) }); $tt.Start(); $null = "
+            "Pumpen { $false } 1; $t0 = Get-Date; K 'ki_nochmal'; $null = "
+            "Pumpen { -not $S.Suche } 30; $global:ms = ((Get-Date) - $t0)."
+            "TotalMilliseconds; $null = Pumpen { $false } 1; $tt.Stop(); $global:luecke = 0; for ($i = 1; "
+            "$i -lt $global:takte.Count; $i++) { $d = ($global:takte[$i] - "
+            "$global:takte[$i - 1]) / 10000; if ($d -gt $global:luecke) { "
+            "$global:luecke = $d } }")
+    auf = "@{ luecke = $global:luecke; ms = $global:ms; n = $global:takte.Count }"
+    r, aus = fenster_lauf(w, p, "KW; " + mess, vorher=py_da + "\n" + langsam,
+                          env=env, aus=auf)
+    km = _fmut_neu("(El $U $n).Add_Click({ $F = $global:OMCAD_F; "
+                   "Suche-Starten $F.U $F.S })",
+                   "(El $U $n).Add_Click({ $F = $global:OMCAD_F; "
+                   "KI-Suchen $F.S; Weiter $F.U $F.S \"wo\" })")
+    rk, ausk = fenster_lauf(w, p, "KW; " + mess, vorher=py_da + "\n" + langsam,
+                            env=env, aus=auf, fenster=km)
+    a, ak = r.get("aus") or {}, rk.get("aus") or {}
+    pruefe("I36c die Suche laeuft im Hintergrund: bei 1,5 s Suche steht die "
+           "Ereignisschleife nie laenger als 0,6 s (Anlegen des Runspace); KONTROLLE: die alte, "
+           "direkte Suche haelt sie >= 1,4 s an",
+           0 < (a.get("luecke") or 9999) < 600 and (a.get("ms") or 0) >= 1500
+           and (ak.get("luecke") or 0) >= 1400, (a, ak, aus[-200:],
+                                                 ausk[-200:]))
+
+    # I36d "Zurueck" auf jeder Seite mit Fragen.
+    _w, env, _g, _c = _lage("nur_apps")
+    weg = ("K 'willkommen_weiter'; K 'wo_weiter'; K 'ki_zurueck'; "
+           "K 'wo_zurueck'; K 'willkommen_weiter'; (El $U 'wo_chat')."
+           "IsChecked = $true; K 'wo_weiter'; K 'chat_zurueck'; (El $U "
+           "'wo_app').IsChecked = $true; K 'wo_weiter'; K 'ki_weiter'; "
+           "K 'bereit_zurueck'")
+    soll = ["willkommen", "wo", "ki", "wo", "willkommen", "wo", "chat_ki",
+            "wo", "ki", "bereit", "ki"]
+    r, aus = fenster_lauf(w, p, weg, vorher=py_da, env=env)
+    t2, w2, p2 = attrappe(["userprofil_2026", "userprofil_%d" % ALT_JAHR],
+                          ["2026", str(ALT_JAHR)])
+    r2, aus2 = fenster_lauf(w2, p2, "KW; K 'ki_weiter'; (El $U "
+                            "'profil_wahl_1').IsChecked = $true; K "
+                            "'profil_weiter'; K 'version_zurueck'; K "
+                            "'profil_zurueck'", vorher=py_da, env=env)
+    py_fehlt = ("function Finde-Python { return $null }\n"
+                "function Python-Weg { return 'python.org' }")
+    r3, aus3 = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'python_ja'; K "
+                            "'bereit_zurueck'; $global:ja = $S.PythonJa; K "
+                            "'python_zurueck'", vorher=py_fehlt, env=env,
+                            aus="$global:ja")
+    km = _fmut_neu("        if ($v[$i] -eq $S.Seite -or $FRAGE_SEITEN "
+                   "-notcontains $v[$i]) { continue }",
+                   "        if ($FRAGE_SEITEN -notcontains $v[$i]) { continue }")
+    rk, _a = fenster_lauf(w, p, weg, vorher=py_da, env=env, fenster=km)
+    pruefe("I36d 'Zurueck' auf jeder Seite (Wo, KI-App, Chat-KI, Bereit, "
+           "Welches Cadwork, Version, Python) fuehrt zur Seite davor; die "
+           "Antwort dort gilt wieder als offen; KONTROLLE: ohne das "
+           "Ueberspringen der eigenen Seite bliebe es stehen",
+           r.get("v") == soll and r2.get("v") == [
+               "willkommen", "wo", "ki", "profil", "version", "profil", "ki"]
+           and r3.get("v") == ["willkommen", "wo", "ki", "python", "bereit",
+                               "python", "ki"] and r3.get("aus") is False
+           and rk.get("v") != soll,
+           (r.get("v"), r2.get("v"), r3.get("v"), r3.get("aus"), rk.get("v"),
+            aus[-200:]))
+
+    # I36e nur die KI-App gewaehlt: "Fertig" bietet den Chat in Cadwork an.
+    fertig = ("$S.Ergebnis = [pscustomobject]@{ fertig = $true; kiListe = "
+              "@() }; Seite-Zeigen $U $S 'fertig'; Fertig-Fuellen $U $S; "
+              "$global:sicht = (El $U 'fertig_chat_dazu').Visibility."
+              "ToString()")
+    r, aus = fenster_lauf(w, p, "KW; K 'ki_weiter'; " + fertig + "; K "
+                          "'fertig_chat_dazu'; (El $U 'chat_codex').IsChecked "
+                          "= $true; K 'chat_weiter'", vorher=py_da, env=env,
+                          aus="@{ sicht = $global:sicht; wo = $S.Wo }")
+    r2, aus2 = fenster_lauf(w, p, "K 'willkommen_weiter'; (El $U 'wo_beides')"
+                            ".IsChecked = $true; K 'wo_weiter'; " + fertig,
+                            vorher=py_da, env=env, aus="$global:sicht")
+    a = r.get("aus") or {}
+    pruefe("I36e nur 'In deiner KI-App' gewaehlt: auf 'Fertig' steht 'Chat in "
+           "Cadwork auch einrichten' -> Welche KI im Chat -> Bereit mit "
+           "-ChatKi codex und den Apps; KONTROLLE: mit 'Beides' steht es nicht "
+           "da",
+           a.get("sicht") == "Visible" and a.get("wo") == "beides"
+           and r.get("v", [])[-2:] == ["chat_ki", "bereit"]
+           and _wert(r.get("args") or [], "-ChatKi") == "codex"
+           and _wert(r.get("args") or [], "-KiNur") == "claude_desktop,codex"
+           and r2.get("aus") == "Collapsed",
+           (a, r.get("v"), r.get("args"), r2.get("aus"), aus[-200:]))
+
+
+def pruefe_logos(env, py_da):
+    gut = paket_attrappe_app()
+    nur = paket_attrappe_app(nur_store=True)
+    kaputt = paket_attrappe_app(kaputt=True)
+    ps = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32",
+                      "WindowsPowerShell", "v1.0", "powershell.exe")
+    code = ("[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding "
+            "$false\n. %s -NurFunktionen\nWpf-Laden\n"
+            "$b = { param($p) $x = Logo-Bild $p; if ($x) { $x.PixelWidth } "
+            "else { 0 } }\n"
+            "@{ m1 = (Manifest-Logo %s); m2 = (Manifest-Logo %s); m3 = "
+            "(Manifest-Logo %s); b1 = (& $b (Manifest-Logo %s)); b2 = (& $b "
+            "(Manifest-Logo %s)); b3 = (& $b %s); b4 = (& $b 'C:\\gibt\\es\\"
+            "nicht.png') } | ConvertTo-Json -Compress"
+            % (_ps_text(FENSTER), _ps_text(gut), _ps_text(nur),
+               _ps_text(os.path.join(gut, "fehlt")), _ps_text(gut),
+               _ps_text(kaputt), _ps_text(ps)))
+    r, aus = _ps_fenster(code)
+    pruefe("I37a Symbol aus einem Store-Paket (Attrappe in Temp): Manifest -> "
+           "Square44x44Logo in targetsize-48 fuer helle Flaechen (vor dem weissen), sonst Logo in "
+           "scale-100; ohne Manifest nichts; Bild (auf 64 px) aus dem PNG, das "
+           "Symbol einer exe (powershell.exe), kaputtes oder fehlendes PNG -> "
+           "nichts",
+           (r.get("m1") or "").endswith(
+               "Square44x44Logo.targetsize-48_altform-lightunplated.png")
+           and (r.get("m2") or "").endswith("StoreLogo.scale-100.png")
+           and r.get("m3") is None and r.get("b1") == 64 and r.get("b2") == 0
+           and (r.get("b3") or 0) >= 16 and r.get("b4") == 0,
+           (r, aus[-300:]))
+    t, w, p = attrappe(["userprofil_2026"], ["2026"])
+
+    def lauf(paket, schalter=""):
+        vor = py_da + ("\nfunction App-Paket-Ort($name) { if ($name -eq "
+                       "'Claude') { return %s }; return $null }"
+                       % _ps_text(paket))
+        return fenster_lauf(
+            w, p, "Seite-Zeigen $U $S 'ki'; $U.Wurzel.Measure((New-Object "
+            "System.Windows.Size 640, 480)); $U.Wurzel.Arrange((New-Object "
+            "System.Windows.Rect 0, 0, 640, 480)); $null = Pumpen { "
+            "-not $S.LogoSuche } 20; $U.Wurzel.UpdateLayout(); "
+            "$global:l = @{}; foreach ($n in 'ki_logo_claude_desktop', "
+            "'keine_claude', 'ki_logo_codex', 'keine_codex') { $e = El $U $n; "
+            "$global:l[$n] = ($null -ne $e.Tag) }; $c = El $U 'ki_logo_codex'; "
+            "$global:ersatz = $c.Template.FindName('ersatz', $c).Visibility."
+            "ToString(); $d = El $U 'ki_logo_claude_desktop'; $global:ersatz2 "
+            "= $d.Template.FindName('ersatz', $d).Visibility.ToString()",
+            vorher=vor, env=env, schalter=schalter,
+            aus="@{ l = $global:l; codex = $global:ersatz; claude = "
+                "$global:ersatz2 }")
+    r, aus = lauf(gut)
+    rk, _a = lauf(kaputt)
+    ro, _a = lauf(gut, " -OhneLogos")
+    a, ak, ao = r.get("aus") or {}, rk.get("aus") or {}, ro.get("aus") or {}
+    pruefe("I37b im Fenster: Claude Desktop (Paket-Attrappe) mit seinem "
+           "Symbol auf 'Deine KI-App' und 'Holen'; die ChatGPT-App (kein "
+           "Paket) mit dem Strich-Symbol; kaputtes PNG -> Strich-Symbol; mit "
+           "-OhneLogos nie ein fremdes Symbol",
+           a.get("l") == {"ki_logo_claude_desktop": True, "keine_claude": True,
+                          "ki_logo_codex": False, "keine_codex": False}
+           and a.get("codex") == "Visible" and a.get("claude") == "Collapsed"
+           and not any((ak.get("l") or {"x": True}).values())
+           and ak.get("claude") == "Visible"
+           and not any((ao.get("l") or {"x": True}).values()),
+           (a, ak, ao, aus[-300:]))
+    r, aus = _ps_fenster(". %s -NurFunktionen -Rendern %s\n@{ o = "
+                         "$global:OMCAD_F.OhneLogos } | ConvertTo-Json "
+                         "-Compress" % (_ps_text(FENSTER), _ps_text(
+                             tempfile.gettempdir())))
+    r2, aus2 = _ps_fenster(". %s -NurFunktionen\n@{ o = $global:OMCAD_F."
+                           "OhneLogos } | ConvertTo-Json -Compress"
+                           % _ps_text(FENSTER))
+    pruefe("I37c -Rendern (Bilder der Anleitung) liest nie ein fremdes Symbol "
+           "(OhneLogos); KONTROLLE: ohne -Rendern schon",
+           r.get("o") is True and r2.get("o") is False, (r, r2))
+
+
+# --- I38 erlaubte und getestete Cadwork-Jahre (vorbereitet 2026-10-10) ------
+# Zwei Werte in install.ps1 ($CADWORK_GETESTET, $CADWORK_ERLAUBT_AB)
+# entscheiden: getestet ohne Warnung, ab ERLAUBT_AB "nicht getestet, sollte
+# gehen", davor die Warnung. Das Gate liest beide aus der Quelle und prueft
+# die Regel mit ihnen UND mit gesetzten Werten (2026 getestet, ab 2024).
+
+def _jahre_aus(quelle):
+    g = re.search(r"(?m)^\$CADWORK_GETESTET = @\(([^)]*)\)", quelle).group(1)
+    a = re.search(r"(?m)^\$CADWORK_ERLAUBT_AB = (\d+)", quelle).group(1)
+    return [int(x) for x in re.findall(r"\d+", g)], int(a)
+
+
+#: Aus der QUELLE (Regel 3): getestete Jahre und das erste erlaubte. Die
+#: Zellen, deren Absicht "nicht unterstuetzte Version warnt/bricht ab" ist,
+#: nehmen ALT_JAHR = das Jahr davor (seit 2026-10-10: 2024) - nie eine
+#: eigene Jahreszahl.
+GETESTET, ERLAUBT_AB = _jahre_aus(open(INSTALL, encoding="ascii").read())
+ALT_JAHR = ERLAUBT_AB - 1
+
+
+def _jahre_mutante(getestet, ab):
+    q = open(INSTALL, encoding="ascii").read()
+    q2 = re.sub(r"(?m)^\$CADWORK_GETESTET = @\([^)]*\)",
+                "$CADWORK_GETESTET = @(%s)" % ", ".join(map(str, getestet)), q)
+    q2 = re.sub(r"(?m)^\$CADWORK_ERLAUBT_AB = \d+",
+                "$CADWORK_ERLAUBT_AB = %d" % ab, q2)
+    assert q2 != q or (_jahre_aus(q) == (getestet, ab))
+    d = tempfile.mkdtemp(prefix="omcad_jahre_")
+    _temp.append(d)
+    z = os.path.join(d, "install.ps1")
+    with open(z, "w", encoding="ascii") as fh:
+        fh.write(q2)
+    return z
+
+
+def pruefe_versionen(env, py_da):
+    quelle = open(INSTALL, encoding="ascii").read()
+    jahre = [2023, 2024, 2025, 2026, 2027]
+
+    def soll(getestet, ab):
+        return ["getestet" if j in getestet else "ungetestet" if j >= ab
+                else "nicht" for j in jahre]
+
+    def ist(ps1):
+        code = "$aus = @()\n"
+        for j in jahre:
+            code += ("$v = Version-Pruefen 'C:\\x\\userprofil_%d\\3d\\API.x64' "
+                     "@(2023, 2024, 2025, 2026, 2027) 'C:\\x'; $aus += @($v.Art "
+                     "+ '|' + $v.Passt)\n" % j)
+        r = ps_funktionen(code + "@{ a = $aus } | ConvertTo-Json -Compress",
+                          ps1)
+        return [x.split("|")[0] for x in r.get("a", [])], \
+            [x.split("|")[1] == "True" for x in r.get("a", [])]
+    g, ab = _jahre_aus(quelle)
+    a1, p1 = ist(None)
+    mut = _jahre_mutante([2026], 2024)
+    a2, p2 = ist(mut)
+    pruefe("I38 Version-Pruefen nach $CADWORK_GETESTET %s / $CADWORK_ERLAUBT_AB "
+           "%d aus der Quelle: %s; mit [2026] ab 2024: 2023 Warnung, 2024/2025/"
+           "2027 'nicht getestet, sollte gehen', 2026 ohne Warnung"
+           % (g, ab, dict(zip(jahre, a1))),
+           a1 == soll(g, ab) and p1 == [x != "nicht" for x in soll(g, ab)]
+           and a2 == soll([2026], 2024)
+           and p2 == [False, True, True, True, True], (a1, p1, a2, p2))
+    # I38b seit 2026-10-10 (Cadwork 2025 laeuft ueber die Qt-Schicht; seit
+    # der Messung des Maintainers - 0.2.2 im echten Cadwork 2025 - auch
+    # GETESTET): der ganze Installer MIT DEN WERTEN DER QUELLE in einer Welt
+    # nur mit 2025 kopiert ohne Hinweis und ist vollstaendig; das Fenster
+    # zeigt keine Sperrseite und auf "Bereit" keinen Hinweis.
+    def welt_2025():
+        return attrappe(["userprofil_2025"], ["2025"])
+
+    def ganz(ps1_quelle):
+        t, w, p = welt_2025()
+        ps1 = paket_attrappe(ps1=ps1_quelle, fenster=True)
+        datei = os.path.join(t, "erg.json")
+        rc, aus = _lauf(["-File", ps1, "-OhnePause", "-OhneServer",
+                         "-CadworkWurzel", w, "-CadworkProgramm", p,
+                         "-ErgebnisDatei", datei])
+        erg = json.load(open(datei, encoding="utf-8")) \
+            if os.path.isfile(datei) else {}
+        return rc, aus, erg, w, p, os.path.join(os.path.dirname(ps1),
+                                                P.FENSTER)
+    _sp, texte, _gl = P.fenster_texte()
+    zeig = ("(@((El $U 'bereit_liste').Children | ForEach-Object { "
+            "$_.Children[1].Text }) -join ' | ')")
+    rc, aus, erg, w, p, fenster = ganz(None)
+    r, a_f = fenster_lauf(w, p, "KW; K 'ki_weiter'", vorher=py_da, env=env,
+                          fenster=fenster, aus=zeig)
+    pruefe("I38b Werte der Quelle (%s ab %d), nur Cadwork 2025: 2025 ist "
+           "getestet; install.ps1 kopiert (Rueckgabe 0, KEIN 'nicht "
+           "getestet', vollstaendig); das Fenster geht ohne Sperrseite auf "
+           "'Bereit', dort die Zeile ohne Hinweis" % (g, ab),
+           ab <= 2025 and 2025 in g
+           and rc == 0 and kopiert_in(w) == ["userprofil_2025"]
+           and erg.get("pluginText") == "Cadwork 2025 im Profil "
+           "userprofil_2025"
+           and "nicht getestet" not in aus
+           and erg.get("fertig") is True
+           and "NICHT vollstaendig" not in aus
+           and r.get("seite") == "bereit" and "version" not in r.get("v", [])
+           and (r.get("aus") or "").split(" | ")[0] == texte[
+               "t_bereit_plugin"]["de"].format(2025)
+           and texte["t_bereit_plugin_ungetestet"]["de"].format(2025)
+           not in (r.get("aus") or ""),
+           (rc, erg.get("pluginText"), erg.get("fertig"), r.get("v"),
+            r.get("aus"), aus[-300:], a_f[-300:]))
+    # KONTROLLE: der Stand vor 2026-10-10 ([2026] ab 2026) in derselben
+    # Welt: das Fenster zeigt die Warnseite, install.ps1 bricht ab.
+    rc_k, aus_k, erg_k, w_k, p_k, fenster_k = ganz(_jahre_mutante([2026],
+                                                                  2026))
+    rk, _a = fenster_lauf(w_k, p_k, "KW; K 'ki_weiter'", vorher=py_da,
+                          env=env, fenster=fenster_k)
+    pruefe("I38b-K KONTROLLE: mit dem alten Stand ([2026] ab 2026) kommt fuer "
+           "2025 die Warnseite, install.ps1 kopiert nichts (Rueckgabe 3)",
+           rk.get("seite") == "version" and rc_k == 3
+           and kopiert_in(w_k) == [] and erg_k.get("fertig") is False,
+           (rk.get("v"), rc_k, kopiert_in(w_k), aus_k[-300:]))
+    # KONTROLLE 2: der Stand von 0.2.2 ([2026] ab 2025) - 2025 erlaubt, aber
+    # nicht getestet: kopiert MIT Hinweis, vollstaendig, das Fenster nennt
+    # ihn auf "Bereit" (so bleibt der Weg "nicht getestet" gemessen, fuer ein
+    # spaeteres Jahr).
+    rc_2, aus_2, erg_2, w_2, p_2, fenster_2 = ganz(_jahre_mutante([2026],
+                                                                  2025))
+    r2, _a = fenster_lauf(w_2, p_2, "KW; K 'ki_weiter'", vorher=py_da,
+                          env=env, fenster=fenster_2, aus=zeig)
+    pruefe("I38b-K2 KONTROLLE: mit dem Stand von 0.2.2 ([2026] ab 2025) "
+           "bekaeme 2025 den Hinweis 'nicht getestet' - im Textfenster, im "
+           "Ergebnis und auf 'Bereit' - und waere trotzdem vollstaendig",
+           rc_2 == 0 and kopiert_in(w_2) == ["userprofil_2025"]
+           and "nicht getestet" in erg_2.get("pluginText", "")
+           and "nicht getestet, sollte aber gehen" in aus_2
+           and erg_2.get("fertig") is True and r2.get("seite") == "bereit"
+           and texte["t_bereit_plugin_ungetestet"]["de"].format(2025)
+           in (r2.get("aus") or ""),
+           (rc_2, erg_2.get("pluginText"), r2.get("aus"), aus_2[-300:]))
+    # I38c die Saetze des Fensters, die Jahre nennen, nennen jedes getestete
+    # Jahr und das erste erlaubte - in allen vier Sprachen (die Texte sind
+    # fest, die Jahre stehen in install.ps1). KONTROLLE: der alte Satz
+    # (nur 2026) faellt auf.
+    def jahre_fehlen(je):
+        return [(k, sp) for k in ("t_auf_diesem_pc_gibt",
+                                  "t_dort_startet_open_mcp")
+                for sp, v in je[k].items()
+                if not all(str(j) in v for j in list(g) + [ab])]
+    alt_texte = {k: dict(v) for k, v in texte.items()}
+    alt_texte["t_dort_startet_open_mcp"]["de"] = (
+        "Dort startet Open MCP CAD nicht. Installiere zuerst Cadwork 3D 2026."
+        " Oder installiere trotzdem, wenn du genau weisst, was du tust.")
+    pruefe("I38c 'Welches Cadwork?' und die Warnseite nennen %s und %d in "
+           "de/fr/it/en; KONTROLLE: der alte deutsche Satz (nur 2026) faellt "
+           "auf" % (g, ab), not jahre_fehlen(texte)
+           and jahre_fehlen(alt_texte) == [("t_dort_startet_open_mcp", "de")],
+           (jahre_fehlen(texte), jahre_fehlen(alt_texte)))
+
+
+# --- I39/I40 mehrere Cadwork-Versionen auf einem PC (seit 2026-10-10) ------
+#
+# Rueckmeldung 2026-10-10: auf einem Laptop stehen Cadwork 2025 und 2026
+# nebeneinander (Profilordner auch GROSS geschrieben, USERPROFIL_2025). Das
+# Einrichtungsfenster hakt jetzt jedes Profil ab $CADWORK_ERLAUBT_AB mit
+# installiertem Cadwork vorab an (Profil-Vorauswahl in install.ps1) und
+# uebergibt bei mehr als einem Haken -Profile "a;b"; install.ps1 prueft und
+# beliefert jedes einzeln. Vertrag mit dem Dock: es startet nach einem
+# Update bzw. fuer ein Cadwork ohne Open MCP CAD 1_INSTALLIEREN.cmd OHNE
+# Schalter - die Vorauswahl muss also jedes erlaubte, installierte Cadwork
+# enthalten (I39a, I39f).
+
+ALT_PROFILE_STAND = "fc4dbfa"
+
+
+def _alt_stand(dateien):
+    """Ein Ordner mit den Dateien aus ALT_PROFILE_STAND (vor den
+    Haken, RadioButtons) - fuer die Kontrollen. -> Pfad auf das Fenster."""
+    d = tempfile.mkdtemp(prefix="omcad_alt_profile_")
+    _temp.append(d)
+    for n in dateien:
+        roh = subprocess.run(["git", "show", ALT_PROFILE_STAND +
+                              ":verteilung/" + n], cwd=REPO,
+                             capture_output=True, check=True).stdout
+        with open(os.path.join(d, n), "wb") as fh:
+            fh.write(roh)
+    return d
+
+
+def mehr_welt(mit_2024=True):
+    """Profile 2027 (ohne EXE_2027), 2026 (mit Open MCP CAD schon darin),
+    USERPROFIL_2025 (gross, ohne Open MCP CAD) und - wenn `mit_2024` - das
+    Jahr vor $CADWORK_ERLAUBT_AB, je mit EXE_<Jahr> ausser 2027.
+    -> (t, wurzel, programm, {Jahr: API-Pfad})"""
+    alt = "userprofil_%d" % ALT_JAHR
+    profile = ["userprofil_2027", "userprofil_2026", "USERPROFIL_2025"]
+    exes = ["2026", "2025"]
+    if mit_2024:
+        profile.append(alt)
+        exes.append(str(ALT_JAHR))
+    t, w, p = attrappe(profile, exes)
+    api = {int(re.search(r"\d+$", n).group(0)): os.path.join(w, n, "3d",
+                                                             "API.x64")
+           for n in profile}
+    os.makedirs(os.path.join(api[2026], "Open MCP CAD"))
+    return t, w, p, api
+
+
+def pruefe_mehrere_profile(env, py_da):
+    _sp, texte, _gl = P.fenster_texte()
+
+    # --- I39a Vorauswahl: jedes erlaubte Jahr mit installiertem Cadwork ---
+    def vorauswahl(w, p, ps1=None):
+        return ps_funktionen(
+            "$k = @(Profil-Kandidaten '%s' '%s')\n$v = Profil-Vorauswahl $k "
+            "'%s'\n@{ namen = @($k | ForEach-Object { $_.Name }); v = @($v | "
+            "ForEach-Object { $k[$_].Name }) } | ConvertTo-Json -Compress"
+            % (w, p, p), ps1)
+    t, w, p, api = mehr_welt()
+    r = vorauswahl(w, p)
+    t2, w2, p2 = attrappe(["userprofil_2027", "userprofil_%d" % ALT_JAHR],
+                          [str(ALT_JAHR)])
+    r2 = vorauswahl(w2, p2)
+    alt = "userprofil_%d" % ALT_JAHR
+    pruefe("I39a Vorauswahl (Profil-Vorauswahl) bei 2027 ohne EXE, 2026, "
+           "USERPROFIL_2025 (gross geschrieben, ohne Open MCP CAD) und %d: "
+           "2026 und 2025 angehakt, %d (zu alt) und 2027 (kein Cadwork) "
+           "nicht; trifft nichts zu, die bisherige Vorgabe (%s)"
+           % (ALT_JAHR, ALT_JAHR, alt),
+           r.get("namen") == ["userprofil_2027", "userprofil_2026",
+                              "USERPROFIL_2025", alt]
+           and r.get("v") == ["userprofil_2026", "USERPROFIL_2025"]
+           and r2.get("v") in ([alt], alt), (r, r2))
+    zeile = ("        if ($k[$i].Installiert -and $k[$i].Nummer -ge "
+             "$CADWORK_ERLAUBT_AB) { $aus += $i }")
+    k1 = vorauswahl(w, p, mutante_ps(zeile, zeile.replace(
+        "$k[$i].Installiert -and ", "")))
+    k2 = vorauswahl(w, p, mutante_ps(zeile, zeile.replace(
+        " -and $k[$i].Nummer -ge $CADWORK_ERLAUBT_AB", "")))
+    pruefe("I39a-K KONTROLLEN: ohne die Pruefung auf ein installiertes "
+           "Cadwork kaeme 2027 dazu, ohne die Jahresgrenze %d" % ALT_JAHR,
+           "userprofil_2027" in (k1.get("v") or [])
+           and alt in (k2.get("v") or []), (k1, k2))
+
+    # --- I39b das Fenster: Haken, vorab angehakt, -Profile ----------------
+    zeig = ("(@((El $U 'bereit_liste').Children | ForEach-Object { "
+            "$_.Children[1].Text }) -join ' | ')")
+    merken = ("$global:h = @(0..3 | ForEach-Object { (El $U ('profil_wahl_' "
+              "+ $_)).IsChecked -eq $true }); $global:we = (El $U "
+              "'profil_weiter').IsEnabled; $global:typ = (El $U "
+              "'profil_wahl_0').GetType().Name; $global:emp = @(0..3 | "
+              "ForEach-Object { (El $U ('profil_wahl_' + $_)).Content."
+              "Children[1].Text })")
+    aus_b = ("@{ h = $global:h; we = $global:we; typ = $global:typ; emp = "
+             "$global:emp; liste = %s }" % zeig)
+    r, a_b = fenster_lauf(w, p, "KW; K 'ki_weiter'; " + merken + "; "
+                          "K 'profil_weiter'", vorher=py_da, env=env,
+                          aus=aus_b)
+    x = r.get("aus") or {}
+    a = r.get("args") or []
+    emp = texte["t_profil_empfohlen"]["de"]
+    pruefe("I39b Fenster, vier Profile: 'Welches Cadwork?' mit Haken "
+           "(CheckBox), 2026 und 2025 vorab angehakt und 'empfohlen', 2027 "
+           "und %d nicht; 'Weiter' -> Bereit (keine Warnung) mit einer Zeile "
+           "je Cadwork; Argument -Profile '<2026>;<2025>', kein -Profil"
+           % ALT_JAHR,
+           x.get("typ") == "CheckBox" and x.get("h") == [False, True, True,
+                                                         False]
+           and x.get("we") is True
+           and [emp in (e or "") for e in x.get("emp") or []] == [
+               False, True, True, False]
+           and r.get("v") == ["willkommen", "wo", "ki", "profil", "bereit"]
+           and _wert(a, "-Profile") == api[2026] + ";" + api[2025]
+           and "-Profil" not in a
+           and texte["t_bereit_plugin"]["de"].format(2026) in (
+               x.get("liste") or "")
+           # 2025 ist seit 2026-10-10 getestet: ohne Hinweis
+           and texte["t_bereit_plugin"]["de"].format(2025) in (
+               x.get("liste") or "")
+           and texte["t_bereit_plugin_ungetestet"]["de"].format(2025)
+           not in (x.get("liste") or ""), (r, a_b[-400:]))
+    alt_d = _alt_stand([P.FENSTER, P.FENSTER_XAML, P.FENSTER_TEXTE,
+                        "install.ps1"])
+    rk, a_k = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'profil_weiter'",
+                           vorher=py_da, env=env,
+                           fenster=os.path.join(alt_d, P.FENSTER))
+    pruefe("I39b-K KONTROLLE: das alte Fenster (eine Wahl) gibt in "
+           "derselben Welt nur -Profil 2026 weiter - 2025 fehlte",
+           _wert(rk.get("args") or [], "-Profil") == api[2026]
+           and "-Profile" not in (rk.get("args") or []), (rk, a_k[-300:]))
+
+    # --- I39c Haken: ohne keinen 'Weiter', zwei mit einem zu alten -------
+    schritte = (
+        "KW; K 'ki_weiter'; K 'profil_wahl_1'; K 'profil_wahl_2'; "
+        "$global:leer = (El $U 'profil_weiter').IsEnabled; "
+        "$global:n0 = @($S.ProfilWahl).Count; "
+        "try { Klick $U 'profil_weiter'; $global:gesperrt = $false } catch "
+        "{ $global:gesperrt = $true }; "
+        "K 'profil_wahl_3'; $global:eins = (El $U 'profil_weiter').IsEnabled; "
+        "K 'profil_wahl_1'; K 'profil_weiter'; "
+        "$global:satz = (El $U 'version_text').Text; K 'version_trotzdem'")
+    aus_c = ("@{ leer = $global:leer; n0 = $global:n0; gesperrt = "
+             "$global:gesperrt; eins = $global:eins; satz = $global:satz; "
+             "liste = %s }" % zeig)
+    r, a_c = fenster_lauf(w, p, schritte, vorher=py_da, env=env, aus=aus_c)
+    x = r.get("aus") or {}
+    a = r.get("args") or []
+    satz = texte["t_version_mehrere"]["de"].format(ERLAUBT_AB,
+                                                    "Cadwork %d" % ALT_JAHR)
+    pruefe("I39c Haken per Klick: beide ab -> 'Weiter' gesperrt (auch ein "
+           "Klick darauf tut nichts); %d an -> 'Weiter' geht; 2026 + %d -> "
+           "Warnseite nennt nur %d und den Weg zurueck; 'Trotzdem' -> Bereit, "
+           "-Profile '<2026>;<%d>' und -TrotzdemKopieren"
+           % (ALT_JAHR, ALT_JAHR, ALT_JAHR, ALT_JAHR),
+           x.get("leer") is False and x.get("n0") == 0
+           and x.get("gesperrt") is True and x.get("eins") is True
+           and x.get("satz") == satz
+           and r.get("v") == ["willkommen", "wo", "ki", "profil", "profil",
+                              "profil", "profil", "profil", "version",
+                              "bereit"]
+           and _wert(a, "-Profile") == api[2026] + ";" + api[ALT_JAHR]
+           and "-TrotzdemKopieren" in a
+           and texte["t_bereit_plugin_trotzdem"]["de"].format(ALT_JAHR) in (
+               x.get("liste") or ""), (r, a_c[-400:]))
+    km = _fmut_neu('    (El $U "profil_weiter").IsEnabled = ((Profil-Wahl $S)'
+                   '.Count -gt 0)', '    (El $U "profil_weiter").IsEnabled = '
+                   '$true')
+    rk, _a = fenster_lauf(w, p, schritte, vorher=py_da, env=env, aus=aus_c,
+                          fenster=km)
+    pruefe("I39c-K KONTROLLE: ohne die Sperre waere 'Weiter' ohne Haken frei",
+           (rk.get("aus") or {}).get("leer") is True, rk.get("aus"))
+
+    # --- I39d ein Haken -> -Profil wie bisher; KONTROLLE ohne -Profile ---
+    r, a_d = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'profil_wahl_2'; "
+                          "K 'profil_weiter'", vorher=py_da, env=env)
+    a = r.get("args") or []
+    km = _fmut_neu('    if ($pf.Count -gt 1) { $a += @("-Profile", '
+                   '($pf -join ";")) }', '    if ($false) { }')
+    rk, _a = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'profil_weiter'",
+                          vorher=py_da, env=env, fenster=km)
+    pruefe("I39d nur 2026 angehakt -> -Profil <2026> (kein -Profile, wie "
+           "vor 2026-10-10); KONTROLLE: ohne die Zeile fuer -Profile ginge "
+           "bei zwei Haken nur das erste weiter",
+           _wert(a, "-Profil") == api[2026] and "-Profile" not in a
+           and r.get("v") == ["willkommen", "wo", "ki", "profil", "profil",
+                              "bereit"]
+           and "-Profile" not in (rk.get("args") or [])
+           and _wert(rk.get("args") or [], "-Profil") == api[2026],
+           (r, rk.get("args"), a_d[-300:]))
+
+    # --- I39e reine Teile: Fehlersatz "teilweise", Jahre auf "Fertig" ----
+    r, a_e = _ps_fenster(
+        ". '%s' -NurFunktionen\n"
+        "$S = Zustand-Neu; $S.Ergebnis = [pscustomobject]@{ profile = @("
+        "[pscustomobject]@{ status = 'ok'; nummer = 2026 }, "
+        "[pscustomobject]@{ status = 'fehlt'; nummer = 2025 }, "
+        "[pscustomobject]@{ status = 'version'; nummer = %d }, "
+        "[pscustomobject]@{ status = 'ok'; nummer = $null }) }\n"
+        "$S2 = Zustand-Neu; $S2.Kandidaten = @([pscustomobject]@{ Nummer = "
+        "2026 }, [pscustomobject]@{ Nummer = 2025 }); $S2.ProfilWahl = @(1, 0)\n"
+        "@{ f = @((Fehler-Schluessel @{ plugin = 'teilweise'; server = "
+        "'uebersprungen' }), (Fehler-Schluessel @{ plugin = 'teilweise'; "
+        "server = 'fehlt'; serverText = 'pip' })); j = (Fertig-Jahre $S); "
+        "j2 = (Fertig-Jahre $S2) } | ConvertTo-Json -Compress"
+        % (FENSTER, ALT_JAHR))
+    pruefe("I39e Fehlersatz bei 'teilweise' (nach dem Server), 'Fertig' nennt "
+           "die Jahre, in die kopiert wurde (ok/version, ohne unbekannte), "
+           "ohne Ergebnis die angehakten",
+           r.get("f") == ["t_fehler_teilweise", "t_fehler_server"]
+           and r.get("j") == [2026, ALT_JAHR] and r.get("j2") == [2025, 2026],
+           (r, a_e[-300:]))
+
+    # --- I39f der ganze Weg: Fenster -> install.ps1 in zwei Profile ------
+    warten = ("$global:ok = Pumpen { $S.Seite -eq 'fertig' -or $S.Seite -eq "
+              "'fehler' } 240")
+
+    def kette(alte_dateien=False):
+        ps1 = paket_attrappe(fenster=True)
+        unter = os.path.dirname(ps1)
+        if alte_dateien:
+            d = _alt_stand([P.FENSTER, P.FENSTER_XAML, P.FENSTER_TEXTE,
+                            "install.ps1"])
+            for n in os.listdir(d):
+                shutil.copy(os.path.join(d, n), os.path.join(unter, n))
+        t, w, p, api = mehr_welt(mit_2024=False)
+        prot = os.path.join(t, "installer.log")
+        r, a = fenster_lauf(w, p, "KW; K 'ki_weiter'; K 'profil_weiter'; "
+                            "K 'bereit_installieren'; " + warten + "; "
+                            "$global:v += $S.Seite", vorher=py_da, env=env,
+                            ohne_server=True, fenster=os.path.join(
+                                unter, P.FENSTER), protokoll=prot,
+                            aus="$global:ok")
+        log = open(prot, encoding="utf-8").read() \
+            if os.path.isfile(prot) else ""
+        return r, a, w, api, log
+    r, a_f, w, api, log = kette()
+    jahre = "2026 %s 2025" % texte["t_und"]["de"]
+    pruefe("I39f Fenster -> install.ps1 (Kindprozess): 2026 und 2025 vorab "
+           "angehakt, 'Installieren' -> beide bekommen das Plugin (2025 "
+           "hatte keins), Rueckgabe 0, 'Fertig' nennt '%s'" % jahre,
+           r.get("aus") is True and r.get("v", [])[-1:] == ["fertig"]
+           and r.get("rc") == 0
+           and kopiert_in(w) == ["USERPROFIL_2025", "userprofil_2026"]
+           and texte["t_fertig_cadwork"]["de"].format(jahre) in (
+               r.get("fertig_ki") or "")
+           and "-Profile" in log and "Rueckgabe des Installers: 0" in log,
+           (r, kopiert_in(w), log[-600:], a_f[-400:]))
+    rk, a_k, wk, _api, _log = kette(alte_dateien=True)
+    pruefe("I39f-K KONTROLLE: mit altem Fenster und install.ps1 kommt das "
+           "Plugin in derselben Welt nur nach 2026 - 2025 bliebe ohne",
+           kopiert_in(wk) == ["userprofil_2026"], (kopiert_in(wk),
+                                                   a_k[-300:]))
+
+    # --- I40 install.ps1 -Profile -------------------------------------------
+    def lauf(w, p, *extra, ps1=None):
+        datei = os.path.join(tempfile.mkdtemp(prefix="omcad_erg_"), "e.json")
+        _temp.append(os.path.dirname(datei))
+        paket = paket_attrappe(ps1=ps1)
+        rc, aus = _lauf(["-File", paket, "-OhnePause", "-OhneServer",
+                         "-CadworkWurzel", w, "-CadworkProgramm", p,
+                         "-ErgebnisDatei", datei] + list(extra))
+        erg = json.load(open(datei, encoding="utf-8")) \
+            if os.path.isfile(datei) else {}
+        return rc, aus, erg
+
+    def ergebnis(aus):
+        return aus.split("== Ergebnis", 1)[-1]
+    t, w, p, api = mehr_welt()
+    rc, aus, erg = lauf(w, p, "-Profile", api[2026] + ";" + api[2025])
+    pr = erg.get("profile") or []
+    pruefe("I40a -Profile '<2026>;<USERPROFIL_2025>': beide bekommen Plugin "
+           "und Anleitung, Schritt 2 einmal, im Ergebnis je Profil eine "
+           "Zeile, in -ErgebnisDatei je Profil ein Eintrag (ok), vollstaendig, "
+           "Rueckgabe 0",
+           rc == 0 and kopiert_in(w) == ["USERPROFIL_2025", "userprofil_2026"]
+           and anleitung_im_plugin(w, "USERPROFIL_2025") == PDF_ATTRAPPE
+           and anleitung_im_plugin(w, "userprofil_2026") == PDF_ATTRAPPE
+           and aus.count("== 2/5") == 1 and aus.count("== 1/5") == 1
+           and ergebnis(aus).count("Cadwork-Plugin: kopiert nach ") == 2
+           and "Cadwork-Plugin: kopiert nach %s, Cadwork-Version passt" % (
+               api[2025]) in aus
+           and [(e.get("pfad"), e.get("nummer"), e.get("status")) for e in pr]
+           == [(api[2026], 2026, "ok"), (api[2025], 2025, "ok")]
+           and erg.get("plugin") == "ok" and erg.get("fertig") is True
+           and "NICHT vollstaendig" not in aus, (rc, kopiert_in(w), erg,
+                                                 aus[-900:]))
+    alt_d = _alt_stand(["install.ps1"])
+    t, wk, pk, apik = mehr_welt()
+    rck, ausk, ergk = lauf(wk, pk, "-Profile", apik[2026] + ";" + apik[2025],
+                           ps1=os.path.join(alt_d, "install.ps1"))
+    # (Gemessen: ein Skript ohne CmdletBinding legt den unbekannten
+    # Schalter still in $args - der alte Installer nimmt dann die Vorgabe.)
+    pruefe("I40a-K KONTROLLE: der alte Installer kennt -Profile nicht, "
+           "uebergeht es still und kopiert nur in die Vorgabe 2026 - 2025 "
+           "bliebe ohne", kopiert_in(wk) == ["userprofil_2026"]
+           and "Cadwork-Plugin: kopiert nach %s" % apik[2025] not in ausk,
+           (rck, kopiert_in(wk), ausk[-300:]))
+
+    t, w, p, api = mehr_welt()
+    rc, aus, erg = lauf(w, p, "-Profile", api[2026] + ";" + api[ALT_JAHR])
+    pr = {e.get("nummer"): e for e in erg.get("profile") or []}
+    alt = "userprofil_%d" % ALT_JAHR
+    pruefe("I40b -Profile mit 2026 und %d: 2026 bekommt das Plugin, %d wird "
+           "mit Grund uebersprungen; Ergebnis und -ErgebnisDatei nennen beide "
+           "(%d 'fehlt'), 'teilweise', NICHT vollstaendig, Rueckgabe 3"
+           % (ALT_JAHR, ALT_JAHR, ALT_JAHR),
+           rc == 3 and kopiert_in(w) == ["userprofil_2026"]
+           and "Dieses Profil wird uebersprungen: " + api[ALT_JAHR] in aus
+           and "Cadwork-Plugin: NICHT kopiert nach %s - Dieses Paket braucht "
+           "Cadwork 3D %d oder neuer. Gefunden: Cadwork %d im Profil %s. "
+           "Nichts kopiert." % (api[ALT_JAHR], ERLAUBT_AB, ALT_JAHR, alt) in aus
+           and "Cadwork-Plugin: kopiert nach %s, Cadwork-Version passt" % (
+               api[2026]) in aus
+           and pr.get(2026, {}).get("status") == "ok"
+           and pr.get(ALT_JAHR, {}).get("status") == "fehlt"
+           and erg.get("plugin") == "teilweise" and erg.get("fertig") is False
+           and "NICHT vollstaendig" in aus, (rc, kopiert_in(w), erg,
+                                             aus[-900:]))
+    t, w2, p2, api2 = mehr_welt()
+    rc2, aus2, erg2 = lauf(w2, p2, "-Profile", api2[2026] + ";" +
+                           api2[ALT_JAHR], "-TrotzdemKopieren")
+    mut = mutante_ps('    if ($kopiert.Count -lt $geprueft.Count) { '
+                     '$stand.Plugin = "teilweise" }\n    elseif',
+                     '    if ($false) { }\n    elseif')
+    t, w3, p3, api3 = mehr_welt()
+    rc3, aus3, erg3 = lauf(w3, p3, "-Profile", api3[2026] + ";" +
+                           api3[ALT_JAHR], ps1=mut)
+    pruefe("I40b-K KONTROLLEN: mit -TrotzdemKopieren kommt es in beide "
+           "('version', Rueckgabe 3); ohne 'teilweise' galte der Lauf mit "
+           "einem uebersprungenen Profil als vollstaendig (Rueckgabe 0)",
+           rc2 == 3 and kopiert_in(w2) == [alt, "userprofil_2026"]
+           and erg2.get("plugin") == "version"
+           and rc3 == 0 and erg3.get("fertig") is True,
+           (rc2, kopiert_in(w2), erg2.get("plugin"), rc3, erg3.get("plugin")))
+
+    # I40c -Profil wie bisher (ein Profil, eine Zeile), auch neben -Profile
+    # unbekannt.
+    t, w, p, api = mehr_welt()
+    rc, aus, erg = lauf(w, p, "-Profil", api[2025])
+    pruefe("I40c -Profil <USERPROFIL_2025> wie bisher: nur dieses, EINE Zeile "
+           "'Cadwork-Plugin:' im alten Wortlaut, 'mit -Profil angegeben', ein "
+           "Eintrag in -ErgebnisDatei, Rueckgabe 0",
+           rc == 0 and kopiert_in(w) == ["USERPROFIL_2025"]
+           and ergebnis(aus).count("Cadwork-Plugin:") == 1
+           and "Cadwork-Plugin: kopiert nach %s, Cadwork-Version passt (Cadwork"
+           " 2025 im Profil USERPROFIL_2025)" % api[2025] in aus
+           and "Warum:   mit -Profil angegeben" in aus
+           and erg.get("profil") == api[2025]
+           and len(erg.get("profile") or []) == 1, (rc, erg, aus[-600:]))
+
+    # I40d die Liste: leer, doppelt (Gross/Klein), Anfuehrungszeichen; ein
+    # Pfad, den es nicht gibt, zaehlt als nicht installiert.
+    r = ps_funktionen("@{ l = (Profile-Liste ' C:\\a ; ;\"C:\\b\";c:\\A;') "
+                      "} | ConvertTo-Json -Compress")
+    t, w, p, api = mehr_welt()
+    weg = os.path.join(w, "userprofil_2099", "3d", "API.x64")
+    rc, aus, erg = lauf(w, p, "-Profile", api[2026] + ";;" + weg + ";" +
+                        api[2026].upper())
+    pruefe("I40d Profile-Liste: leere und doppelte (Gross/Klein) fallen weg, "
+           "Anfuehrungszeichen auch; ein Profil, das es nicht gibt: dieses "
+           "'NICHT kopiert' mit Grund, das andere kopiert, Rueckgabe 3",
+           r.get("l") == ["C:\\a", "C:\\b"] and rc == 3
+           and kopiert_in(w) == ["userprofil_2026"]
+           and "Cadwork-Plugin: NICHT kopiert nach %s - Profilordner gibt es "
+           "nicht" % weg in aus and len(erg.get("profile") or []) == 2,
+           (r, rc, erg, aus[-600:]))
+
+    # I40e das alte Plugin in ZWEI Profilen: je Profil ein Unterordner der
+    # Sicherung (sonst laege der zweite "LignoAI Connect" im Weg).
+    def alte_zwei(ps1=None):
+        t, w, p, api = mehr_welt(mit_2024=False)
+        for j in (2026, 2025):
+            d = os.path.join(api[j], "LignoAI Connect")
+            os.makedirs(d)
+            with open(os.path.join(d, "LignoAI Connect.py"), "w") as fh:
+                fh.write(ALT_KERN)
+        rc, aus, erg = lauf(w, p, "-Profile", api[2026] + ";" + api[2025],
+                            "-AltesWegraeumen", ps1=ps1)
+        sich = os.path.join(w, "OpenMcpCad_Backups")
+        weg = []
+        for wurzel, ordner, _d in os.walk(sich):
+            weg += [os.path.relpath(os.path.join(wurzel, o), sich)
+                    for o in ordner if o == "LignoAI Connect"]
+        bleibt = [j for j in (2026, 2025) if os.path.isdir(
+            os.path.join(api[j], "LignoAI Connect"))]
+        return rc, aus, erg, sorted(x.split(os.sep, 1)[-1] for x in weg), bleibt
+    rc, aus, erg, weg, bleibt = alte_zwei()
+    mut = mutante_ps("            if ($mehrere) { $altZiel = Join-Path "
+                     "$altBasis (Split-Path -Leaf (Split-Path -Parent "
+                     "(Split-Path -Parent $api))) }\n", "")
+    rck, _ak, ergk, wegk, bleibtk = alte_zwei(mut)
+    pruefe("I40e altes Plugin in 2026 und 2025, -Profile + -AltesWegraeumen: "
+           "beide beiseitegelegt, je Profil ein Unterordner, Rueckgabe 0; "
+           "KONTROLLE: ohne Unterordner bleibt das zweite liegen (Fehler, "
+           "Rueckgabe 3)",
+           rc == 0 and bleibt == [] and erg.get("altWeg") == 2
+           and weg == [os.path.join("USERPROFIL_2025", "LignoAI Connect"),
+                       os.path.join("userprofil_2026", "LignoAI Connect")]
+           and rck == 3 and ergk.get("altFehler") is True and len(bleibtk) == 1,
+           (rc, erg.get("alt"), weg, bleibt, rck, wegk, bleibtk))
+
+    # I40f Textfenster: "a" nimmt alle mit * (die Vorauswahl), Enter wie
+    # bisher die eine Vorgabe.
+    def text_lauf(eingabe):
+        t, w, p, api = mehr_welt()
+        ps1 = paket_attrappe()
+        r = subprocess.run([PS, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                            "-File", ps1, "-OhneServer", "-CadworkWurzel", w,
+                            "-CadworkProgramm", p], input=eingabe,
+                           capture_output=True, timeout=180,
+                           creationflags=OHNE_FENSTER)
+        return r.returncode, (r.stdout + r.stderr).decode(
+            "utf-8", errors="replace"), kopiert_in(w), api
+    rc_a, a_a, k_a, api = text_lauf(b"a\r\n\r\n")
+    rc_e, a_e, k_e, _api = text_lauf(b"\r\n\r\n")
+    r = ps_funktionen("@{ a = (Profil-Antwort-Mehr 'A' 4 1 @(1, 2)); "
+                      "z = (Profil-Antwort-Mehr '3' 4 1 @(1, 2)); "
+                      "e = (Profil-Antwort-Mehr '' 4 1 @(1, 2)); "
+                      "x = (Profil-Antwort-Mehr 'x' 4 1 @(1, 2)); "
+                      "o = (Profil-Antwort-Mehr 'a' 4 1 @()) } | "
+                      "ConvertTo-Json -Compress")
+    pruefe("I40f Textfenster: die Liste markiert 2026 und 2025 mit *, 'a' "
+           "kopiert in beide (Rueckgabe 0), Enter wie bisher nur in die "
+           "Vorgabe 2026; 'a' ohne Vorauswahl fragt nochmal",
+           "[2] %s   (Cadwork 2026 installiert) *   <- Vorgabe" % api[2026]
+           in a_a and "[3] %s   (Cadwork 2025 installiert) *" % api[2025] in a_a
+           # (die Frage selbst schreibt Read-Host bei umgeleiteter Eingabe
+           # nicht, gemessen - geprueft wird die Wirkung)
+           and "Warum:   alle mit * gewaehlt" in a_a
+           and rc_a == 0 and k_a == ["USERPROFIL_2025", "userprofil_2026"]
+           and rc_e == 0 and k_e == ["userprofil_2026"]
+           and r == {"a": [1, 2], "z": [2], "e": [1], "x": [], "o": []},
+           (rc_a, k_a, rc_e, k_e, r, a_a[:900]))
+    # KONTROLLE: ohne "a" (Profil-Antwort wie vor 2026-10-10) faellt "a"
+    # durch und es wird nochmal gefragt - der Lauf endet ohne Kopie.
+    mut = mutante_ps("    if (\"$antwort\".Trim() -match '^(a|alle)$' -and "
+                     "@($alle).Count -gt 0) { return , @($alle) }\n", "")
+    t, w, p, api = mehr_welt()
+    r = subprocess.run([PS, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                        "-File", paket_attrappe(ps1=mut), "-OhneServer",
+                        "-CadworkWurzel", w, "-CadworkProgramm", p],
+                       input=b"a\r\n", capture_output=True, timeout=180,
+                       creationflags=OHNE_FENSTER)
+    pruefe("I40f-K KONTROLLE: ohne 'a' kopiert dieselbe Eingabe nicht in "
+           "beide", kopiert_in(w) != ["USERPROFIL_2025", "userprofil_2026"],
+           (r.returncode, kopiert_in(w)))
+
+
 def mutante_ps(alt, neu):
     quelle = open(INSTALL, encoding="ascii").read()
     assert quelle.count(alt) == 1, alt
@@ -2512,6 +4482,13 @@ def main():
     except (AttributeError, ValueError):
         pass
     print("Installer — Gate\n")
+    # Seit 2026-10-10 zeigt der Doppelklick ohne Programmdateien und bei
+    # einem gesperrten Skript ein Fenster: im Gate beantwortet (nie gezeigt),
+    # und die ZIP wird nie in den echten Downloads gesucht.
+    leer = tempfile.mkdtemp(prefix="omcad_zip_orte_")
+    _temp.append(leer)
+    os.environ["OMCAD_HILFE_ANTWORT"] = "abbrechen"
+    os.environ["OMCAD_ZIP_ORTE"] = leer
     if not PS:
         pruefe("I0 Windows PowerShell 5.1 gefunden", False, "powershell.exe")
         return 1
@@ -2519,10 +4496,11 @@ def main():
         # Nur das Einrichtungsfenster (I21-I27), fuer die Arbeit daran.
         sys.path.insert(0, REPO)
         pruefe_fenster()
+        pruefe_gepackt()
         for t in _temp:
             shutil.rmtree(t, ignore_errors=True)
         n, ok = len(_ergebnisse), sum(_ergebnisse)
-        print("\n%d/%d bestanden (nur I21-I27)" % (ok, n))
+        print("\n%d/%d bestanden (nur I21-I32)" % (ok, n))
         return 0 if ok == n else 1
     ver = ps_funktionen("@{ v = $PSVersionTable.PSVersion.Major } | "
                         "ConvertTo-Json -Compress")
@@ -2603,7 +4581,7 @@ def main():
                  "x": -1}, r)
 
     # --- I7 Cadwork-Version ------------------------------------------------
-    t, w, p = attrappe([], ["2025", "2026"])
+    t, w, p = attrappe([], [str(ALT_JAHR), "2025", "2026"])
     _, _, p_ohne = attrappe([], ["2025"])
 
     def version(api, prog):
@@ -2612,15 +4590,25 @@ def main():
             "@{ passt = $v.Passt; text = $v.Text } | ConvertTo-Json -Compress"
             % (api, prog, prog))
     v25 = version(os.path.join(w, "USERPROFIL_2025", "3d", "API.x64"), p)
+    valt = version(os.path.join(w, "USERPROFIL_%d" % ALT_JAHR, "3d",
+                                "API.x64"), p)
     v26 = version(os.path.join(w, "userprofil_2026", "3d", "API.x64"), p)
     v26o = version(os.path.join(w, "userprofil_2026", "3d", "API.x64"),
                    p_ohne)
     vx = version(os.path.join(w, "irgendwo", "3d", "API.x64"), p)
-    pruefe("I7 Profil 2025 passt NICHT, Meldung fuer Laien",
-           v25.get("passt") is False and v25.get("text") ==
-           "Dieses Paket braucht Cadwork 3D 2026. Gefunden: Cadwork 2025 "
-           "im Profil USERPROFIL_2025.", v25)
-    pruefe("I7 Profil 2026 mit EXE_2026 passt (Kontrolle zu 2025)",
+    pruefe("I7 Profil %d (vor $CADWORK_ERLAUBT_AB) passt NICHT, Meldung "
+           "fuer Laien nennt das erste erlaubte Jahr aus der Quelle"
+           % ALT_JAHR,
+           valt.get("passt") is False and valt.get("text") ==
+           "Dieses Paket braucht Cadwork 3D %d oder neuer. Gefunden: Cadwork "
+           "%d im Profil USERPROFIL_%d." % (ERLAUBT_AB, ALT_JAHR, ALT_JAHR),
+           valt)
+    pruefe("I7 Profil USERPROFIL_2025 (gross geschrieben) passt seit "
+           "2026-10-10 und ist seitdem getestet (0.2.2 im echten Cadwork "
+           "2025): kein 'nicht getestet', kein Hinweis auf ein fehlendes EXE",
+           v25.get("passt") is True and v25.get("text") ==
+           "Cadwork 2025 im Profil USERPROFIL_2025", v25)
+    pruefe("I7 Profil 2026 mit EXE_2026 passt (Kontrolle zu %d)" % ALT_JAHR,
            v26.get("passt") is True and "Hinweis" not in v26.get("text", ""),
            v26)
     pruefe("I7 Profil 2026 ohne EXE_2026: passt, mit Hinweis",
@@ -2652,7 +4640,7 @@ def main():
            and "Cadwork-Plugin: NICHT kopiert - kein Profil" in a.get("text", "")
            and "NICHT vollstaendig" in a.get("text", "")
            and not gelogen(a.get("text", "")), a)
-    c = zusammen("ok", "py", "version", "Gefunden: Cadwork 2025")
+    c = zusammen("ok", "py", "version", "Gefunden: Cadwork %d" % ALT_JAHR)
     pruefe("I8 Plugin in falsches Profil (bestaetigt) -> 'passt NICHT', "
            "NICHT vollstaendig",
            c.get("fertig") is False and "passt NICHT" in c.get("text", "")
@@ -2675,12 +4663,16 @@ def main():
     # --- I9 der ganze Installer gegen Attrappen ------------------------------
     t, w, p = attrappe(["userprofil_30", "USERPROFIL_2025"], ["2025"])
     rc, aus = installer(w, p)
-    pruefe("I9 der gemeldete Fall (30 + 2025, Cadwork 2025): bricht ab, "
-           "kopiert NICHTS, sagt warum",
-           rc == 3 and kopiert_in(w) == []
-           and "Gefunden: Cadwork 2025 im Profil USERPROFIL_2025." in aus
-           and "Cadwork-Plugin: NICHT kopiert" in aus
-           and "NICHT vollstaendig" in aus,
+    pruefe("I9 der gemeldete Fall (30 + USERPROFIL_2025, Cadwork 2025): seit "
+           "2026-10-10 kopiert nach USERPROFIL_2025 (nicht 30), passt (2025 "
+           "getestet, kein Hinweis), Rueckgabe 0, NICHT 'NICHT vollstaendig'",
+           rc == 0 and kopiert_in(w) == ["USERPROFIL_2025"]
+           and "Cadwork: Cadwork 2025 im Profil USERPROFIL_2025 - passt." in aus
+           and "nicht getestet" not in aus
+           and "Cadwork-Plugin: kopiert nach " + os.path.join(
+               w, "USERPROFIL_2025", "3d", "API.x64") in aus
+           and "passt NICHT" not in aus and "Trotzdem" not in aus
+           and "NICHT vollstaendig" not in aus,
            "rc %s, kopiert %s\n%s" % (rc, kopiert_in(w), aus[-900:]))
     pruefe("I9 zeigt beide Profile mit Pfad, das gewaehlte und den Grund",
            "[1] " + os.path.join(w, "USERPROFIL_2025", "3d", "API.x64") in aus
@@ -2688,13 +4680,44 @@ def main():
            and "Profil:  " + os.path.join(w, "USERPROFIL_2025") in aus
            and "Warum:   neuestes Profil mit installiertem Cadwork" in aus,
            aus[:900])
-    # I9-K KONTROLLE: mit ausdruecklicher Bestaetigung MUSS kopiert werden -
-    # sonst saehe ein Installer, der nie kopiert, oben gleich aus.
+    # I9-K KONTROLLE: derselbe Fall mit dem Stand vor 2026-10-10 ([2026] ab
+    # 2026, Mutante der Quelle) bricht ab und kopiert nichts - die Attrappe
+    # bildet den gemeldeten Fall also nach, und erlaubt wird er nur durch
+    # $CADWORK_ERLAUBT_AB.
     t, w, p = attrappe(["userprofil_30", "USERPROFIL_2025"], ["2025"])
+    ps1 = paket_attrappe(ps1=_jahre_mutante([2026], 2026))
+    rc, aus = _lauf(["-File", ps1, "-OhnePause", "-OhneServer",
+                     "-CadworkWurzel", w, "-CadworkProgramm", p])
+    pruefe("I9-K KONTROLLE: mit [2026] ab 2026 bricht derselbe Fall ab, "
+           "kopiert nichts, 'Gefunden: Cadwork 2025 im Profil "
+           "USERPROFIL_2025.', NICHT vollstaendig",
+           rc == 3 and kopiert_in(w) == []
+           and "Gefunden: Cadwork 2025 im Profil USERPROFIL_2025." in aus
+           and "NICHT vollstaendig" in aus,
+           "rc %s, kopiert %s\n%s" % (rc, kopiert_in(w), aus[-900:]))
+    # I9b eine NICHT erlaubte Version (ALT_JAHR, aus der Quelle): bricht ab,
+    # kopiert nichts, sagt warum - auch neben userprofil_30.
+    alt = "USERPROFIL_%d" % ALT_JAHR
+    t, w, p = attrappe(["userprofil_30", alt], [str(ALT_JAHR)])
+    rc, aus = installer(w, p)
+    pruefe("I9b userprofil_30 + %s (Cadwork %d): bricht ab, kopiert NICHTS, "
+           "sagt warum (erstes erlaubtes Jahr, wahrscheinlich kein Start)"
+           % (alt, ALT_JAHR),
+           rc == 3 and kopiert_in(w) == []
+           and "Dieses Paket braucht Cadwork 3D %d oder neuer. Gefunden: "
+           "Cadwork %d im Profil %s." % (ERLAUBT_AB, ALT_JAHR, alt) in aus
+           and "startet mit dieser Version wahrscheinlich nicht" in aus
+           and "Python 3.14 und PyQt6" not in aus
+           and "Cadwork-Plugin: NICHT kopiert" in aus
+           and "NICHT vollstaendig" in aus,
+           "rc %s, kopiert %s\n%s" % (rc, kopiert_in(w), aus[-900:]))
+    # I9b-K KONTROLLE: mit ausdruecklicher Bestaetigung MUSS kopiert werden -
+    # sonst saehe ein Installer, der nie kopiert, oben gleich aus.
+    t, w, p = attrappe(["userprofil_30", alt], [str(ALT_JAHR)])
     rc, aus = installer(w, p, "-TrotzdemKopieren")
-    pruefe("I9-K -TrotzdemKopieren: kopiert nach USERPROFIL_2025 (nicht 30), "
-           "meldet 'passt NICHT', nicht vollstaendig",
-           rc == 3 and kopiert_in(w) == ["USERPROFIL_2025"]
+    pruefe("I9b-K -TrotzdemKopieren: kopiert nach %s (nicht 30), meldet "
+           "'passt NICHT', nicht vollstaendig" % alt,
+           rc == 3 and kopiert_in(w) == [alt]
            and "passt NICHT" in aus and "NICHT vollstaendig" in aus,
            "rc %s, kopiert %s\n%s" % (rc, kopiert_in(w), aus[-900:]))
     t, w, p = attrappe(["userprofil_2025", "userprofil_2026"],
@@ -2706,13 +4729,14 @@ def main():
            and "Cadwork-Version passt" in aus and "Noch offen" in aus
            and START_LOG in aus and "NICHT vollstaendig" not in aus,
            "rc %s, kopiert %s\n%s" % (rc, kopiert_in(w), aus[-900:]))
-    t, w, p = attrappe(["userprofil_2025"], ["2025"])
+    t, w, p = attrappe(["userprofil_%d" % ALT_JAHR], [str(ALT_JAHR)])
     rc, aus = installer(w, p, "-Profil",
-                        os.path.join(w, "userprofil_2025", "3d", "API.x64"))
-    pruefe("I9 -Profil auf ein 2025-Profil: auch dann kein Kopieren",
+                        os.path.join(w, "userprofil_%d" % ALT_JAHR, "3d",
+                                     "API.x64"))
+    pruefe("I9 -Profil auf ein %d-Profil: auch dann kein Kopieren" % ALT_JAHR,
            rc == 3 and kopiert_in(w) == []
            and "Warum:   mit -Profil angegeben" in aus
-           and "Gefunden: Cadwork 2025" in aus,
+           and "Gefunden: Cadwork %d" % ALT_JAHR in aus,
            "rc %s, kopiert %s\n%s" % (rc, kopiert_in(w), aus[-900:]))
 
     # --- I11 der Doppelklick oben im Paket (Rueckmeldung 2026-09-29) -------
@@ -2763,15 +4787,25 @@ def main():
            and anleitung_im_plugin(w, "userprofil_2026") == PDF_ATTRAPPE,
            (rc, kopiert_in(w), aus[-400:]))
     # I11d Doppelklick IN der ZIP-Datei (nur 1_INSTALLIEREN.cmd liegt da):
-    # eine Meldung, die sagt, was zu tun ist; ohne -OhnePause wartet das
-    # Fenster (stdin leer: pause kehrt sofort zurueck)
-    t, w, p = attrappe(["userprofil_2026"], ["2026"])
-    rc, aus = doppelklick(w, p, ohne_unterordner=True, ohne_pause=False)
+    # seit 2026-10-10 ein freundliches Fenster statt "beliebige Taste" (hier
+    # ohne ZIP in den Suchorten: die Anleitung; mehr in I33)
+    spur_h = os.path.join(tempfile.mkdtemp(prefix="omcad_hspur_"), "h.jsonl")
+    _temp.append(os.path.dirname(spur_h))
+    os.environ["OMCAD_HILFE_SPUR"] = spur_h
+    try:
+        t, w, p = attrappe(["userprofil_2026"], ["2026"])
+        rc, aus = doppelklick(w, p, ohne_unterordner=True, ohne_pause=False)
+        h_d = open(spur_h, encoding="utf-8").read() \
+            if os.path.exists(spur_h) else ""
+        if os.path.exists(spur_h):
+            os.remove(spur_h)
+    finally:
+        os.environ.pop("OMCAD_HILFE_SPUR", None)
     pruefe("I11d ohne Programmdateien (Doppelklick in der ZIP): Rueckgabe 2, "
-           "Hinweis auf 'Alle extrahieren', das Fenster wartet",
-           rc == 2 and "Alle extrahieren" in aus and "Programmdateien" in aus
-           and kopiert_in(w) == [] and ("Taste" in aus or "key" in aus),
-           (rc, aus[-400:]))
+           "das Fenster 'Bitte zuerst entpacken' statt Text und 'beliebige "
+           "Taste'",
+           rc == 2 and '"art":"anleitung"' in h_d and kopiert_in(w) == []
+           and "Taste" not in aus, (rc, h_d[:200], aus[-400:]))
     # I11e PowerShell fuehrt das Skript gar nicht aus (hier: es laesst sich
     # nicht parsen, wie bei einer Sperre kommt 1 zurueck): Meldung + Pause;
     # KONTROLLE: ein Installer, der selbst "nicht vollstaendig" meldet (3),
@@ -2782,13 +4816,27 @@ def main():
     with open(kaputt, "w", encoding="ascii") as fh:
         fh.write("param(" + chr(10) + "  [string]$x = (" + chr(10))
     t, w, p = attrappe(["userprofil_2026"], ["2026"])
-    rc, aus = doppelklick(w, p, ps1=kaputt, ohne_pause=False)
-    t, w2, p2 = attrappe(["userprofil_2025"], ["2025"])
+    os.environ["OMCAD_HILFE_SPUR"] = spur_h
+    try:
+        rc, aus = doppelklick(w, p, ps1=kaputt, ohne_pause=False)
+        h_e = open(spur_h, encoding="utf-8").read() \
+            if os.path.exists(spur_h) else ""
+        os.environ["OMCAD_HILFE_ANTWORT"] = "kaputt"
+        rc_f, aus_f = doppelklick(w, p, ps1=kaputt, ohne_pause=False)
+    finally:
+        os.environ.pop("OMCAD_HILFE_SPUR", None)
+        os.environ["OMCAD_HILFE_ANTWORT"] = "abbrechen"
+    t, w2, p2 = attrappe(["userprofil_%d" % ALT_JAHR], [str(ALT_JAHR)])
     rc2, aus2 = doppelklick(w2, p2, ohne_pause=False)
-    pruefe("I11e PowerShell startet das Skript nicht: die Meldung sagt es, "
-           "das Fenster wartet",
-           rc not in (0, 3) and "Der Installer konnte nicht starten" in aus
-           and ("Taste" in aus or "key" in aus), (rc, aus[-400:]))
+    pruefe("I11e PowerShell startet das Skript nicht: seit 2026-10-10 ein "
+           "Fenster 'Die Einrichtung konnte nicht starten' mit der Rueckgabe, "
+           "kein 'beliebige Taste'; geht auch das Fenster nicht, der Text und "
+           "die Pause wie frueher",
+           rc not in (0, 3) and '"art":"start"' in h_e and str(rc) in h_e
+           and "Taste" not in aus and rc_f == rc
+           and "Der Installer konnte nicht starten" in aus_f
+           and ("Taste" in aus_f or "key" in aus_f),
+           (rc, h_e[:300], aus[-300:], aus_f[-300:]))
     pruefe("I11e-K KONTROLLE: 'nicht vollstaendig' (3) vom Installer selbst "
            "- keine zweite Meldung", rc2 == 3
            and "Der Installer konnte nicht starten" not in aus2
@@ -2826,6 +4874,9 @@ def main():
 
     # --- I21-I27 das Einrichtungsfenster -------------------------------------
     pruefe_fenster()
+
+    # --- I33 Doppelklick in der ZIP: freundlich entpacken -------------------
+    pruefe_gepackt()
 
     for t in _temp:
         shutil.rmtree(t, ignore_errors=True)

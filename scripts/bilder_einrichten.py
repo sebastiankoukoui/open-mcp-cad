@@ -3,13 +3,20 @@
 """Bebilderte Anleitung «So richtest du es ein»: die zweite Reihe neben
 `bilder_anleitung_web.py` (Bedienung), im selben Stil — nummerierte Kreise
 mit feinen Pfeilen, KEINE Saetze im Bild ausser denen, die der Nutzer
-wirklich so sieht (Einrichtungsfenster und Dock sind nur deutsch), damit
-ein Bild fuer alle Sprachen reicht. Die Erklaerungen zu den Nummern stehen
-im Schnellstart (SCHNELLSTART(.xx).md, Abschnitt 6 «So richtest du es
-ein») bzw. auf der Website.
+wirklich so sieht. Die Erklaerungen zu den Nummern stehen im Schnellstart
+(SCHNELLSTART(.xx).md, Abschnitt 6 «So richtest du es ein») bzw. auf der
+Website.
+
+Seit 2026-10-10 spricht das Einrichtungsfenster vier Sprachen: seine
+Seiten (1, 3a, 3-6, 5b, 8a, 8b) entstehen je Sprache, auf Deutsch unter dem
+bisherigen Namen (einrichten-3a-wo.png), sonst mit der Sprache davor
+(einrichten-3a-wo.fr.png); SCHNELLSTART.<sprache>.md zeigt die eigenen.
+Ordner, Schema und Dock (2, 7, 8) gibt es nur einmal (das Dock ist
+deutsch, die anderen haben keine Saetze).
 
     <omcadqt-python> scripts/bilder_einrichten.py ZIELORDNER
-                     [--pdf ORDNER] [--persoenlich PFAD] [--privat PFAD]
+                     [--pdf ORDNER] [--sprachen de,fr,it,en]
+                     [--persoenlich PFAD] [--privat PFAD]
 
 Braucht PyQt6 (die venv aus CLAUDE.md, `%LOCALAPPDATA%\\Temp\\omcadqt`) und
 Windows PowerShell 5.1 (WPF, fuer die Seiten des Einrichtungsfensters).
@@ -84,13 +91,14 @@ FENSTER_PS1 = os.path.join(P.VERTEILUNG, P.FENSTER)
 OHNE_FENSTER = 0x08000000
 
 
-def fenster_seiten(ordner):
+def fenster_seiten(ordner, sprache="de"):
     """Rendert alle Seiten des Einrichtungsfensters ohne Fenster
-    (install_fenster.ps1 -Rendern). -> seiten.json als dict, mit dem
-    vollen Pfad je PNG unter "pfad"."""
+    (install_fenster.ps1 -Rendern -Sprache). -> seiten.json als dict, mit
+    dem vollen Pfad je PNG unter "pfad". Bricht ab, wenn auf einer Seite
+    etwas abgeschnitten ist (Abgeschnitten im Skript)."""
     r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive",
                         "-STA", "-ExecutionPolicy", "Bypass", "-File",
-                        FENSTER_PS1, "-Rendern", ordner],
+                        FENSTER_PS1, "-Rendern", ordner, "-Sprache", sprache],
                        capture_output=True, timeout=300,
                        creationflags=OHNE_FENSTER)
     try:
@@ -103,6 +111,10 @@ def fenster_seiten(ordner):
         raise SystemExit("ABBRUCH: install_fenster.ps1 -Rendern rc %d: %s"
                          % (r.returncode, (r.stdout + r.stderr).decode(
                              "utf-8", "replace")[-600:]))
+    ab = {s: info.get("abgeschnitten") for s, info in seiten.items()
+          if info.get("abgeschnitten")}
+    if ab:
+        raise SystemExit("ABBRUCH: abgeschnitten (%s): %s" % (sprache, ab))
     for info in seiten.values():
         info["pfad"] = os.path.join(ordner, info["datei"])
     return seiten
@@ -369,14 +381,15 @@ def szene_fenster(D, info):
     return wurzel, ziele
 
 
-def fenster_titel():
-    """Der Titel des Einrichtungsfensters, aus der XAML gelesen."""
-    with open(os.path.join(P.VERTEILUNG, P.FENSTER_XAML),
-              encoding="utf-8") as fh:
-        m = re.search(r'<Window[^>]*\sTitle="([^"]+)"', fh.read())
-    if not m:
-        raise SystemExit("ABBRUCH: kein Titel in %s" % P.FENSTER_XAML)
-    return m.group(1)
+def fenster_titel(sprache="de"):
+    """Der Titel des Einrichtungsfensters in `sprache`, aus seiner
+    Textdatei (seit 2026-10-10; das Skript setzt ihn von dort)."""
+    _sp, texte, _gl = P.fenster_texte()
+    titel = texte.get("t_fenster_titel", {}).get(sprache)
+    if not titel:
+        raise SystemExit("ABBRUCH: kein Titel (%s) in %s"
+                         % (sprache, P.FENSTER_TEXTE))
+    return titel
 
 
 FENSTER_TITEL = None
@@ -543,14 +556,16 @@ _MUSTER = [0]
 
 
 def rendern(name, wurzel, ziele, ziel_ordner, pdf_ordner, bis=None,
-            texte=()):
+            texte=(), sprache="de"):
     """Rendert `wurzel` (200 %) auf eine Leinwand mit Rand, prueft die
     sichtbaren Texte, malt die Marken, schreibt WebP (+ Vorschau) und mit
     `pdf_ordner` das PNG. `bis`: ein Widget, unter dem das Bild endet
-    (24 px Luft). -> Pfad des WebP"""
+    (24 px Luft). `sprache`: ausser Deutsch steht sie im Dateinamen
+    (einrichten-3a-wo.fr.png). -> Pfad des WebP"""
     from PyQt6.QtCore import QPoint, Qt
     from PyQt6.QtGui import QColor, QImage, QPainter
     ausgabe, rand, marken = SZENEN[name]
+    ausgabe += "" if sprache == "de" else "." + sprache
     fehlt = [z for _n, z, _a, _x, _y in marken if z not in ziele]
     if fehlt:
         raise SystemExit("ABBRUCH: %s ohne %s" % (ausgabe, fehlt))
@@ -634,7 +649,7 @@ def main():
     frei = [a for i, a in enumerate(args)
             if not a.startswith("--")
             and (i == 0 or args[i - 1] not in ("--persoenlich", "--privat",
-                                                "--pdf"))]
+                                                "--pdf", "--sprachen"))]
     if not frei:
         raise SystemExit(__doc__)
     ziel = os.path.abspath(frei[0])
@@ -643,11 +658,19 @@ def main():
            else None)
     if pdf:
         os.makedirs(pdf, exist_ok=True)
-    # Zuerst die Seiten des Einrichtungsfensters (WPF, ohne Fenster).
-    global FENSTER_TITEL
-    FENSTER_TITEL = fenster_titel()
+    sprachen = (args[args.index("--sprachen") + 1].split(",")
+                if "--sprachen" in args else ["de", "fr", "it", "en"])
+    alle, _t, _g = P.fenster_texte()
+    if not sprachen or any(s not in alle for s in sprachen):
+        raise SystemExit("ABBRUCH: --sprachen aus %s" % ",".join(alle))
+    # Zuerst die Seiten des Einrichtungsfensters (WPF, ohne Fenster), je
+    # Sprache.
     seiten_ordner = tempfile.mkdtemp(prefix="omcad_fensterseiten_")
-    seiten = fenster_seiten(seiten_ordner)
+    seiten = {}
+    for sp in sprachen:
+        o = os.path.join(seiten_ordner, sp)
+        os.makedirs(o)
+        seiten[sp] = fenster_seiten(o, sp)
 
     # Qt wie bilder_rendern.main: ein Bildschirm 1920x1080 mit Dichte 2,
     # das Dock aus dem Gate (Attrappen, kein Cadwork, kein Netz).
@@ -687,28 +710,34 @@ def main():
     D._auffrischen(z)
     _pumpen(app)
 
-    def fenster_szene(name):
-        info = seiten[FENSTER_SZENEN[name]]
+    def fenster_szene(name, sp):
+        global FENSTER_TITEL
+        FENSTER_TITEL = fenster_titel(sp)
+        info = seiten[sp][FENSTER_SZENEN[name]]
         wurzel, ziele = szene_fenster(D, info)
         _zeigen(app, wurzel)
         rendern(name, wurzel, ziele, ziel,
-                None if name in NUR_WEBSITE else pdf, texte=info["texte"])
+                None if name in NUR_WEBSITE else pdf, texte=info["texte"],
+                sprache=sp)
         wurzel.hide()
 
-    # 1 noch keine KI-App
-    fenster_szene("ki_app_holen")
+    for sp in sprachen:
+        # 1 noch keine KI-App
+        fenster_szene("ki_app_holen", sp)
+        # 3-6, 8a, 8b das Einrichtungsfenster
+        for name in ("wo", "ki_app", "installieren", "laeuft", "python",
+                     "fertig", "chat_ki", "anmelden"):
+            fenster_szene(name, sp)
+    shutil.rmtree(seiten_ordner, ignore_errors=True)
+    if "de" not in sprachen:
+        T._frischer_start()
+        return 0
 
-    # 2 der entpackte Ordner
+    # 2 der entpackte Ordner (ohne Saetze: einmal fuer alle Sprachen)
     wurzel, ziele = szene_entpacken(D)
     _zeigen(app, wurzel)
     rendern("entpacken", wurzel, ziele, ziel, pdf)
     wurzel.hide()
-
-    # 3-6 das Einrichtungsfenster
-    for name in ("wo", "ki_app", "installieren", "laeuft", "python",
-                 "fertig", "chat_ki", "anmelden"):
-        fenster_szene(name)
-    shutil.rmtree(seiten_ordner, ignore_errors=True)
 
     # 8 fuer Fortgeschrittene: die Karte "Womit möchtest du chatten?" im
     # Dock — wie willkommen.png in bilder_rendern (nichts eingerichtet).

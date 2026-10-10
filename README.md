@@ -247,17 +247,20 @@ nicht, dass die eigenen Regeln nie angekommen sind.
 
 ## Installation
 
-**Voraussetzungen:** Windows, Cadwork 3D 2026 (Plugins laufen dort mit
-Python 3.14), Python 3.10–3.13 für den MCP-Server (fehlt es, installiert
+**Voraussetzungen:** Windows, Cadwork 3D 2025 oder 2026 (beide getestet;
+Plugins laufen in 2026 mit Python 3.14 und PyQt6, in 2025 mit Python 3.12
+und PyQt5; ältere Versionen nicht), Python 3.10–3.13 für den MCP-Server (fehlt es, installiert
 `1_INSTALLIEREN.cmd` nach Rückfrage Python 3.13 per winget, ohne winget
 signaturgeprüft direkt von python.org).
 
 **Als Anwender:** das Paket bauen (oder das ZIP aus den Releases nehmen),
 entpacken, `1_INSTALLIEREN.cmd` doppelklicken. Es öffnet ein Einrichtungsfenster
 (seit 2026-10-09; mit `-Konsole` oder einem anderen Schalter das Textfenster),
-fragt nach den KI-Apps und kopiert dann das Plugin ins Profil
-von Cadwork 2026 (bei mehreren Profilen fragt es nach, in ein Profil einer
-anderen Cadwork-Version kopiert es nicht), richtet den Server in einem eigenen Python ein und trägt ihn in die gewählten
+fragt nach den KI-Apps und kopiert dann das Plugin in jedes gewählte
+Cadwork-Profil (das Fenster zeigt alle gefundenen Profile mit Häkchen,
+vorausgewählt sind alle ab Cadwork 2025, in denen Cadwork installiert ist;
+im Textfenster `-Profile "pfad1;pfad2"`, `-Profil` gilt weiter; in ein
+Profil einer älteren Cadwork-Version kopiert es nicht), richtet den Server in einem eigenen Python ein und trägt ihn in die gewählten
 KI-Programme ein. Details: [`verteilung/ANLEITUNG.md`](verteilung/ANLEITUNG.md)
 (auch auf [Englisch](verteilung/ANLEITUNG.en.md),
 [Französisch](verteilung/ANLEITUNG.fr.md) und
@@ -266,6 +269,24 @@ KI-Programme ein. Details: [`verteilung/ANLEITUNG.md`](verteilung/ANLEITUNG.md)
 ```bash
 python scripts/paket_bauen.py      # -> dist/Open-MCP-CAD-<version>.zip
 ```
+
+**Updates:** Einmal am Tag fragt das Plugin im Hintergrund bei GitHub
+(`api.github.com`, die Seite „neuestes Release“ dieses Repos), ob es eine
+neue Version gibt, nie während eines Auftrags. Dabei wird nichts über dich,
+dein Modell oder deinen Rechner gesendet (GitHub sieht wie bei jedem Abruf
+die IP-Adresse); LignoAI erhält keine Daten. Gibt es eine, steht im Fenster
+eine kleine Zeile „Neue Version 0.x.y“ mit „Aktualisieren“. Erst dieser
+Klick lädt das Paket `Open-MCP-CAD.zip` des Releases, prüft Grösse,
+Prüfsumme (SHA-256) und dass das Installationsprogramm darin liegt, entpackt
+es nach `%LOCALAPPDATA%\OpenMcpCad\updates\<version>\` und öffnet daraus
+das Einrichtungsfenster; danach steht „Schliesse Cadwork, damit das Update
+eingespielt werden kann.“ Nie still, nie ohne Klick. Von Hand: „⋯“ →
+„Nach Updates suchen“. Abschalten: Einstellungen, Karte „Updates“, Schalter
+„Einmal am Tag nach Updates suchen“ (chat.json `updates_suchen`, der
+Zeitpunkt steht in `updates_zuletzt`). Findet das Plugin auf dem PC ein
+Cadwork ab 2025, in dem es noch fehlt, fragt es einmal, etwa „Open MCP CAD
+auch in Cadwork 2027 einrichten?“: „Einrichten“ öffnet das
+Einrichtungsfenster, „×“ fragt nicht mehr (chat.json `profil_frage_weg`).
 
 **Als Entwickler:**
 

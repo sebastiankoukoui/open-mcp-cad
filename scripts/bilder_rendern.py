@@ -306,12 +306,18 @@ def ueberblick_rendern(T, Dienst, ziel, pumpen, satz):
         "beschreibung": "Wand Nord", "laufzeit_s": 4.2,
         "zugriff": "write"})
     d.zustand = "busy_write"
+    # Wie im Betrieb meldet der Kern den Schreibauftrag vor seinem Start.
+    # Nur der Status startet einen Block, kennt aber dessen Zugriffsart nicht.
+    D._auftrag_sofort(z, d.status()["auftrag"])
     D._segment_waehlen(z, "briefkasten")
     takt()
     pille_pruefen("04", "Zeichnet")
     bild("04_angedockt_briefkasten.png")
     d.status = echt_status
     d.zustand = "ready"
+    # Die Bilder zeigen getrennte Situationen nach einer Ruhepause, nicht
+    # aufeinanderfolgende Auftraege innerhalb desselben Arbeitsblocks.
+    D._ruhe_weg(z)
 
     # 05 Chat, Hinweise offen.
     D._segment_waehlen(z, "chat")
@@ -396,9 +402,11 @@ def ueberblick_rendern(T, Dienst, ziel, pumpen, satz):
         bild(name, [anz])
 
     d.zustand = "busy_write"
+    D._auftrag_sofort(z, lauf_info)
     anzeige("10_anzeige_zeichnet.png", D.ANZEIGE_ZEICHNET, "Zeichnet")
     d.zustand = "ready"
     z["anzeige_lauf"]["auftrag"] = None
+    D._ruhe_weg(z)
     chat.update(an=True, laeuft_zug=True, freigaben=[], ereignisse=[
         {"art": "werkzeug", "werkzeug": cad, "id": "c",
          "eingabe": {"code": "x", "description": "Wand Nord"},

@@ -260,8 +260,9 @@ arrivées.
 
 ## Installation
 
-**Prérequis :** Windows, Cadwork 3D 2026 (les plugins y tournent avec
-Python 3.14), Python 3.10–3.13 pour le serveur MCP (s'il manque,
+**Prérequis :** Windows, Cadwork 3D 2025 ou 2026 (les deux testés ;
+les plugins tournent avec Python 3.14 et PyQt6 en 2026, avec Python 3.12
+et PyQt5 en 2025 ; pas les versions plus anciennes), Python 3.10–3.13 pour le serveur MCP (s'il manque,
 `1_INSTALLIEREN.cmd` installe Python 3.13 via winget après confirmation,
 ou, sans winget, directement depuis python.org avec vérification de la
 signature).
@@ -270,8 +271,11 @@ signature).
 les releases), le décompresser, double-cliquer sur `1_INSTALLIEREN.cmd`. Il ouvre
 une fenêtre d'installation (depuis le 2026-10-09 ; avec `-Konsole` ou une autre
 option, la fenêtre de texte), demande les applications d'IA, puis copie
-le plugin dans le profil de Cadwork 2026 (il demande s'il y a plusieurs
-profils et ne copie pas dans le profil d'une autre version de Cadwork),
+le plugin dans chaque profil Cadwork choisi (la fenêtre montre tous les
+profils trouvés avec des cases à cocher ; sont présélectionnés tous ceux à
+partir de Cadwork 2025 dans lesquels Cadwork est installé ; dans la fenêtre
+de texte `-Profile "chemin1;chemin2"`, `-Profil` reste valable ; il ne
+copie pas dans le profil d'une version plus ancienne de Cadwork),
 installe le serveur dans
 son propre Python et l'inscrit dans les programmes d'IA choisis. Détails :
 [`verteilung/ANLEITUNG.fr.md`](verteilung/ANLEITUNG.fr.md).
@@ -279,6 +283,28 @@ son propre Python et l'inscrit dans les programmes d'IA choisis. Détails :
 ```bash
 python scripts/paket_bauen.py      # -> dist/Open-MCP-CAD-<version>.zip
 ```
+
+**Mises à jour :** une fois par jour, le plugin demande en arrière-plan à
+GitHub (`api.github.com`, la page « dernière release » de ce dépôt) s'il
+existe une nouvelle version, jamais pendant une tâche. Rien n'est envoyé sur
+toi, ton modèle ou ton ordinateur (comme pour toute requête, GitHub voit
+l'adresse IP) ; LignoAI ne reçoit aucune donnée. S'il y en a une, la
+fenêtre affiche une petite ligne « Neue Version 0.x.y » (nouvelle version)
+avec « Aktualisieren » (mettre à jour). Seul ce clic télécharge le paquet
+`Open-MCP-CAD.zip` de la release, vérifie sa taille, sa somme de contrôle
+(SHA-256) et qu'il contient le programme d'installation, le décompresse dans
+`%LOCALAPPDATA%\OpenMcpCad\updates\<version>\` et ouvre de là la fenêtre
+d'installation ; ensuite s'affiche « Schliesse Cadwork, damit das Update
+eingespielt werden kann. » (ferme Cadwork pour que la mise à jour puisse
+être appliquée). Jamais en silence, jamais sans clic. À la main : « ⋯ » →
+« Nach Updates suchen » (rechercher des mises à jour). Pour le désactiver :
+réglages, carte « Updates », interrupteur « Einmal am Tag nach Updates
+suchen » (une fois par jour ; chat.json `updates_suchen`, le moment est
+gardé dans `updates_zuletzt`). Si le plugin trouve sur le PC un Cadwork à
+partir de 2025 dans lequel il manque, il demande une fois, par exemple
+« Open MCP CAD auch in Cadwork 2027 einrichten? » (installer Open MCP CAD
+aussi dans Cadwork 2027 ?) : « Einrichten » (installer) ouvre la fenêtre
+d'installation, « × » ne demande plus (chat.json `profil_frage_weg`).
 
 **En tant que développeur :**
 

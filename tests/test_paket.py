@@ -918,17 +918,58 @@ def schnellstart_luecken(md, sprache, deutsch_html=None):
     if len(wege) != 3 or not all("<ol>" in w for w in wege):
         aus.append("Abschnitt 4 hat nicht drei Wege mit Schritten (%d)"
                    % len(wege))
-    for quelle in re.findall(r'<img src="([^"]+)"', html):
+    bilder = re.findall(r'<img src="([^"]+)"', html)
+    for quelle in bilder:
         if not os.path.isfile(os.path.join(P.VERTEILUNG, quelle)):
             aus.append("Bild fehlt: %s" % quelle)
     if deutsch_html is not None:
         if geruest(html) != geruest(deutsch_html):
             aus.append("Geruest weicht vom Deutschen ab")
-        for was in (r"<pre>(.*?)</pre>", r'<img src="([^"]+)"',
-                    r'<a href="([^"]+)"'):
+        for was in (r"<pre>(.*?)</pre>", r'<a href="([^"]+)"'):
             if re.findall(was, html, re.S) != re.findall(was, deutsch_html,
                                                           re.S):
                 aus.append("anders als im Deutschen: %s" % was)
+        # Bilder wie im Deutschen - seit 2026-10-10 mit eigener Fassung je
+        # Sprache, wo es eine gibt (die Seiten des Einrichtungsfensters,
+        # bilder/<name>.<sprache>.png aus bilder_einrichten.py): dann MUSS
+        # die Uebersetzung sie zeigen, nie die deutsche oder eine fremde.
+        soll = []
+        for quelle in re.findall(r'<img src="([^"]+)"', deutsch_html):
+            eigen = quelle[:-len(".png")] + ".%s.png" % sprache
+            soll.append(eigen if os.path.isfile(os.path.join(
+                P.VERTEILUNG, eigen)) else quelle)
+        if bilder != soll:
+            aus.append("Bilder nicht wie im Deutschen (je Sprache, wo es "
+                       "eine eigene Fassung gibt): %s" % [
+                           (b, s) for b, s in zip(bilder, soll) if b != s][:2])
+    return aus
+
+
+def _woerter(text):
+    return " ".join(text.replace(" ", " ").split())
+
+
+def fensterbegriffe_luecken(md, sprache, md_de, texte):
+    """Seit 2026-10-10 spricht das Einrichtungsfenster vier Sprachen: jede
+    Beschriftung des Fensters, die der deutsche Schnellstart in **…** oder
+    «…» nennt, steht in der Uebersetzung in DEREN Sprache (wie in
+    install_fenster_texte.xml) - und nicht mehr deutsch. -> Liste."""
+    def marken(m):
+        return {_woerter(a or b) for a, b in re.findall(
+            r"\*\*(.+?)\*\*|«([^»]+)»", _woerter(m))}
+    de_m, sp_m = marken(md_de), marken(md)
+    aus = []
+    for k, je in sorted(texte.items()):
+        d, x = _woerter(je["de"]), _woerter(je.get(sprache, ""))
+        # t_name_*: Namen der Apps, die das Fenster in Saetze einsetzt
+        # (Franzoesisch mit Artikel: "l'application ChatGPT") - keine
+        # Beschriftung, die man so sieht.
+        if d == x or d not in de_m or k.startswith("t_name_"):
+            continue
+        if x not in sp_m:
+            aus.append("%s: %r fehlt (deutsch %r)" % (k, x, d))
+        if d in sp_m:
+            aus.append("%s: noch deutsch %r" % (k, d))
     return aus
 
 
@@ -976,6 +1017,38 @@ def schnellstart_quellen_pruefen():
             text, sp, None if sp == "de" else de_html))
     pruefe("T14-K KONTROLLEN: jede eingebaute Luecke faellt auf",
            all(rot.values()), [t for t, r in rot.items() if not r])
+    # T14c die Beschriftungen des Fensters in der Sprache der Fassung.
+    _sp, fenster, _gl = P.fenster_texte()
+    begriffe = {sp: fensterbegriffe_luecken(texte[sp], sp, de, fenster)
+                for sp in sorted(texte) if sp != "de"}
+    zahl = len([k for k, je in fenster.items() if _woerter(je["de"]) in {
+        _woerter(a or b) for a, b in re.findall(
+            r"\*\*(.+?)\*\*|«([^»]+)»", _woerter(de))}])
+    pruefe("T14c Schnellstart fr/it/en: jede der %d Beschriftungen des "
+           "Einrichtungsfensters, die der deutsche nennt, in der Sprache der "
+           "Fassung (wie install_fenster_texte.xml), keine deutsche mehr"
+           % zahl, zahl >= 15 and not any(begriffe.values()),
+           {s: b[:3] for s, b in begriffe.items() if b})
+    fr = texte["fr"]
+    bild_de = fr.replace("bilder/einrichten-3a-wo.fr.png",
+                         "bilder/einrichten-3a-wo.png", 1)
+    bild_it = fr.replace("bilder/einrichten-4-installieren.fr.png",
+                         "bilder/einrichten-4-installieren.it.png", 1)
+    rot2 = {
+        "deutsches Bild statt des franzoesischen": bild_de != fr and any(
+            "Bilder nicht wie" in x for x in schnellstart_luecken(
+                bild_de, "fr", de_html)),
+        "italienisches Bild im Franzoesischen": bild_it != fr and any(
+            "Bilder nicht wie" in x for x in schnellstart_luecken(
+                bild_it, "fr", de_html)),
+        "deutscher Knopf im Franzoesischen": bool(fensterbegriffe_luecken(
+            fr.replace("**Suivant**", "**Weiter**", 1), "fr", de, fenster)),
+        "Beschriftung fehlt": bool(fensterbegriffe_luecken(
+            fr.replace("Prêt à installer", "Pret", 1), "fr", de, fenster)),
+    }
+    pruefe("T14c-K KONTROLLEN: deutsches oder fremdes Bild, deutscher Knopf, "
+           "fehlende Beschriftung fallen auf", all(rot2.values()),
+           [t for t, r in rot2.items() if not r])
     # Die Umwandlung selbst: jedes Konstrukt, das die Anleitung benutzt.
     probe = ("# T\n\nA **b** `c` [d](https://e)\n\n1. eins\n   weiter\n"
              "   ```\n   befehl x\n   ```\n   danach\n2. zwei\n   - unter\n\n"
@@ -1255,6 +1328,28 @@ def main():
                      == open(os.path.join(ordner, d), "rb").read()
                      for d in ist)
         pruefe("T1 und bytegleich mit dem Repo", gleich)
+        # T21 (Updates, 2026-10-10): dieselbe ZIP unter festem Namen (das
+        # Asset, das das Dock laedt), und die Version des Update-Moduls ist
+        # __version__.
+        fest = os.path.join(t, P.ASSET_FEST)
+        pruefe("T21 %s liegt neben der ZIP und ist dieselbe" % P.ASSET_FEST,
+               os.path.isfile(fest) and open(fest, "rb").read()
+               == open(archiv, "rb").read() and P.ASSET_FEST
+               == "Open-MCP-CAD.zip")
+        pruefe("T21 VERSION in omcad_a_update.py == __version__",
+               P.update_version() == P.version(), P.update_version())
+        echt_v = P.update_version
+        try:
+            P.update_version = lambda: "0.0.1"
+            try:
+                P.bauen(os.path.join(t, "k_version"), edge=False)
+                kv = "gebaut"
+            except P.PaketFehler as exc:
+                kv = str(exc)
+        finally:
+            P.update_version = echt_v
+        pruefe("T21 KONTROLLE: eine andere VERSION im Update-Modul bricht "
+               "bauen() ab", "VERSION in omcad_a_update.py" in kv, kv[:90])
 
         # T13 (Rueckmeldung 2026-09-29): oben liegt NUR, was ein Nutzer
         # anfassen soll — der Doppelklick, die Anleitungen und EIN Ordner.
@@ -1306,7 +1401,7 @@ def main():
 
         pflicht = (P.INSTALLIEREN,) + tuple(u + p for p in (
                    "ANLEITUNG.md", "LICENSE", "install.ps1", P.FENSTER,
-                   P.FENSTER_XAML, "logo.png",
+                   P.FENSTER_XAML, P.FENSTER_TEXTE, "logo.png",
                    "THIRD_PARTY_NOTICES.md",
                    "Open MCP CAD/omcad_a_symbole.py",
                    "server/pyproject.toml", "server/README.md",
@@ -1391,11 +1486,15 @@ def main():
                     "rb").read()
         fxaml = open(os.path.join(ordner, P.UNTERORDNER, P.FENSTER_XAML),
                      "rb").read()
+        ftexte = open(os.path.join(ordner, P.UNTERORDNER, P.FENSTER_TEXTE),
+                      "rb").read()
         pruefe("T5 %s ist reines ASCII, die Texte stehen in %s (UTF-8 mit "
-               "Umlauten, ohne BOM)" % (P.FENSTER, P.FENSTER_XAML),
+               "Umlauten und Akzenten, ohne BOM), %s ohne BOM"
+               % (P.FENSTER, P.FENSTER_TEXTE, P.FENSTER_XAML),
                all(b < 128 for b in fps1)
                and not fxaml.startswith(b"\xef\xbb\xbf")
-               and "ü".encode("utf-8") in fxaml)
+               and not ftexte.startswith(b"\xef\xbb\xbf")
+               and all(c.encode("utf-8") in ftexte for c in "üéà"))
 
         harte, _w = P.pruefen(ordner, [])
         pruefe("T6 kein lokaler Benutzerpfad im Paket", not harte, harte[:5])

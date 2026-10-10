@@ -25,7 +25,7 @@ LOG_DATEI = r"C:\Users\Public\OpenMcpCad_E.log"
 
 ANTRIEB = ""          # "" = Default aus der Konfiguration
 
-ERWARTETE_KERN_VERSION = "2.19.1"
+ERWARTETE_KERN_VERSION = "2.20.0"
 KERN_PFAD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "omcad_bridge_core.py")
 

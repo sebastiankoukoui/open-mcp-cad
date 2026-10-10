@@ -1,19 +1,23 @@
 <!--
 Open MCP CAD - das Einrichtungsfenster (seit 2026-10-09, Rueckmeldung: das
 schwarze Fenster des Installers schreckte ab). Geladen von
-install_fenster.ps1 (WPF, Windows PowerShell 5.1). Alle Texte, die man
-sieht, stehen HIER (UTF-8; install_fenster.ps1 selbst bleibt ASCII, weil
-PowerShell 5.1 Skripte ohne BOM als ANSI liest) - die festen in den
-Seiten, die zusammengesetzten als Ressourcen "t_..." unten. Jede Seite ist
-ein Grid "Seite_<name>", gezeigt wird immer genau eine.
+install_fenster.ps1 (WPF, Windows PowerShell 5.1). Jede Seite ist ein
+DockPanel "Seite_<name>", gezeigt wird immer genau eine.
+
+Seit 2026-10-10 in vier Sprachen: hier stehen KEINE sichtbaren Texte mehr,
+nur Schluessel ({DynamicResource t_...}). Die Texte stehen je Sprache in
+install_fenster_texte.xml (UTF-8, Deutsch verbindlich); install_fenster.ps1
+setzt sie als Ressourcen der Wurzel, bevor etwas gezeigt wird. Den Titel
+des Fensters setzt das Skript selbst (das Fenster liegt ausserhalb der
+Wurzel). Fest bleiben nur Zeichen ("i", "!", die Ziffern) und der Name
+"Open MCP CAD".
 
 Farben aus dem Logo: Violett #5B3CC4, hell #EEEAFB. Schrift Segoe UI.
 Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
 -->
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:sys="clr-namespace:System;assembly=mscorlib"
-        Title="Open MCP CAD einrichten"
+        Title="{DynamicResource t_fenster_titel}"
         SizeToContent="WidthAndHeight" ResizeMode="CanMinimize"
         WindowStartupLocation="CenterScreen"
         Background="#F7F6FB">
@@ -36,66 +40,6 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
     <SolidColorBrush x:Key="Rot" Color="#D2302C"/>
     <SolidColorBrush x:Key="RotHell" Color="#FDEEEE"/>
 
-    <!-- Die zusammengesetzten Texte (install_fenster.ps1 holt sie per Schluessel). -->
-    <sys:String x:Key="t_suche">Ich schaue nach, was schon da ist …</sys:String>
-    <sys:String x:Key="t_bereit_zum_start">Alles bereit. Es kann losgehen.</sys:String>
-    <sys:String x:Key="t_gefunden">Gefunden</sys:String>
-    <sys:String x:Key="t_profil_empfohlen">empfohlen</sys:String>
-    <sys:String x:Key="t_profil_installiert">installiert</sys:String>
-    <sys:String x:Key="t_profil_nicht_installiert">Programm nicht gefunden</sys:String>
-    <sys:String x:Key="t_trenner" xml:space="preserve"> · </sys:String>
-    <sys:String x:Key="t_profil_name">Cadwork {0}</sys:String>
-    <sys:String x:Key="t_profil_unbekannt">Unbekannte Cadwork-Version</sys:String>
-    <sys:String x:Key="t_python_winget">Es kommt über den Paketmanager von Windows.</sys:String>
-    <sys:String x:Key="t_python_org">Es kommt direkt von python.org (rund 30 MB). Vorher prüfe ich die digitale Unterschrift.</sys:String>
-    <sys:String x:Key="t_bereit_plugin">Open MCP CAD in Cadwork {0}</sys:String>
-    <sys:String x:Key="t_bereit_plugin_trotzdem">Open MCP CAD in Cadwork {0} (passt nicht, auf deinen Wunsch)</sys:String>
-    <sys:String x:Key="t_bereit_ki">Verbindung für {0}</sys:String>
-    <sys:String x:Key="t_bereit_keine_ki">Keine KI-App. Du kannst sie später nachtragen.</sys:String>
-    <sys:String x:Key="t_bereit_python">Python wird mitinstalliert</sys:String>
-    <sys:String x:Key="t_und">und</sys:String>
-    <sys:String x:Key="t_fertig_mit">Verbunden mit {0}.</sys:String>
-    <sys:String x:Key="t_fertig_ohne">Noch mit keiner KI-App verbunden. Installiere eine und starte die Einrichtung nochmals.</sys:String>
-    <sys:String x:Key="t_fertig_teilweise">In {0} ging das Eintragen nicht, siehe Details.</sys:String>
-    <sys:String x:Key="t_name_codex">ChatGPT-App</sys:String>
-    <sys:String x:Key="t_name_claude_desktop">Claude Desktop</sys:String>
-    <sys:String x:Key="t_name_claude_code">Claude Code</sys:String>
-    <sys:String x:Key="t_fehler_unerwartet">Die Einrichtung wurde unerwartet beendet.</sys:String>
-    <sys:String x:Key="t_fehler_profil">Ich habe kein Cadwork gefunden. Ist Cadwork 3D 2026 auf diesem PC installiert?</sys:String>
-    <sys:String x:Key="t_fehler_plugin">Open MCP CAD liess sich nicht in Cadwork einrichten.</sys:String>
-    <sys:String x:Key="t_fehler_version">Open MCP CAD liegt jetzt in Cadwork, passt aber nicht zu dieser Cadwork-Version. Dort startet es nicht.</sys:String>
-    <sys:String x:Key="t_fehler_python">Python fehlt noch, und ich konnte es nicht installieren. Ist der PC mit dem Internet verbunden?</sys:String>
-    <sys:String x:Key="t_fehler_server">Der Teil für die KI-App liess sich nicht einrichten. Meist fehlt kurz die Internetverbindung. Versuche es einfach nochmals.</sys:String>
-    <sys:String x:Key="t_kopiert">Kopiert.</sys:String>
-    <!-- Seit 2026-10-09 (Rueckmeldung): Chat in Cadwork, Unterzeile, KI hilft. -->
-    <sys:String x:Key="t_ki_hilfe">Hilf mir bitte, Open MCP CAD einzurichten. Es verbindet Cadwork 3D 2026 mit einer KI. Führe mich Schritt für Schritt, immer nur einen Schritt, und warte, bis ich ihn erledigt habe. 1) Die neueste ZIP-Datei herunterladen: https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2) Cadwork schliessen und die ZIP-Datei entpacken (rechte Maustaste, «Alle extrahieren»). 3) Im entpackten Ordner 1_INSTALLIEREN.cmd doppelklicken und im Einrichtungsfenster «Installieren» klicken. Das ist der empfohlene Weg. 4) Danach die KI-App ganz beenden und neu starten. 5) In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht. Klappt etwas nicht, lies die Datei Programmdateien\FUER_KI_ASSISTENTEN.md im entpackten Ordner. Bau keinen eigenen Adapter und sprich nicht selbst mit dem Port des Plugins, alles ist schon da.</sys:String>
-    <sys:String x:Key="t_schon_da">Schon da</sys:String>
-    <sys:String x:Key="t_chat_name_claude">Claude</sys:String>
-    <sys:String x:Key="t_chat_name_codex">ChatGPT (Codex)</sys:String>
-    <sys:String x:Key="t_bereit_chat">{0} für den Chat in Cadwork (wird installiert, danach meldest du dich an)</sys:String>
-    <sys:String x:Key="t_bereit_chat_da">{0} für den Chat in Cadwork (schon da)</sys:String>
-    <sys:String x:Key="t_bereit_chat_spaeter">Chat in Cadwork: die KI wählst du später im Chat</sys:String>
-    <sys:String x:Key="t_unter_python_laden">Python wird heruntergeladen (rund 30 MB) …</sys:String>
-    <sys:String x:Key="t_unter_python_installieren">Python wird installiert …</sys:String>
-    <sys:String x:Key="t_unter_pip_laden">Zusatzteile werden geladen: {0} …</sys:String>
-    <sys:String x:Key="t_unter_pip_installieren">Zusatzteile werden installiert …</sys:String>
-    <sys:String x:Key="t_unter_cli_laden">{0} wird heruntergeladen und installiert …</sys:String>
-    <sys:String x:Key="t_unter_pruefen">Ich prüfe, ob alles läuft …</sys:String>
-    <sys:String x:Key="t_anmelden_titel">Bei {0} anmelden</sys:String>
-    <sys:String x:Key="t_anmelden_warte">Warte auf die Anmeldung im Browser …</sys:String>
-    <sys:String x:Key="t_anmelden_nicht">Die Anmeldung ist noch nicht abgeschlossen. Versuche es nochmals.</sys:String>
-    <sys:String x:Key="t_fertig_app_1">Deine KI-App ganz beenden und neu starten.</sys:String>
-    <sys:String x:Key="t_fertig_app_2">In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht.</sys:String>
-    <sys:String x:Key="t_fertig_app_3">In der App einfach schreiben, was du in Cadwork brauchst.</sys:String>
-    <sys:String x:Key="t_fertig_chat_1">In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht.</sys:String>
-    <sys:String x:Key="t_fertig_chat_2">In der Leiste auf die Sprechblase klicken. Der Chat öffnet sich.</sys:String>
-    <sys:String x:Key="t_fertig_chat_3">Schreib, was du brauchst. Vor jeder Änderung fragt dich die KI.</sys:String>
-    <sys:String x:Key="t_fertig_beides_4">Oder direkt in Cadwork: in der Leiste auf die Sprechblase klicken.</sys:String>
-    <sys:String x:Key="t_fertig_spaeter_4">Im Chat unter «⋯» die Einstellungen öffnen und deine KI wählen.</sys:String>
-    <sys:String x:Key="t_fertig_anmelden_4">Anmelden kannst du später: 1_INSTALLIEREN.cmd nochmals starten.</sys:String>
-    <sys:String x:Key="t_fertig_chat_ki">Der Chat in Cadwork arbeitet mit {0}.</sys:String>
-    <sys:String x:Key="t_fehler_chat">Die KI für den Chat in Cadwork liess sich nicht einrichten. Ist der PC mit dem Internet verbunden?</sys:String>
-    <sys:String x:Key="t_schritt_laeuft">läuft …</sys:String>
 
     <!-- Hauptknopf: violett, gefuellt. -->
     <Style x:Key="Haupt" TargetType="Button">
@@ -161,6 +105,92 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         </Setter.Value>
       </Setter>
     </Style>
+    <!-- Ein Knopf nur mit Symbol (seit 2026-10-10): rund, beim Zeigen hinterlegt. -->
+    <Style x:Key="SymbolKnopf" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding" Value="8"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#DCD3F7"/></Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="b" Property="Background" Value="#DCD3F7"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- Symbol einer App bzw. eines Programms (seit 2026-10-10): das echte,
+         wenn es auf dem PC zu lesen ist (Tag = Bild, install_fenster.ps1
+         Logos-Setzen), sonst ein Strich-Symbol (Lucide message-square bzw.
+         terminal). Fremde Logos liegen NIE im Paket. -->
+    <Style x:Key="LogoApp" TargetType="ContentControl">
+      <Setter Property="Width" Value="32"/>
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="Margin" Value="0,0,12,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ContentControl">
+            <Grid>
+              <Border x:Name="ersatz" Background="{StaticResource ViolettHell}" CornerRadius="8" Visibility="Collapsed">
+                <Viewbox Width="18" Height="18">
+                  <Canvas Width="24" Height="24">
+                    <Path Data="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" Stroke="{StaticResource Violett}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                  </Canvas>
+                </Viewbox>
+              </Border>
+              <Image x:Name="bild" Source="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Tag" Value="{x:Null}">
+                <Setter TargetName="ersatz" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="bild" Property="Visibility" Value="Collapsed"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="LogoCli" TargetType="ContentControl" BasedOn="{StaticResource LogoApp}">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ContentControl">
+            <Grid>
+              <Border x:Name="ersatz" Background="{StaticResource ViolettHell}" CornerRadius="8" Visibility="Collapsed">
+                <Viewbox Width="18" Height="18">
+                  <Canvas Width="24" Height="24">
+                    <Path Data="M4 17 10 11 4 5M12 19h8" Stroke="{StaticResource Violett}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                  </Canvas>
+                </Viewbox>
+              </Border>
+              <Image x:Name="bild" Source="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Tag" Value="{x:Null}">
+                <Setter TargetName="ersatz" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="bild" Property="Visibility" Value="Collapsed"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- Der Kreisel waehrend "Nochmal suchen" (dreht sich per Animation). -->
+    <Style x:Key="Kreisel" TargetType="Ellipse">
+      <Setter Property="Width" Value="14"/>
+      <Setter Property="Height" Value="14"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="Stroke" Value="{StaticResource Violett}"/>
+      <Setter Property="StrokeThickness" Value="2"/>
+      <Setter Property="StrokeDashArray" Value="5 4"/>
+      <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
     <!-- Ankreuzen: grosses, rundes Kaestchen. -->
     <Style x:Key="Haken" TargetType="CheckBox">
       <Setter Property="Cursor" Value="Hand"/>
@@ -208,6 +238,35 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                 <Setter TargetName="r" Property="BorderBrush" Value="{StaticResource Violett}"/>
                 <Setter TargetName="o" Property="Fill" Value="{StaticResource Violett}"/>
                 <Setter TargetName="o" Property="Stroke" Value="{StaticResource Violett}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- Eine Karte wie "Wahl", aber zum Ankreuzen (seit 2026-10-10: mehrere
+         Cadwork-Versionen auf einem PC, Seite "Welches Cadwork?"). -->
+    <Style x:Key="WahlHaken" TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Margin" Value="0,0,0,10"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="r" Background="White" BorderBrush="{StaticResource Rahmen}" BorderThickness="1.5" CornerRadius="10" Padding="16,12">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border x:Name="k" Width="22" Height="22" CornerRadius="6" BorderThickness="1.5" BorderBrush="#BDB6D6" Background="White" VerticalAlignment="Center">
+                  <Path x:Name="h" Data="M 5,11 L 9,15 L 17,7" Stroke="White" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
+                </Border>
+                <ContentPresenter Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="r" Property="BorderBrush" Value="{StaticResource Violett}"/>
+                <Setter TargetName="k" Property="Background" Value="{StaticResource Violett}"/>
+                <Setter TargetName="k" Property="BorderBrush" Value="{StaticResource Violett}"/>
+                <Setter TargetName="h" Property="Visibility" Value="Visible"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -280,7 +339,7 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <StackPanel Orientation="Horizontal" Margin="24,0" VerticalAlignment="Center">
           <Image x:Name="KopfLogo" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality"/>
           <TextBlock Text="Open MCP CAD" FontWeight="SemiBold" FontSize="15" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Text}"/>
-          <TextBlock Text="Einrichtung" FontSize="15" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Neben}"/>
+          <TextBlock Text="{DynamicResource t_einrichtung}" FontSize="15" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Neben}"/>
         </StackPanel>
       </Border>
 
@@ -289,30 +348,48 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 1 Willkommen -->
         <DockPanel x:Name="Seite_willkommen">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="willkommen_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Los geht’s" IsEnabled="False"/>
+            <Button x:Name="willkommen_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_los_gehts}" IsEnabled="False"/>
             <TextBlock x:Name="willkommen_stand" DockPanel.Dock="Left" VerticalAlignment="Center" Foreground="{StaticResource Neben}" FontSize="13"/>
           </DockPanel>
           <StackPanel VerticalAlignment="Center" Margin="0,0,0,10">
             <Border Width="60" Height="60" CornerRadius="14" Background="White" BorderBrush="{StaticResource Rahmen}" BorderThickness="1" HorizontalAlignment="Left" Margin="0,0,0,12">
               <Image x:Name="willkommen_logo" Width="50" Height="50" RenderOptions.BitmapScalingMode="HighQuality"/>
             </Border>
-            <TextBlock Style="{StaticResource Titel}" Text="Willkommen bei Open MCP CAD"/>
-            <TextBlock Style="{StaticResource Satz}" FontSize="15" Text="Damit zeichnet eine KI für dich in Cadwork. Ich richte alles ein. Das dauert ein paar Minuten und braucht Internet."/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_willkommen_bei_open_mcp}"/>
+            <TextBlock Style="{StaticResource Satz}" FontSize="15" Text="{DynamicResource t_damit_zeichnet_eine_ki}"/>
             <Border x:Name="willkommen_hinweis" Style="{StaticResource KarteRahmen}" Margin="0,16,0,0">
               <StackPanel Orientation="Horizontal">
                 <Border Width="26" Height="26" CornerRadius="13" Background="{StaticResource ViolettHell}" VerticalAlignment="Top">
                   <TextBlock Text="i" FontWeight="Bold" Foreground="{StaticResource Violett}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Margin="12,3,0,0" TextWrapping="Wrap" Width="470" Foreground="{StaticResource Text}" Text="Schliesse Cadwork, bevor du beginnst."/>
+                <TextBlock Margin="12,3,0,0" TextWrapping="Wrap" Width="470" Foreground="{StaticResource Text}" Text="{DynamicResource t_schliesse_cadwork_bevor_du}"/>
               </StackPanel>
             </Border>
             <Border x:Name="willkommen_ki_hilfe" Style="{StaticResource KarteRahmen}" Margin="0,10,0,0" Background="{StaticResource ViolettHell}" BorderThickness="0">
               <DockPanel>
-                <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0,0,0">
-                  <Button x:Name="willkommen_kopieren" Style="{StaticResource Verweis}" Content="Text kopieren"/>
-                  <TextBlock x:Name="willkommen_kopiert" FontSize="12" Foreground="{StaticResource Neben}" HorizontalAlignment="Center"/>
+                <!-- Seit 2026-10-10 (Rueckmeldung: man meinte, den Satz selbst
+                     kopieren zu muessen): "diesen Text" ist ein Verweis, rechts
+                     das Kopier-Symbol (Lucide copy/check, Strich wie im Dock).
+                     Beide kopieren den Text fuer die KI-App. -->
+                <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="64">
+                  <Button x:Name="willkommen_kopieren" Style="{StaticResource SymbolKnopf}" HorizontalAlignment="Center" ToolTip="{DynamicResource t_text_kopieren}" AutomationProperties.Name="{DynamicResource t_text_kopieren}">
+                    <Grid Width="20" Height="20">
+                      <Viewbox x:Name="willkommen_symbol_kopieren">
+                        <Canvas Width="24" Height="24">
+                          <Rectangle Canvas.Left="8" Canvas.Top="8" Width="14" Height="14" RadiusX="2" RadiusY="2" Stroke="{StaticResource Violett}" StrokeThickness="2"/>
+                          <Path Data="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" Stroke="{StaticResource Violett}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Canvas>
+                      </Viewbox>
+                      <Viewbox x:Name="willkommen_symbol_haken" Visibility="Collapsed">
+                        <Canvas Width="24" Height="24">
+                          <Path Data="M20 6 9 17l-5-5" Stroke="{StaticResource Violett}" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Canvas>
+                      </Viewbox>
+                    </Grid>
+                  </Button>
+                  <TextBlock x:Name="willkommen_kopiert" FontSize="12" Foreground="{StaticResource Violett}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                 </StackPanel>
-                <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource Text}" Text="Du nutzt schon eine KI-App am PC? Kopiere diesen Text und schick ihn ihr, sie hilft dir beim Einrichten."/>
+                <TextBlock x:Name="willkommen_ki_satz" TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource Text}" VerticalAlignment="Center"><Run Text="{DynamicResource t_ki_hilfe_vor}"/><Hyperlink x:Name="willkommen_link" Foreground="{StaticResource Violett}" Cursor="Hand" AutomationProperties.Name="{DynamicResource t_text_kopieren}"><Run Text="{DynamicResource t_ki_hilfe_link}"/></Hyperlink><Run Text="{DynamicResource t_ki_hilfe_nach}"/></TextBlock>
               </DockPanel>
             </Border>
           </StackPanel>
@@ -321,48 +398,53 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 1b Wo arbeiten? (seit 2026-10-09) -->
         <DockPanel x:Name="Seite_wo" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="wo_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Weiter"/>
+            <Button x:Name="wo_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_weiter}"/>
+            <Button x:Name="wo_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Wo möchtest du mit der KI arbeiten?"/>
-            <TextBlock Style="{StaticResource Satz}" Margin="0,0,0,14" Text="Du kannst später jederzeit wechseln."/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_wo_moechtest_du_mit}"/>
+            <TextBlock Style="{StaticResource Satz}" Margin="0,0,0,14" Text="{DynamicResource t_du_kannst_spaeter_jederzeit}"/>
             <RadioButton x:Name="wo_app" Style="{StaticResource Wahl}" GroupName="wo">
               <StackPanel>
-                <TextBlock Text="In deiner KI-App" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="Claude Desktop oder die ChatGPT-App. Die gewohnte Oberfläche, die KI zeichnet in Cadwork."/>
+                <TextBlock Text="{DynamicResource t_in_deiner_ki_app}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="{DynamicResource t_claude_desktop_oder_die}"/>
               </StackPanel>
             </RadioButton>
             <RadioButton x:Name="wo_chat" Style="{StaticResource Wahl}" GroupName="wo">
               <StackPanel>
-                <TextBlock Text="Direkt in Cadwork im Chat" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="Der Chat steht neben der Zeichnung. Du bestimmst, was die KI allein darf."/>
+                <TextBlock Text="{DynamicResource t_direkt_in_cadwork_im}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="{DynamicResource t_der_chat_steht_neben}"/>
               </StackPanel>
             </RadioButton>
             <RadioButton x:Name="wo_beides" Style="{StaticResource Wahl}" GroupName="wo">
               <StackPanel>
-                <TextBlock Text="Beides" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="Die App für den Alltag, der Chat in Cadwork zum Ausprobieren."/>
+                <TextBlock Text="{DynamicResource t_beides}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="{DynamicResource t_die_app_fuer_den}"/>
               </StackPanel>
             </RadioButton>
           </StackPanel>
         </DockPanel>
 
-        <!-- 2c Welche KI im Chat in Cadwork? (seit 2026-10-09) -->
+        <!-- 2c Welche KI im Chat in Cadwork? (seit 2026-10-09). Seit 2026-10-10
+             (Rueckmeldung): jede Wahl immer waehlbar, die Plakette sagt
+             "Gefunden" oder "Wird mitinstalliert". -->
         <DockPanel x:Name="Seite_chat_ki" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="chat_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Weiter"/>
+            <Button x:Name="chat_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_weiter}"/>
+            <Button x:Name="chat_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Welche KI im Chat in Cadwork?"/>
-            <TextBlock Style="{StaticResource Satz}" Margin="0,0,0,14" Text="Der Chat braucht ein kleines Programm des Anbieters. Ich installiere es mit, und du meldest dich einmal an."/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_welche_ki_im_chat}"/>
+            <TextBlock Style="{StaticResource Satz}" Margin="0,0,0,14" Text="{DynamicResource t_der_chat_braucht_ein}"/>
             <RadioButton x:Name="chat_claude" Style="{StaticResource Wahl}" GroupName="chat">
               <DockPanel>
                 <Border x:Name="chat_marke_claude" DockPanel.Dock="Right" Style="{StaticResource Marke}">
                   <TextBlock x:Name="chat_stand_claude" FontSize="12.5" Foreground="{StaticResource Violett}" FontWeight="SemiBold"/>
                 </Border>
-                <StackPanel>
-                  <TextBlock Text="Claude" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                  <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="mit einem Claude-Abo (Pro oder Max)"/>
+                <ContentControl x:Name="chat_logo_claude" DockPanel.Dock="Left" Style="{StaticResource LogoCli}"/>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{DynamicResource t_chat_name_claude}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                  <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="{DynamicResource t_mit_einem_claude_abo}"/>
                 </StackPanel>
               </DockPanel>
             </RadioButton>
@@ -371,95 +453,118 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                 <Border x:Name="chat_marke_codex" DockPanel.Dock="Right" Style="{StaticResource Marke}">
                   <TextBlock x:Name="chat_stand_codex" FontSize="12.5" Foreground="{StaticResource Violett}" FontWeight="SemiBold"/>
                 </Border>
-                <StackPanel>
-                  <TextBlock Text="ChatGPT (Codex)" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                  <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="mit einem ChatGPT-Abo (Plus oder Pro)"/>
+                <ContentControl x:Name="chat_logo_codex" DockPanel.Dock="Left" Style="{StaticResource LogoCli}"/>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{DynamicResource t_chat_name_codex}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                  <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="{DynamicResource t_mit_einem_chatgpt_abo}"/>
                 </StackPanel>
               </DockPanel>
             </RadioButton>
             <RadioButton x:Name="chat_spaeter" Style="{StaticResource Wahl}" GroupName="chat">
               <StackPanel>
-                <TextBlock Text="Später oder mit eigenem Schlüssel" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="Im Chat unter Einstellungen: Schlüssel eingeben oder eine KI auf deinem PC wählen."/>
+                <TextBlock Text="{DynamicResource t_spaeter_oder_mit_eigenem}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" TextWrapping="Wrap" Text="{DynamicResource t_im_chat_unter_einstellungen}"/>
               </StackPanel>
             </RadioButton>
           </StackPanel>
         </DockPanel>
 
-        <!-- 2 Deine KI-App -->
+        <!-- 2 Deine KI-App. Seit 2026-10-10 (Rueckmeldung): jede App immer zu
+             sehen, gefunden mit Plakette, sonst "Holen"; das echte Symbol der
+             App, wenn sie da ist (Logos-Setzen), sonst ein Strich-Symbol;
+             "Nochmal suchen" zeigt, dass es sucht, und was es fand. -->
         <DockPanel x:Name="Seite_ki" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="ki_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Weiter"/>
-            <Button x:Name="ki_nochmal" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="Nochmal suchen" VerticalAlignment="Center"/>
+            <Button x:Name="ki_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_weiter}"/>
+            <Button x:Name="ki_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
+            <Button x:Name="ki_nochmal" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="{DynamicResource t_nochmal_suchen}" VerticalAlignment="Center"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Deine KI-App"/>
-            <TextBlock Style="{StaticResource Satz}" Text="In welcher App möchtest du mit Cadwork arbeiten? Was ich gefunden habe, ist schon angehakt."/>
-            <StackPanel Margin="0,16,0,0">
-              <Border x:Name="ki_karte_claude_desktop" Style="{StaticResource KarteRahmen}" Margin="0,0,0,10">
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_deine_ki_app}"/>
+            <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_in_welcher_app_moechtest}"/>
+            <StackPanel Margin="0,12,0,0">
+              <Border x:Name="ki_karte_claude_desktop" Style="{StaticResource KarteRahmen}" Padding="16,9" Margin="0,0,0,8">
                 <DockPanel>
-                  <Button x:Name="ki_holen_claude_desktop" DockPanel.Dock="Right" Style="{StaticResource Verweis}" Content="Herunterladen" VerticalAlignment="Center"/>
+                  <Button x:Name="ki_holen_claude_desktop" DockPanel.Dock="Right" Style="{StaticResource Verweis}" Content="{DynamicResource t_herunterladen}" VerticalAlignment="Center"/>
                   <Border x:Name="ki_marke_claude_desktop" DockPanel.Dock="Right" Style="{StaticResource Marke}">
                     <TextBlock x:Name="ki_stand_claude_desktop" FontSize="12.5" Foreground="{StaticResource Violett}" FontWeight="SemiBold"/>
                   </Border>
                   <CheckBox x:Name="ki_claude_desktop" Style="{StaticResource Haken}">
-                    <StackPanel>
-                      <TextBlock Text="Claude Desktop" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                      <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="für ein Claude-Abo"/>
-                    </StackPanel>
+                    <DockPanel>
+                      <ContentControl x:Name="ki_logo_claude_desktop" DockPanel.Dock="Left" Style="{StaticResource LogoApp}"/>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource t_name_claude_desktop}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                        <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="{DynamicResource t_fuer_ein_claude_abo}"/>
+                      </StackPanel>
+                    </DockPanel>
                   </CheckBox>
                 </DockPanel>
               </Border>
-              <Border x:Name="ki_karte_codex" Style="{StaticResource KarteRahmen}" Margin="0,0,0,10">
+              <Border x:Name="ki_karte_codex" Style="{StaticResource KarteRahmen}" Padding="16,9" Margin="0,0,0,8">
                 <DockPanel>
-                  <Button x:Name="ki_holen_codex" DockPanel.Dock="Right" Style="{StaticResource Verweis}" Content="Herunterladen" VerticalAlignment="Center"/>
+                  <Button x:Name="ki_holen_codex" DockPanel.Dock="Right" Style="{StaticResource Verweis}" Content="{DynamicResource t_herunterladen}" VerticalAlignment="Center"/>
                   <Border x:Name="ki_marke_codex" DockPanel.Dock="Right" Style="{StaticResource Marke}">
                     <TextBlock x:Name="ki_stand_codex" FontSize="12.5" Foreground="{StaticResource Violett}" FontWeight="SemiBold"/>
                   </Border>
                   <CheckBox x:Name="ki_codex" Style="{StaticResource Haken}">
-                    <StackPanel>
-                      <TextBlock Text="ChatGPT-App (mit Codex)" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                      <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="für ein ChatGPT-Abo, die Desktop-App am PC"/>
-                    </StackPanel>
+                    <DockPanel>
+                      <ContentControl x:Name="ki_logo_codex" DockPanel.Dock="Left" Style="{StaticResource LogoApp}"/>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource t_chatgpt_app_mit_codex}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                        <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="{DynamicResource t_fuer_ein_chatgpt_abo_desktop}"/>
+                      </StackPanel>
+                    </DockPanel>
                   </CheckBox>
                 </DockPanel>
               </Border>
-              <Border x:Name="ki_karte_claude_code" Style="{StaticResource KarteRahmen}" Margin="0,0,0,10">
+              <Border x:Name="ki_karte_claude_code" Style="{StaticResource KarteRahmen}" Padding="16,9" Margin="0,0,0,8">
                 <DockPanel>
+                  <Button x:Name="ki_holen_claude_code" DockPanel.Dock="Right" Style="{StaticResource Verweis}" Content="{DynamicResource t_herunterladen}" VerticalAlignment="Center"/>
                   <Border x:Name="ki_marke_claude_code" DockPanel.Dock="Right" Style="{StaticResource Marke}">
                     <TextBlock x:Name="ki_stand_claude_code" FontSize="12.5" Foreground="{StaticResource Violett}" FontWeight="SemiBold"/>
                   </Border>
                   <CheckBox x:Name="ki_claude_code" Style="{StaticResource Haken}">
-                    <StackPanel>
-                      <TextBlock Text="Claude Code" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
-                      <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="Claude im Befehlsfenster"/>
-                    </StackPanel>
+                    <DockPanel>
+                      <ContentControl x:Name="ki_logo_claude_code" DockPanel.Dock="Left" Style="{StaticResource LogoCli}"/>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource t_name_claude_code}" FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                        <TextBlock FontSize="12.5" Foreground="{StaticResource Neben}" Text="{DynamicResource t_claude_im_befehlsfenster}"/>
+                      </StackPanel>
+                    </DockPanel>
                   </CheckBox>
                 </DockPanel>
               </Border>
             </StackPanel>
-            <TextBlock x:Name="ki_chatgpt" Style="{StaticResource Satz}" FontSize="12.5" Margin="2,4,0,0" Text="Es geht nur mit der App am PC, nicht im Browser oder am Handy."/>
+            <TextBlock x:Name="ki_chatgpt" Style="{StaticResource Satz}" FontSize="12.5" Margin="2,2,0,0" Text="{DynamicResource t_es_geht_nur_mit}"/>
+            <StackPanel x:Name="ki_suche" Orientation="Horizontal" Margin="2,6,0,0" Visibility="Hidden">
+              <Ellipse x:Name="ki_kreisel" Style="{StaticResource Kreisel}"><Ellipse.RenderTransform><RotateTransform/></Ellipse.RenderTransform></Ellipse>
+              <TextBlock x:Name="ki_suche_text" FontSize="12.5" Foreground="{StaticResource Violett}" VerticalAlignment="Center"/>
+            </StackPanel>
           </StackPanel>
         </DockPanel>
 
         <!-- 2b Keine KI-App gefunden -->
         <DockPanel x:Name="Seite_ki_keine" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="keine_nochmal" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Nochmal suchen"/>
-            <Button x:Name="keine_ohne" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="Ohne KI-App weiter" VerticalAlignment="Center"/>
+            <Button x:Name="keine_nochmal" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_nochmal_suchen}"/>
+            <Button x:Name="keine_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
+            <Button x:Name="keine_ohne" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="{DynamicResource t_ohne_ki_app_weiter}" VerticalAlignment="Center"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Du brauchst zuerst eine KI-App"/>
-            <TextBlock Style="{StaticResource Satz}" Text="Open MCP CAD verbindet Cadwork mit einer KI-App auf diesem PC. Installiere eine davon, melde dich an und klicke dann auf «Nochmal suchen»."/>
-            <UniformGrid Columns="2" Margin="0,18,0,0">
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_du_brauchst_zuerst_eine}"/>
+            <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_open_mcp_cad_verbindet}"/>
+            <UniformGrid Columns="2" Margin="0,16,0,0">
               <Button x:Name="keine_claude" Margin="0,0,8,0" Cursor="Hand">
                 <Button.Template>
                   <ControlTemplate TargetType="Button">
-                    <Border x:Name="b" Style="{StaticResource KarteRahmen}" Padding="18,16">
-                      <StackPanel>
-                        <TextBlock Text="Claude Desktop holen" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource Violett}"/>
-                        <TextBlock Text="für ein Claude-Abo" Foreground="{StaticResource Neben}" Margin="0,4,0,0"/>
-                      </StackPanel>
+                    <Border x:Name="b" Style="{StaticResource KarteRahmen}" Padding="16,14">
+                      <DockPanel>
+                        <ContentControl DockPanel.Dock="Left" Style="{StaticResource LogoApp}" Tag="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="{DynamicResource t_claude_desktop_holen}" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource Violett}" TextWrapping="Wrap"/>
+                          <TextBlock Text="{DynamicResource t_fuer_ein_claude_abo}" Foreground="{StaticResource Neben}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </DockPanel>
                     </Border>
                     <ControlTemplate.Triggers>
                       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Violett}"/></Trigger>
@@ -470,11 +575,14 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
               <Button x:Name="keine_codex" Margin="8,0,0,0" Cursor="Hand">
                 <Button.Template>
                   <ControlTemplate TargetType="Button">
-                    <Border x:Name="b" Style="{StaticResource KarteRahmen}" Padding="18,16">
-                      <StackPanel>
-                        <TextBlock Text="ChatGPT-App holen" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource Violett}"/>
-                        <TextBlock Text="für ein ChatGPT-Abo" Foreground="{StaticResource Neben}" Margin="0,4,0,0"/>
-                      </StackPanel>
+                    <Border x:Name="b" Style="{StaticResource KarteRahmen}" Padding="16,14">
+                      <DockPanel>
+                        <ContentControl DockPanel.Dock="Left" Style="{StaticResource LogoApp}" Tag="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="{DynamicResource t_chatgpt_app_holen}" FontWeight="SemiBold" FontSize="15" Foreground="{StaticResource Violett}" TextWrapping="Wrap"/>
+                          <TextBlock Text="{DynamicResource t_fuer_ein_chatgpt_abo}" Foreground="{StaticResource Neben}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </DockPanel>
                     </Border>
                     <ControlTemplate.Triggers>
                       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Violett}"/></Trigger>
@@ -483,20 +591,27 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                 </Button.Template>
               </Button>
             </UniformGrid>
-            <Border Style="{StaticResource KarteRahmen}" Margin="0,14,0,0" Background="{StaticResource ViolettHell}" BorderThickness="0">
-              <TextBlock x:Name="keine_chatgpt" TextWrapping="Wrap" Foreground="{StaticResource Text}" Text="Es geht nur mit der App am PC, nicht im Browser oder am Handy."/>
+            <Border Style="{StaticResource KarteRahmen}" Margin="0,12,0,0" Background="{StaticResource ViolettHell}" BorderThickness="0" Padding="18,10">
+              <TextBlock x:Name="keine_chatgpt" TextWrapping="Wrap" Foreground="{StaticResource Text}" Text="{DynamicResource t_es_geht_nur_mit}"/>
             </Border>
+            <Button x:Name="keine_claude_code" Style="{StaticResource Verweis}" Content="{DynamicResource t_claude_code_holen}" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+            <StackPanel x:Name="keine_suche" Orientation="Horizontal" Margin="2,2,0,0" Visibility="Hidden">
+              <Ellipse x:Name="keine_kreisel" Style="{StaticResource Kreisel}"><Ellipse.RenderTransform><RotateTransform/></Ellipse.RenderTransform></Ellipse>
+              <TextBlock x:Name="keine_suche_text" FontSize="12.5" Foreground="{StaticResource Violett}" VerticalAlignment="Center"/>
+            </StackPanel>
           </StackPanel>
         </DockPanel>
 
-        <!-- 3a Welches Cadwork? (nur bei mehreren Profilen) -->
+        <!-- 3a Welches Cadwork? (nur bei mehreren Profilen; seit 2026-10-10 je
+             Profil ein Haken, profil_wahl_<i>, gebaut in Profil-Fuellen) -->
         <DockPanel x:Name="Seite_profil" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="profil_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Weiter"/>
+            <Button x:Name="profil_weiter" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_weiter}"/>
+            <Button x:Name="profil_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Welches Cadwork?"/>
-            <TextBlock Style="{StaticResource Satz}" Text="Auf diesem PC gibt es mehrere Cadwork-Versionen. Open MCP CAD läuft in Cadwork 3D 2026."/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_welches_cadwork}"/>
+            <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_auf_diesem_pc_gibt}"/>
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="230" Margin="0,16,0,0">
               <StackPanel x:Name="profil_liste"/>
             </ScrollViewer>
@@ -506,29 +621,30 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 3b Cadwork-Version passt nicht -->
         <DockPanel x:Name="Seite_version" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="version_schliessen" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Schliessen"/>
-            <Button x:Name="version_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="Zurück" Margin="0,0,10,0"/>
-            <Button x:Name="version_trotzdem" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="Trotzdem installieren" VerticalAlignment="Center"/>
+            <Button x:Name="version_schliessen" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_schliessen}"/>
+            <Button x:Name="version_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
+            <Button x:Name="version_trotzdem" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="{DynamicResource t_trotzdem_installieren}" VerticalAlignment="Center"/>
           </DockPanel>
           <StackPanel>
             <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource OrangeHell}" HorizontalAlignment="Left" Margin="0,0,0,16">
               <TextBlock Text="!" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Orange}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
-            <TextBlock Style="{StaticResource Titel}" Text="Das passt nicht zu deinem Cadwork"/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_das_passt_nicht_zu}"/>
             <TextBlock x:Name="version_text" Style="{StaticResource Satz}" Foreground="{StaticResource Text}"/>
-            <TextBlock Style="{StaticResource Satz}" Margin="0,10,0,0" Text="Dort startet Open MCP CAD nicht. Installiere zuerst Cadwork 3D 2026. Oder installiere trotzdem, wenn du genau weisst, was du tust."/>
+            <TextBlock Style="{StaticResource Satz}" Margin="0,10,0,0" Text="{DynamicResource t_dort_startet_open_mcp}"/>
           </StackPanel>
         </DockPanel>
 
         <!-- 3c Python fehlt -->
         <DockPanel x:Name="Seite_python" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="python_ja" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Mitinstallieren"/>
-            <Button x:Name="python_nein" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="Abbrechen" Margin="0,0,10,0"/>
+            <Button x:Name="python_ja" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_mitinstallieren}"/>
+            <Button x:Name="python_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
+            <Button x:Name="python_nein" DockPanel.Dock="Left" Style="{StaticResource Verweis}" Content="{DynamicResource t_abbrechen}" VerticalAlignment="Center"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Ein Programmteil fehlt noch"/>
-            <TextBlock Style="{StaticResource Satz}" Text="Open MCP CAD braucht Python, eine kostenlose Programmiersprache. Ich installiere es mit, nur für dein Benutzerkonto und ohne Administratorrechte."/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_ein_programmteil_fehlt_noch}"/>
+            <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_open_mcp_cad_braucht}"/>
             <Border Style="{StaticResource KarteRahmen}" Margin="0,18,0,0">
               <TextBlock x:Name="python_weg" TextWrapping="Wrap" Foreground="{StaticResource Text}"/>
             </Border>
@@ -538,33 +654,44 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 4 Bereit -->
         <DockPanel x:Name="Seite_bereit" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="bereit_installieren" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Installieren"/>
-            <Button x:Name="bereit_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="Zurück" Margin="0,0,10,0"/>
+            <Button x:Name="bereit_installieren" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_installieren}"/>
+            <Button x:Name="bereit_zurueck" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_zurueck}" Margin="0,0,10,0"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock Style="{StaticResource Titel}" Text="Bereit zum Installieren"/>
-            <TextBlock Style="{StaticResource Satz}" Text="Das richte ich jetzt ein:"/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_bereit_zum_installieren}"/>
+            <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_das_richte_ich_jetzt}"/>
             <Border Style="{StaticResource KarteRahmen}" Margin="0,16,0,0">
               <StackPanel x:Name="bereit_liste"/>
             </Border>
-            <TextBlock Style="{StaticResource Satz}" Margin="0,14,0,0" FontSize="12.5" Text="Vorher sichere ich die Einstellungen deiner KI-App. Andere Einträge bleiben, wie sie sind."/>
+            <!-- Seit 2026-10-10 (Rueckmeldung: auf einem Laptop lag noch das alte
+                 Plugin "LignoAI Connect", zwei Eintraege im Cadwork-Menue):
+                 nur zu sehen, wenn install.ps1 (Alte-Plugins) eines findet. -->
+            <Border x:Name="bereit_alt" Style="{StaticResource KarteRahmen}" Margin="0,12,0,0" Background="{StaticResource OrangeHell}" BorderThickness="0" Visibility="Collapsed">
+              <CheckBox x:Name="bereit_alt_haken" Style="{StaticResource Haken}" IsChecked="True">
+                <StackPanel>
+                  <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource Text}" Text="{DynamicResource t_bereit_alt}"/>
+                  <TextBlock x:Name="bereit_alt_name" FontSize="12" Margin="0,2,0,0" Foreground="{StaticResource Neben}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </CheckBox>
+            </Border>
+            <TextBlock Style="{StaticResource Satz}" Margin="0,14,0,0" FontSize="12.5" Text="{DynamicResource t_vorher_sichere_ich_die}"/>
           </StackPanel>
         </DockPanel>
 
         <!-- 5 Es laeuft -->
         <DockPanel x:Name="Seite_laeuft" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <ToggleButton x:Name="laeuft_details" DockPanel.Dock="Left" Content="Details anzeigen" Cursor="Hand" VerticalAlignment="Center">
+            <ToggleButton x:Name="laeuft_details" DockPanel.Dock="Left" Content="{DynamicResource t_details_anzeigen}" Cursor="Hand" VerticalAlignment="Center">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="ToggleButton">
                   <TextBlock Text="{TemplateBinding Content}" Foreground="{StaticResource Violett}" Padding="2,6"/>
                 </ControlTemplate>
               </ToggleButton.Template>
             </ToggleButton>
-            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource Neben}" FontSize="12.5" Text="Das dauert ein paar Minuten."/>
+            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource Neben}" FontSize="12.5" Text="{DynamicResource t_das_dauert_ein_paar}"/>
           </DockPanel>
           <StackPanel DockPanel.Dock="Top">
-            <TextBlock Style="{StaticResource Titel}" Text="Wird eingerichtet …"/>
+            <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_wird_eingerichtet}"/>
             <ProgressBar x:Name="laeuft_leiste" Style="{StaticResource Leiste}" Minimum="0" Maximum="100" Value="0" Margin="0,6,0,4"/>
             <!-- Bewegtes Band: es arbeitet, auch wenn eine Zeile lange gleich bleibt. -->
             <Border x:Name="laeuft_band" Height="3" CornerRadius="1.5" Background="#E7E3F4" ClipToBounds="True" Visibility="Hidden">
@@ -590,42 +717,42 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                 <Border x:Name="s1_kreis" Width="24" Height="24" CornerRadius="12" BorderThickness="1.5" BorderBrush="#D6D2E3" Background="White">
                   <Path x:Name="s1_haken" Data="M 6.5,12 L 10.5,16 L 17.5,8.5" Stroke="White" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
-                <TextBlock x:Name="s1_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="Cadwork prüfen"/>
+                <TextBlock x:Name="s1_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="{DynamicResource t_cadwork_pruefen}"/>
               </Grid>
               <Grid Margin="0,0,0,9">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Border x:Name="s2_kreis" Width="24" Height="24" CornerRadius="12" BorderThickness="1.5" BorderBrush="#D6D2E3" Background="White">
                   <Path x:Name="s2_haken" Data="M 6.5,12 L 10.5,16 L 17.5,8.5" Stroke="White" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
-                <TextBlock x:Name="s2_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="Open MCP CAD in Cadwork einrichten"/>
+                <TextBlock x:Name="s2_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="{DynamicResource t_open_mcp_cad_in}"/>
               </Grid>
               <Grid Margin="0,0,0,9">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Border x:Name="s3_kreis" Width="24" Height="24" CornerRadius="12" BorderThickness="1.5" BorderBrush="#D6D2E3" Background="White">
                   <Path x:Name="s3_haken" Data="M 6.5,12 L 10.5,16 L 17.5,8.5" Stroke="White" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
-                <TextBlock x:Name="s3_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="Verbindung für die KI-App einrichten"/>
+                <TextBlock x:Name="s3_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="{DynamicResource t_verbindung_fuer_die_ki}"/>
               </Grid>
               <Grid Margin="0,0,0,9">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Border x:Name="s4_kreis" Width="24" Height="24" CornerRadius="12" BorderThickness="1.5" BorderBrush="#D6D2E3" Background="White">
                   <Path x:Name="s4_haken" Data="M 6.5,12 L 10.5,16 L 17.5,8.5" Stroke="White" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
-                <TextBlock x:Name="s4_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="Einstellungen speichern"/>
+                <TextBlock x:Name="s4_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="{DynamicResource t_einstellungen_speichern}"/>
               </Grid>
               <Grid Margin="0,0,0,9">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Border x:Name="s5_kreis" Width="24" Height="24" CornerRadius="12" BorderThickness="1.5" BorderBrush="#D6D2E3" Background="White">
                   <Path x:Name="s5_haken" Data="M 6.5,12 L 10.5,16 L 17.5,8.5" Stroke="White" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
-                <TextBlock x:Name="s5_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="KI-App verbinden"/>
+                <TextBlock x:Name="s5_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="{DynamicResource t_ki_app_verbinden}"/>
               </Grid>
               <Grid x:Name="s6_zeile" Margin="0,0,0,12" Visibility="Collapsed">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Border x:Name="s6_kreis" Width="24" Height="24" CornerRadius="12" BorderThickness="1.5" BorderBrush="#D6D2E3" Background="White">
                   <Path x:Name="s6_haken" Data="M 6.5,12 L 10.5,16 L 17.5,8.5" Stroke="White" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                 </Border>
-                <TextBlock x:Name="s6_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="KI für den Chat in Cadwork einrichten"/>
+                <TextBlock x:Name="s6_text" Grid.Column="1" Style="{StaticResource SchrittText}" Text="{DynamicResource t_ki_fuer_den_chat}"/>
               </Grid>
             </StackPanel>
             <TextBox x:Name="laeuft_protokoll" Style="{StaticResource Protokoll}" Visibility="Collapsed" Margin="0,0,0,12"/>
@@ -635,14 +762,14 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 5b Anmelden (seit 2026-10-09) -->
         <DockPanel x:Name="Seite_anmelden" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="anmelden_los" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Anmelden"/>
-            <Button x:Name="anmelden_spaeter" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="Später" Margin="0,0,10,0"/>
+            <Button x:Name="anmelden_los" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_anmelden}"/>
+            <Button x:Name="anmelden_spaeter" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_spaeter}" Margin="0,0,10,0"/>
           </DockPanel>
           <StackPanel>
-            <TextBlock x:Name="anmelden_titel" Style="{StaticResource Titel}" Text="Bei Claude anmelden"/>
-            <TextBlock Style="{StaticResource Satz}" Text="Damit der Chat in Cadwork mit deinem Abo arbeitet, meldest du dich einmal an."/>
+            <TextBlock x:Name="anmelden_titel" Style="{StaticResource Titel}" Text="{DynamicResource t_bei_claude_anmelden}"/>
+            <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_damit_der_chat_in}"/>
             <Border x:Name="anmelden_karte" Style="{StaticResource KarteRahmen}" Margin="0,16,0,0">
-              <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Text}" LineHeight="21" Text="Nach «Anmelden» öffnet sich ein kleines schwarzes Fenster und dein Browser. Melde dich im Browser an. Danach schliesst sich das kleine Fenster von selbst."/>
+              <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Text}" LineHeight="21" Text="{DynamicResource t_nach_anmelden_oeffnet_sich}"/>
             </Border>
             <TextBlock x:Name="anmelden_stand" Style="{StaticResource Satz}" Margin="2,12,0,0"/>
           </StackPanel>
@@ -651,9 +778,9 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 6 Fertig -->
         <DockPanel x:Name="Seite_fertig" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="fertig_schliessen" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Schliessen"/>
-            <Button x:Name="fertig_anleitung" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="Anleitung öffnen" Margin="0,0,10,0"/>
-            <ToggleButton x:Name="fertig_details" DockPanel.Dock="Left" Content="Details" Cursor="Hand" VerticalAlignment="Center">
+            <Button x:Name="fertig_schliessen" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_schliessen}"/>
+            <Button x:Name="fertig_anleitung" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_anleitung_oeffnen}" Margin="0,0,10,0"/>
+            <ToggleButton x:Name="fertig_details" DockPanel.Dock="Left" Content="{DynamicResource t_details_anzeigen}" Cursor="Hand" VerticalAlignment="Center">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="ToggleButton">
                   <TextBlock Text="{TemplateBinding Content}" Foreground="{StaticResource Violett}" Padding="2,6"/>
@@ -667,26 +794,26 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                 <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Violett}" VerticalAlignment="Center">
                   <Path Data="M 12,22 L 19,29 L 32,15" Stroke="White" StrokeThickness="3.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
                 </Border>
-                <TextBlock x:Name="fertig_titel" Style="{StaticResource Titel}" Text="Fertig eingerichtet" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="fertig_titel" Style="{StaticResource Titel}" Text="{DynamicResource t_fertig_eingerichtet}" Margin="16,0,0,0" VerticalAlignment="Center"/>
               </StackPanel>
               <TextBlock x:Name="fertig_ki" Style="{StaticResource Satz}" Margin="0,4,0,14"/>
               <Border x:Name="fertig_schritte" Style="{StaticResource KarteRahmen}">
                 <StackPanel>
-                  <TextBlock Text="So geht es weiter:" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8"/>
+                  <TextBlock Text="{DynamicResource t_so_geht_es_weiter}" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8"/>
                   <Grid x:Name="fertig_schritt1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Width="22" Height="22" CornerRadius="11" Background="{StaticResource ViolettHell}" VerticalAlignment="Top"><TextBlock Text="1" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource Violett}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                    <TextBlock x:Name="fertig_text1" Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Text}" Text="Deine KI-App ganz beenden und neu starten."/>
+                    <TextBlock x:Name="fertig_text1" Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Text}" Text="{DynamicResource t_fertig_app_1}"/>
                   </Grid>
                   <Grid x:Name="fertig_schritt2" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Width="22" Height="22" CornerRadius="11" Background="{StaticResource ViolettHell}" VerticalAlignment="Top"><TextBlock Text="2" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource Violett}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                    <TextBlock x:Name="fertig_text2" Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Text}" Text="In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht."/>
+                    <TextBlock x:Name="fertig_text2" Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Text}" Text="{DynamicResource t_fertig_app_2}"/>
                   </Grid>
                   <Grid x:Name="fertig_schritt3" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Width="22" Height="22" CornerRadius="11" Background="{StaticResource ViolettHell}" VerticalAlignment="Top"><TextBlock Text="3" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource Violett}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                    <TextBlock x:Name="fertig_text3" Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Text}" Text="In der App einfach schreiben, was du in Cadwork brauchst."/>
+                    <TextBlock x:Name="fertig_text3" Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Text}" Text="{DynamicResource t_fertig_app_3}"/>
                   </Grid>
                   <Grid x:Name="fertig_schritt4" Visibility="Collapsed">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -695,6 +822,9 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                   </Grid>
                 </StackPanel>
               </Border>
+              <!-- Seit 2026-10-10: wer nur die KI-App gewaehlt hat, kann den
+                   Chat in Cadwork hier dazunehmen. -->
+              <Button x:Name="fertig_chat_dazu" Style="{StaticResource Verweis}" Content="{DynamicResource t_chat_auch}" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="Collapsed"/>
             </StackPanel>
             <TextBox x:Name="fertig_protokoll" Style="{StaticResource Protokoll}" Visibility="Collapsed" Margin="0,0,0,12"/>
           </Grid>
@@ -703,9 +833,9 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
         <!-- 7 Fehler -->
         <DockPanel x:Name="Seite_fehler" Visibility="Collapsed">
           <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <Button x:Name="fehler_schliessen" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="Schliessen"/>
-            <Button x:Name="fehler_kopieren" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="Details kopieren" Margin="0,0,10,0"/>
-            <ToggleButton x:Name="fehler_details" DockPanel.Dock="Left" Content="Details" Cursor="Hand" VerticalAlignment="Center">
+            <Button x:Name="fehler_schliessen" DockPanel.Dock="Right" Style="{StaticResource Haupt}" Content="{DynamicResource t_schliessen}"/>
+            <Button x:Name="fehler_kopieren" DockPanel.Dock="Right" Style="{StaticResource Zweit}" Content="{DynamicResource t_details_kopieren}" Margin="0,0,10,0"/>
+            <ToggleButton x:Name="fehler_details" DockPanel.Dock="Left" Content="{DynamicResource t_details_anzeigen}" Cursor="Hand" VerticalAlignment="Center">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="ToggleButton">
                   <TextBlock Text="{TemplateBinding Content}" Foreground="{StaticResource Violett}" Padding="2,6"/>
@@ -719,12 +849,12 @@ Keine Emoji, keine Pfade ausser in "Details" und auf der Fehlerseite.
                 <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource RotHell}" VerticalAlignment="Center">
                   <TextBlock Text="!" FontSize="24" FontWeight="Bold" Foreground="{StaticResource Rot}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Style="{StaticResource Titel}" Text="Das hat nicht ganz geklappt" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock Style="{StaticResource Titel}" Text="{DynamicResource t_das_hat_nicht_ganz}" Margin="16,0,0,0" VerticalAlignment="Center"/>
               </StackPanel>
               <TextBlock x:Name="fehler_satz" Style="{StaticResource Satz}" Foreground="{StaticResource Text}" FontSize="15"/>
               <Border Style="{StaticResource KarteRahmen}" Margin="0,18,0,0">
                 <StackPanel>
-                  <TextBlock Style="{StaticResource Satz}" Text="Was genau passiert ist, steht im Protokoll. Schick es mit, wenn du um Hilfe bittest:"/>
+                  <TextBlock Style="{StaticResource Satz}" Text="{DynamicResource t_was_genau_passiert_ist}"/>
                   <TextBox x:Name="fehler_pfad" Margin="0,6,0,0" IsReadOnly="True" BorderThickness="0" Background="Transparent" FontFamily="Consolas" FontSize="12.5" TextWrapping="Wrap" Foreground="{StaticResource Text}"/>
                 </StackPanel>
               </Border>

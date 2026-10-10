@@ -241,22 +241,45 @@ not notice for months that your own rules never arrived.
 
 ## Installation
 
-**Requirements:** Windows, Cadwork 3D 2026 (plugins run there with
-Python 3.14), Python 3.10–3.13 for the MCP server (if it is missing,
+**Requirements:** Windows, Cadwork 3D 2025 or 2026 (both tested;
+plugins run with Python 3.14 and PyQt6 in 2026, with Python 3.12 and PyQt5
+in 2025; older versions not), Python 3.10–3.13 for the MCP server (if it is missing,
 `1_INSTALLIEREN.cmd` installs Python 3.13 via winget after asking, or,
 without winget, directly from python.org with its signature checked).
 
 **As a user:** build the package (or take the ZIP from the releases),
 unzip it, double-click `1_INSTALLIEREN.cmd`. It opens a setup window (since
 2026-10-09; with `-Konsole` or any other switch the text window), asks about
-the AI apps and then copies the plugin into the
-Cadwork 2026 profile (it asks if there are several profiles and does not
-copy into the profile of another Cadwork version), sets up the server in its own Python and adds it to the chosen AI
+the AI apps and then copies the plugin into every chosen Cadwork
+profile (the window shows all profiles it finds with checkboxes; all from
+Cadwork 2025 on in which Cadwork is installed are preselected; in the text
+window `-Profile "path1;path2"`, `-Profil` still works; it does not copy
+into the profile of an older Cadwork version), sets up the server in its own Python and adds it to the chosen AI
 programs. Details: [`verteilung/ANLEITUNG.en.md`](verteilung/ANLEITUNG.en.md).
 
 ```bash
 python scripts/paket_bauen.py      # -> dist/Open-MCP-CAD-<version>.zip
 ```
+
+**Updates:** Once a day the plugin asks GitHub in the background
+(`api.github.com`, the "latest release" page of this repo) whether there is
+a new version, never during a job. Nothing about you, your model or your
+computer is sent (as with any request, GitHub sees the IP address); LignoAI
+receives no data. If there is one, the window shows a small line
+"Neue Version 0.x.y" (new version) with "Aktualisieren" (update). Only this
+click downloads the release package `Open-MCP-CAD.zip`, checks its size,
+its checksum (SHA-256) and that it contains the installer, unpacks it to
+`%LOCALAPPDATA%\OpenMcpCad\updates\<version>\` and opens the setup window
+from there; then it says "Schliesse Cadwork, damit das Update eingespielt
+werden kann." (close Cadwork so the update can be applied). Never silently,
+never without a click. By hand: "⋯" → "Nach Updates suchen" (check for
+updates). To switch it off: settings, card "Updates", switch "Einmal am Tag
+nach Updates suchen" (check for updates once a day; chat.json
+`updates_suchen`, the time is kept in `updates_zuletzt`). If the plugin
+finds a Cadwork from 2025 on on the PC in which it is missing, it asks once,
+for example "Open MCP CAD auch in Cadwork 2027 einrichten?" (set up Open MCP
+CAD in Cadwork 2027 too?): "Einrichten" (set up) opens the setup window,
+"×" stops asking (chat.json `profil_frage_weg`).
 
 **As a developer:**
 

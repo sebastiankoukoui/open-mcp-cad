@@ -826,11 +826,20 @@ def abschnitt_a():
     @contextlib.contextmanager
     def _startfehler_sandbox(qt6=None, qt5=None, ctypes_attr=None):
         ctypes_attr = ctypes_attr or _CtypesAttrappe()
+        def _core(attr, pyqt, qt):
+            # QtCore mit Versionen: das Startlog nennt sie (seit 2026-10-10).
+            if not attr:
+                return None
+            m = types.ModuleType("QtCore")
+            m.PYQT_VERSION_STR, m.QT_VERSION_STR = pyqt, qt
+            return m
         ersatz = {
             "PyQt6": types.ModuleType("PyQt6") if qt6 else None,
             "PyQt6.QtWidgets": qt6.modul if qt6 else None,
+            "PyQt6.QtCore": _core(qt6, "6.99.1", "6.99.2"),
             "PyQt5": types.ModuleType("PyQt5") if qt5 else None,
             "PyQt5.QtWidgets": qt5.modul if qt5 else None,
+            "PyQt5.QtCore": _core(qt5, "5.15.91", "5.15.92"),
             "ctypes": ctypes_attr.modul,
         }
         alt_mod = {n: sys.modules.get(n, _FEHLT) for n in ersatz}
@@ -1011,8 +1020,10 @@ def abschnitt_a():
         return fehlt
 
     def _laientext(text, log):
-        return ("braucht Cadwork 2026" in text and "PyQt6" in text
-                and log in text)
+        # Seit 2026-10-10 (Cadwork 2025 mit PyQt5) nur OHNE jedes Qt: "braucht
+        # Qt", beide Bindungen genannt — nie mehr "braucht Cadwork 2026".
+        return ("braucht Qt" in text and "PyQt6" in text and "PyQt5" in text
+                and "Cadwork 2026." not in text and log in text)
 
     def _mutiert(quelle, funktion, neuer_rumpf=None, davor=None):
         """Quelle mit ersetztem Rumpf / vorangestellter Anweisung."""
@@ -1050,12 +1061,19 @@ def abschnitt_a():
                    % (r.geworfen, _f, r.boxen))
         _q5 = _QtAttrappe()
         r = _a3f_lauf(_quelle, _pfad, qt5=_q5)
-        pruefe("A3f %s: ohne PyQt6 mit PyQt5 -> Qt5-Dialog, keine Windows-Box"
+        pruefe("A3f %s: ohne PyQt6 mit PyQt5 -> Qt5-Dialog (\"konnte nicht "
+               "starten\", nicht \"braucht Cadwork 2026\"), keine Windows-Box, "
+               "Startlog mit PyQt5-/Qt-Version"
                % _ordner,
                r.geworfen is None and len(_q5.dialoge) == 1
                and _q5.dialoge[0][2] is True
-               and _laientext(_q5.dialoge[0][1], r.log) and r.boxen == [],
-               "Qt5 %r, Boxen %r" % (_q5.dialoge, r.boxen))
+               and "konnte nicht starten" in _q5.dialoge[0][1]
+               and "2026" not in _q5.dialoge[0][1]
+               and r.log in _q5.dialoge[0][1] and r.boxen == []
+               and "PyQt5 5.15.91 / Qt 5.15.92" in r.inhalt,
+               "Qt5 %r, Boxen %r, Qt-Zeile %r" % (
+                   _q5.dialoge, r.boxen,
+                   [z for z in r.inhalt.splitlines() if z.startswith("Qt ")]))
         _q6, _q5 = _QtAttrappe(), _QtAttrappe()
         r = _a3f_lauf(_quelle, _pfad, qt6=_q6, qt5=_q5)
         pruefe("A3f %s: mit PyQt6 -> Qt6-Dialog, PyQt5 unberuehrt" % _ordner,
@@ -1150,6 +1168,34 @@ def abschnitt_a():
         pruefe("A3f-K %s: Hilfsmodul ohne PyQt5-Schritt faellt auf"
                % _ordner, _q5.dialoge == [] and len(r.boxen) == 1,
                "Qt5 %r, Boxen %r" % (_q5.dialoge, r.boxen))
+        # (2b) Cadwork 2025 (seit 2026-10-10): der alte Text "braucht
+        # Cadwork 2026" bei PyQt5 und ein Startlog ohne Qt-Stand muessen in
+        # der PyQt5-Zelle auffallen.
+        _hq = io.open(os.path.join(os.path.dirname(_pfad),
+                                   "omcad_startfehler.py"),
+                      encoding="utf-8").read()
+        for _was, _alt, _neu in (
+                ("PyQt5 gilt als 'Qt fehlt' (alter Text)",
+                 'return importlib.import_module("PyQt5.QtWidgets"), "qt5", '
+                 'False',
+                 'return importlib.import_module("PyQt5.QtWidgets"), "qt5", '
+                 'True'),
+                ("Startlog ohne Qt-Stand",
+                 '"Qt          %s" % _qt_stand(),', '')):
+            _kd = tempfile.mkdtemp()
+            with io.open(os.path.join(_kd, "omcad_startfehler.py"), "w",
+                         encoding="utf-8") as fh:
+                fh.write(_hq.replace(_alt, _neu))
+            _q5 = _QtAttrappe()
+            r = _a3f_lauf(_quelle, _pfad, qt5=_q5, raum_extra={
+                "KERN_PFAD": os.path.join(_kd, "omcad_bridge_core.py")})
+            _gut = (len(_q5.dialoge) == 1
+                    and "konnte nicht starten" in _q5.dialoge[0][1]
+                    and "PyQt5 5.15.91 / Qt 5.15.92" in r.inhalt)
+            pruefe("A3f-K %s: %s faellt auf" % (_ordner, _was),
+                   _alt in _hq and not _gut,
+                   "Mutant nicht gesetzt" if _alt not in _hq
+                   else "Qt5 %r" % (_q5.dialoge,))
         # (3) Ohne Meldung im except-Zweig von serve(): kein Log, keine Box.
         _k_baum = ast.parse(_quelle)
         for _f in _k_baum.body:
@@ -3905,6 +3951,257 @@ def abschnitt_v(kern, altkern=None):
             _v_altkern(alt, tmp, "Kern %s" % alt.CORE_VERSION)
 
 
+# --- Q: Qt-Schicht PyQt6 / PyQt5 (Cadwork 2025, seit 2026-10-10) ----------
+#
+# Anlass (gemessen vom Maintainer auf einem Laptop, 2026-10-10): Cadwork 3D
+# 2025 bringt Python 3.12.7 und PyQt5 mit, kein PyQt6. Die Wahl der Bindung
+# steht ZWEIMAL — `omcad_qt.waehlen` (Dock) und `_qt_bindung` (Kern, auch in
+# B-F ohne UI-Module). Gemessen wird beides in denselben Welten, gegen
+# Attrappen-Pakete in einem Kind-Prozess (dieses Gate hat kein Qt und
+# importiert keins).
+
+Q_WELTEN = (
+    # (Name, geladen, importierbar, erwartet)
+    ("nichts geladen, beide da", (), ("PyQt6", "PyQt5"), "PyQt6"),
+    ("nichts geladen, nur PyQt5 (Cadwork 2025)", (), ("PyQt5",), "PyQt5"),
+    ("PyQt5 geladen, PyQt6 auch importierbar", ("PyQt5",),
+     ("PyQt6", "PyQt5"), "PyQt5"),
+    ("beide geladen", ("PyQt6", "PyQt5"), ("PyQt6", "PyQt5"), "PyQt6"),
+    ("PyQt6 geladen, nur PyQt6", ("PyQt6",), ("PyQt6",), "PyQt6"),
+    ("keine Bindung", (), (), None),
+)
+
+
+def _q_welt(waehlen, geladen, importierbar):
+    module = {b + ".QtCore": types.ModuleType(b) for b in geladen}
+    versucht = []
+
+    def importieren(name):
+        versucht.append(name)
+        if name.split(".")[0] in importierbar:
+            return types.ModuleType(name)
+        raise ImportError("Attrappe: %s fehlt" % name)
+    try:
+        erg = waehlen(module, importieren)
+    except ImportError:
+        erg = None
+    if isinstance(erg, tuple):
+        erg = erg[0]
+    return erg, versucht
+
+
+def _q_schicht_laden(pfad, name="omcad_qt_q"):
+    spec = importlib.util.spec_from_file_location(name, pfad)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+# Ein Kind-Prozess mit Attrappen-Paketen PyQt5 (und wahlweise PyQt6) auf dem
+# Pfad laedt die ECHTE Schicht und meldet, was sie gebunden hat.
+_Q_KIND = r"""
+import importlib.util, json, sys
+sys.path.insert(0, sys.argv[1])
+spec = importlib.util.spec_from_file_location("omcad_qt", sys.argv[2])
+m = importlib.util.module_from_spec(spec)
+sys.modules["omcad_qt"] = m
+spec.loader.exec_module(m)
+aus = {"bindung": m.BINDUNG, "stand": m.stand(), "fehler": m.FEHLER}
+try:
+    from omcad_qt.QtGui import QAction, QShortcut
+    from omcad_qt.QtWidgets import QApplication
+    from omcad_qt.QtCore import Qt
+    aus["namen"] = [QAction.__module__, QShortcut.__module__,
+                    QApplication.__module__, Qt.__module__]
+except Exception as exc:
+    aus["namen"] = "%s: %s" % (type(exc).__name__, exc)
+gui = sys.modules.get((m.BINDUNG or "x") + ".QtGui")
+aus["echtes_qtgui_unberuehrt"] = gui is not None and not hasattr(gui, "QAction")
+class E5:
+    def globalPos(self): return "global5"
+    def localPos(self): return "lokal5"
+class E6:
+    class P:
+        def toPoint(self): return "global6"
+    def globalPosition(self): return E6.P()
+    def position(self): return "lokal6"
+class Wert6:
+    value = 7
+aus["punkte"] = [m.global_punkt(E5()), m.punkt(E5()), m.global_punkt(E6()),
+                 m.punkt(E6())]
+aus["wert"] = [m.wert(5), m.wert(Wert6())]
+try:
+    m.laden()
+    aus["laden"] = "ok"
+except ImportError as exc:
+    aus["laden"] = str(exc)
+print("QKIND " + json.dumps(aus))
+"""
+
+
+def _q_attrappen(wurzel, bindungen):
+    for b in bindungen:
+        d = os.path.join(wurzel, b)
+        os.makedirs(d)
+        with open(os.path.join(d, "__init__.py"), "w") as fh:
+            fh.write("")
+        with open(os.path.join(d, "QtCore.py"), "w") as fh:
+            fh.write("class Qt:\n    pass\n"
+                     "QT_VERSION_STR = %r\nPYQT_VERSION_STR = %r\n"
+                     % (b[-1] + ".99.2", b[-1] + ".99.1"))
+        with open(os.path.join(d, "QtGui.py"), "w") as fh:
+            fh.write("class QColor:\n    pass\n"
+                     + ("class QAction:\n    pass\n"
+                        "class QShortcut:\n    pass\n" if b == "PyQt6"
+                        else ""))
+        with open(os.path.join(d, "QtWidgets.py"), "w") as fh:
+            fh.write("class QApplication:\n    pass\n"
+                     + ("class QAction:\n    pass\n"
+                        "class QShortcut:\n    pass\n" if b == "PyQt5"
+                        else ""))
+
+
+def _q_kind(schicht, bindungen):
+    import subprocess
+    wurzel = tempfile.mkdtemp(prefix="omcad_q_")
+    _q_attrappen(wurzel, bindungen)
+    erg = subprocess.run([sys.executable, "-I", "-c", _Q_KIND, wurzel,
+                          schicht], capture_output=True, text=True,
+                         timeout=60)
+    zeile = [z for z in erg.stdout.splitlines() if z.startswith("QKIND ")]
+    if not zeile:
+        return {"kaputt": erg.stdout[-400:] + erg.stderr[-800:]}
+    return json.loads(zeile[0][6:])
+
+
+def abschnitt_q(kern):
+    sag("\nQ  Qt-Schicht: PyQt6 (Cadwork 2026) oder PyQt5 (Cadwork 2025)")
+    schicht_pfade = [os.path.join(REPO, "cad_plugin", o, "omcad_qt.py")
+                     for o in ("Open MCP CAD", "Open MCP CAD A")]
+    schicht = _q_schicht_laden(schicht_pfade[0])
+    pruefe("Q0 ohne Qt (dieses Gate): Schicht laedt, bindet nichts, sagt "
+           "warum, laden() wirft ImportError",
+           schicht.BINDUNG is None and "PyQt" in schicht.FEHLER
+           and "omcad_qt.QtCore" not in sys.modules,
+           "BINDUNG %r, FEHLER %r" % (schicht.BINDUNG, schicht.FEHLER))
+    try:
+        schicht.laden()
+        geworfen = None
+    except ImportError as exc:
+        geworfen = str(exc)
+    pruefe("Q0 laden() ohne Qt -> ImportError mit Grund",
+           geworfen is not None and "braucht Qt" in geworfen, geworfen)
+
+    def kern_waehlen(module, importieren):
+        return kern._qt_bindung(module, importieren)
+    for titel, geladen, importierbar, erwartet in Q_WELTEN:
+        d, v_d = _q_welt(schicht.waehlen, geladen, importierbar)
+        k, v_k = _q_welt(kern_waehlen, geladen, importierbar)
+        # Ist schon eine Bindung geladen, wird NICHTS importiert.
+        ruhig = (not geladen) or (v_d == [] and v_k == [])
+        pruefe("Q1 %s -> %s (Dock und Kern gleich, ohne Import, wenn "
+               "geladen)" % (titel, erwartet),
+               d == erwartet and k == erwartet and ruhig,
+               "Dock %r %r, Kern %r %r" % (d, v_d, k, v_k))
+    # Q1-K: eine Wahl, die eine GELADENE Bindung uebergeht (nur die
+    # Reihenfolge), MUSS in der Welt "PyQt5 geladen" auffallen.
+    def nur_reihenfolge(module, importieren):
+        return schicht.waehlen({}, importieren)
+    d, _v = _q_welt(nur_reihenfolge, ("PyQt5",), ("PyQt6", "PyQt5"))
+    pruefe("Q1-K eine Wahl ohne Blick auf das Geladene faellt auf "
+           "(PyQt6 neben Cadworks PyQt5)", d == "PyQt6", d)
+    # Q1-K2: der Kern ohne PyQt5-Rueckfall (Stand 2.19) faellt auf.
+    alt = kern.QT_BINDUNGEN
+    try:
+        kern.QT_BINDUNGEN = ("PyQt6",)
+        k, _v = _q_welt(kern_waehlen, (), ("PyQt5",))
+    finally:
+        kern.QT_BINDUNGEN = alt
+    pruefe("Q1-K Kern ohne PyQt5 (Stand 2.19) faellt in der Welt "
+           "Cadwork 2025 auf", k is None, k)
+
+    # Q2: die ECHTE Schicht gegen Attrappen-Pakete, je Ordner.
+    for pfad in schicht_pfade:
+        ordner = os.path.basename(os.path.dirname(pfad))
+        a5 = _q_kind(pfad, ("PyQt5",))
+        pruefe("Q2 %s nur PyQt5: gebunden, QAction/QShortcut ueber QtGui "
+               "(aus QtWidgets), echtes QtGui unberuehrt, Stand mit "
+               "Versionen" % ordner,
+               a5.get("bindung") == "PyQt5"
+               and a5.get("namen") == ["PyQt5.QtWidgets", "PyQt5.QtWidgets",
+                                       "PyQt5.QtWidgets", "PyQt5.QtCore"]
+               and a5.get("echtes_qtgui_unberuehrt") is True
+               and a5.get("stand") == "PyQt5 5.99.1 / Qt 5.99.2"
+               and a5.get("laden") == "ok", a5)
+        pruefe("Q2 %s Positionen und Enum-Werte fuer Qt 5 und Qt 6"
+               % ordner,
+               a5.get("punkte") == ["global5", "lokal5", "global6", "lokal6"]
+               and a5.get("wert") == [5, 7], a5)
+        a6 = _q_kind(pfad, ("PyQt6", "PyQt5"))
+        pruefe("Q2 %s PyQt6 und PyQt5: PyQt6 (QAction aus QtGui)" % ordner,
+               a6.get("bindung") == "PyQt6"
+               and a6.get("namen") == ["PyQt6.QtGui", "PyQt6.QtGui",
+                                       "PyQt6.QtWidgets", "PyQt6.QtCore"],
+               a6)
+    # Q2-K: eine Schicht OHNE das Verschieben (Qt5 wie Qt6 behandelt) MUSS
+    # an QAction scheitern.
+    quelle = io.open(schicht_pfade[0], encoding="utf-8").read()
+    alt_z = 'NACH_QTGUI = ("QAction",'
+    kd = tempfile.mkdtemp(prefix="omcad_qk_")
+    kpfad = os.path.join(kd, "omcad_qt.py")
+    with io.open(kpfad, "w", encoding="utf-8") as fh:
+        fh.write(quelle.replace(alt_z, 'NACH_QTGUI = ("xQAction",'))
+    k5 = _q_kind(kpfad, ("PyQt5",))
+    pruefe("Q2-K Schicht ohne verschobenes QAction faellt unter PyQt5 auf",
+           alt_z in quelle and isinstance(k5.get("namen"), str)
+           and "QAction" in k5.get("namen"), k5)
+    pruefe("Q3 beide Schicht-Kopien bytegleich (A und ausgerollt)",
+           open(schicht_pfade[0], "rb").read()
+           == open(schicht_pfade[1], "rb").read())
+
+    # Q4: kein UI-Modul und kein Kern importiert PyQt6/PyQt5 an der Schicht
+    # vorbei (geprueft am AST: jede Import-Anweisung).
+    vorbei = []
+    for ordner in ("Open MCP CAD", "Open MCP CAD A"):
+        for datei in sorted(glob.glob(os.path.join(REPO, "cad_plugin", ordner,
+                                                   "*.py"))):
+            name = os.path.basename(datei)
+            if name in ("omcad_qt.py", "omcad_startfehler.py"):
+                continue          # die Schicht selbst; Startfehler: eigener Weg
+            baum = ast.parse(io.open(datei, encoding="utf-8").read())
+            for n in ast.walk(baum):
+                mods = []
+                if isinstance(n, ast.ImportFrom):
+                    mods = [n.module or ""]
+                elif isinstance(n, ast.Import):
+                    mods = [a.name for a in n.names]
+                for mod in mods:
+                    if mod.split(".")[0] in ("PyQt6", "PyQt5"):
+                        vorbei.append("%s/%s:%d %s" % (ordner, name,
+                                                       n.lineno, mod))
+    pruefe("Q4 kein Plugin-Modul importiert PyQt6/PyQt5 an der Schicht "
+           "vorbei (Kern: _qt_namen)", vorbei == [], vorbei[:8])
+    k_baum = ast.parse("from PyQt6.QtCore import Qt\n")
+    pruefe("Q4-K die Suche findet einen direkten Import",
+           any(isinstance(n, ast.ImportFrom) and n.module.startswith("PyQt6")
+               for n in ast.walk(k_baum)))
+
+    # Q5: Python 3.12 (Cadwork 2025 bringt 3.12.7). Jedes Plugin-Modul muss
+    # mit DIESEM Interpreter uebersetzen; das Gate laeuft mit 3.12.
+    import py_compile
+    kaputt = []
+    for datei in sorted(glob.glob(os.path.join(REPO, "cad_plugin", "*",
+                                               "*.py"))):
+        try:
+            py_compile.compile(datei, cfile=os.path.join(
+                tempfile.mkdtemp(), "x.pyc"), doraise=True)
+        except py_compile.PyCompileError as exc:
+            kaputt.append("%s: %s" % (datei, exc))
+    pruefe("Q5 alle Plugin-Module uebersetzen mit Python %s"
+           % sys.version.split()[0], kaputt == [] and sys.version_info[:2]
+           == (3, 12), kaputt[:3] or sys.version.split()[0])
+
+
 def _argument(name):
     """Wert nach `name` in der Befehlszeile, sonst None."""
     if name in sys.argv[:-1]:
@@ -3933,6 +4230,7 @@ def main():
     abschnitt_j(kern)
     abschnitt_k(kern)
     abschnitt_v(kern, altkern=_argument("--altkern"))
+    abschnitt_q(kern)
 
     fehler =[(n, i) for n, gut, i in _ergebnisse if not gut]
     sag("\n" + "=" * 66)

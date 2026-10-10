@@ -72,10 +72,10 @@ as the Codex CLI.
 
 ## Requirements
 
-- Windows, **Cadwork 3D 2026**. Older versions do not work: the plugin
-  needs Python 3.14 and PyQt6 from Cadwork 2026, while Cadwork 2025 ships
-  Python 3.12 and PyQt5. The installer checks this and does not copy into
-  the profile of another Cadwork version.
+- Windows, **Cadwork 3D 2025 or 2026** (both tested). Cadwork 2026 ships Python 3.14 and PyQt6,
+  Cadwork 2025 Python 3.12 and PyQt5; the plugin is built for both. Older
+  versions are not supported: the installer checks this and does not copy
+  into the profile of an older Cadwork version.
 - **Python 3.10 to 3.13** for the server (Cadwork's own Python is not used
   for it). If it is missing, `1_INSTALLIEREN.cmd` offers to install Python 3.13
   (no admin rights needed): via winget, and where winget is missing (for
@@ -95,12 +95,14 @@ as the Codex CLI.
    `1_INSTALLIEREN.cmd`, the guide as PDF and the folder
    `Programmdateien` (everything else, including this guide).
 2. Double-click `1_INSTALLIEREN.cmd`. The setup window opens (since
-   2026-10-09, instead of the black window). It first asks everything it
+   2026-10-09, instead of the black window), in the language of Windows
+   (English, German, French or Italian;
+   `1_INSTALLIEREN.cmd -Sprache en` chooses one yourself). It first asks everything it
    needs to know: which AI apps (the ones it finds are ticked; if there
    is none, two buttons lead to the official pages of Claude Desktop and
-   the ChatGPT app), where you work with the AI (AI app, chat in Cadwork or both) and which AI the chat uses (Claude Code or Codex: installed with the maker's official command, without Node.js; then you sign in once in the browser), which Cadwork profile if there are several, whether to
-   go ahead with a different Cadwork version, and whether it may install
-   Python too if it is missing. After **Installieren** (install) it runs
+   the ChatGPT app), where you work with the AI (AI app, chat in Cadwork or both) and which AI the chat uses (Claude Code or Codex: installed with the maker's official command, without Node.js; then you sign in once in the browser), into which Cadwork versions if there are several (all profiles it finds are listed with checkboxes, all from Cadwork 2025 on in which Cadwork is installed are preselected; it sets up Open MCP CAD in each ticked one), whether to
+   go ahead with an older Cadwork version, and whether it may install
+   Python too if it is missing. After **Install** it runs
    `Programmdateien\install.ps1` with these answers and shows every step;
    the log is in `C:\Users\Public\OpenMcpCad_installer.log`. With a
    switch (such as `-Konsole` or `-Profil "…"`) the same runs in the text
@@ -109,17 +111,29 @@ as the Codex CLI.
    1. chooses the Cadwork profile
       (`C:\Users\Public\Documents\cadwork\userprofil_<YEAR>\3d\API.x64\`):
       it suggests `userprofil_2026`, otherwise the newest profile for
-      which Cadwork is installed (`C:\Program Files\cadwork.dir\EXE_<YEAR>`). If there are several,
-      it lists them with their paths and asks. It states which profile it
-      uses and why,
-   2. checks that the profile belongs to Cadwork 2026. If not, it reports
-      for example "Dieses Paket braucht Cadwork 3D 2026. Gefunden: Cadwork
-      2025 im Profil userprofil_2025." (this package needs Cadwork 3D 2026;
-      found Cadwork 2025) and asks "Trotzdem in dieses Profil kopieren?
-      [j/N]" (copy into this profile anyway?). Without an explicit `j` (or
-      the switch `-TrotzdemKopieren`) it stops and copies nothing; the
-      plugin would not start in another version anyway,
-   3. copies the folder `Open MCP CAD` into that profile,
+      which Cadwork is installed (`C:\Program Files\cadwork.dir\EXE_<YEAR>`).
+      The setup window passes the ticked profiles, the switch
+      `-Profile "path1;path2"` several at once. If there are several and
+      none is given, the text window lists them with their paths and asks
+      for a number; «a» takes all marked with * (from Cadwork 2025 on,
+      Cadwork installed). It states which profile it uses and why,
+   2. checks for each profile that it belongs to Cadwork 2025 or 2026.
+      With an older version it reports for example "Dieses Paket
+      braucht Cadwork 3D 2025 oder neuer. Gefunden: Cadwork 2024 im Profil
+      userprofil_2024." (this package needs Cadwork 3D 2025 or newer; found
+      Cadwork 2024) and asks "Trotzdem in dieses Profil kopieren? [j/N]"
+      (copy into this profile anyway?). Without an explicit `j` (or the
+      switch `-TrotzdemKopieren`) it stops and copies nothing; the plugin
+      would probably not start in an older version. If several profiles
+      are chosen, it only skips the one that is too old and names the
+      reason,
+   3. copies the folder `Open MCP CAD` into each chosen profile. If the old
+      plugin «LignoAI Connect» (the name before 0.1) is still there, it
+      puts it aside after asking: moved to
+      `C:\Users\Public\Documents\cadwork\OpenMcpCad_Backups\<time>_alte_Version`,
+      never deleted (otherwise it would be in the menu twice; in the
+      window a tick on «Ready to install», in the text window a question
+      or the switch `-AltesWegraeumen`). The result names the way back,
    4. sets up the server in its own Python
       (`%LOCALAPPDATA%\OpenMcpCad\python`), with the `cwapi3d` type stubs
       for the AI's API help (if that fails, without them — the result then
@@ -140,9 +154,11 @@ as the Codex CLI.
    7. shows, at the very end under
       **Ergebnis** (result), each part on its own line: MCP server
       installed and tested, Cadwork plugin copied and Cadwork version
-      matching, or what is missing.
+      matching (with several profiles one line per profile), or what is
+      missing.
 
-   Different profile: `1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"`.
+   Different profile: `1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"`,
+   several: `1_INSTALLIEREN.cmd -Profile "C:\...\userprofil_2025\3d\API.x64;C:\...\userprofil_2026\3d\API.x64"`.
    If the result says **NICHT vollstaendig installiert** (not completely
    installed), the lines above name the missing part. Fix it and run
    `1_INSTALLIEREN.cmd` again.
@@ -219,6 +235,36 @@ carry on in another window; it reports it.
 - The AI works through the official Cadwork Python interface (cwapi3d),
   which ships with Cadwork itself.
 
+## Updates
+
+Once a day Open MCP CAD asks GitHub in the background (`api.github.com`,
+the "latest release" page of the public repo) whether there is a new
+version, never during a job. Nothing about you, your model or your computer
+is sent (as with any request, GitHub sees the IP address); LignoAI receives
+no data.
+
+If there is a new version, the window shows a small line "Neue Version
+0.x.y" (new version) with "Aktualisieren" (update). Only this click
+downloads the release package `Open-MCP-CAD.zip`, checks its size and
+checksum (SHA-256) and that it contains the installer, unpacks it to
+`%LOCALAPPDATA%\OpenMcpCad\updates\<version>\` and opens the setup window
+from there. Then it says "Schliesse Cadwork, damit das Update eingespielt
+werden kann." (close Cadwork so the update can be applied). Never silently,
+never without a click.
+
+By hand: ⋯ → "Nach Updates suchen" (check for updates; the answer is for
+example "Du hast die neueste Version (0.2.2)." – you have the latest
+version). To switch it off: ⋯ → "Einstellungen", card "Updates", switch
+"Einmal am Tag nach Updates suchen" (check for updates once a day). This is
+kept in `chat.json` as `updates_suchen`, the time of the last check as
+`updates_zuletzt`.
+
+**Other Cadwork versions:** If Open MCP CAD notices that there is a Cadwork
+from 2025 on on the PC in which it is missing, it asks once in the window,
+for example "Open MCP CAD auch in Cadwork 2027 einrichten?" (set up Open MCP
+CAD in Cadwork 2027 too?). "Einrichten" (set up) opens the setup window,
+"×" means: do not ask again (kept in `chat.json` as `profil_frage_weg`).
+
 ## Chat in the plugin (optional)
 
 In the chat you write with an AI that works directly in the open Cadwork
@@ -251,7 +297,8 @@ right of it, the same in both areas: "Rückgängig" (undo) and
 "Ansicht neu zeichnen" (redraw view), "Hinweise" (check notes; a flag with
 the number of open notes) and the three dots ⋯ with "Einstellungen"
 (settings), "Pausieren" (pause), "Nach Auftrag trennen" (disconnect after
-the job), "Anleitung öffnen" (open guide) and "Technik-Details" (technical
+the job), "Anleitung öffnen" (open guide), "Nach Updates suchen" (check
+for updates) and "Technik-Details" (technical
 details). The flag opens the check notes above the area: tapping a note
 shows its parts in the model; in the chat, "In den Chat übernehmen" (take
 into the chat) puts it into the input (it is only sent with your message).
@@ -286,8 +333,8 @@ installer puts next to the plugin (`ANLEITUNG.pdf`), otherwise the page on
 the web. As soon as one way is set up, the card disappears.
 
 **Settings** (⋯ → "Einstellungen"; "Zurück" (back) leads back to the chat
-or mailbox): four cards, chat, connection, drawing mode and
-"Technik-Details". In the chat card, under "Wer antwortet" (who answers)
+or mailbox): five cards, chat, connection, drawing mode, "Updates" (see
+above) and "Technik-Details". In the chat card, under "Wer antwortet" (who answers)
 you choose:
 
 - **Claude Code (Abo)**: Anthropic's agent on this computer, with your
@@ -408,7 +455,9 @@ Cadwork right now), continue there or press "Neuer Chat" here.
 
 - Delete the folder `Open MCP CAD` in the Cadwork profile
 - Delete the folder `%LOCALAPPDATA%\OpenMcpCad` (server Python, Codex
-  working folder and the experiences `erfahrungen.jsonl`)
+  working folder, the experiences `erfahrungen.jsonl` and, in the subfolder
+  `%LOCALAPPDATA%\OpenMcpCad\updates`, the downloaded updates; you can also
+  delete this subfolder on its own at any time)
 - Delete the folder `%APPDATA%\OpenMcpCad` (chat settings `chat.json`:
   provider, models, working folder, the last four characters of the keys)
 - Remove stored API keys: easiest beforehand under ⋯ → "Einstellungen" with

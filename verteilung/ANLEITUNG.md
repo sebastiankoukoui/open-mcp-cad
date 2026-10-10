@@ -73,10 +73,11 @@ Codex-CLI.
 
 ## Voraussetzungen
 
-- Windows, **Cadwork 3D 2026**. Ältere Versionen gehen nicht: das Plugin
-  braucht Python 3.14 und PyQt6 aus Cadwork 2026, Cadwork 2025 bringt
-  Python 3.12 und PyQt5 mit. Der Installer prüft das und kopiert nicht in
-  das Profil einer anderen Cadwork-Version.
+- Windows, **Cadwork 3D 2025 oder 2026** (beide getestet). Cadwork 2026 bringt
+  Python 3.14 und PyQt6 mit, Cadwork 2025 Python 3.12 und PyQt5; das Plugin
+  ist für beide gebaut. Ältere Versionen werden nicht unterstützt: der
+  Installer prüft das und kopiert nicht in das Profil einer älteren
+  Cadwork-Version.
 - **Python 3.10 bis 3.13** für den Server (Cadworks eigenes Python wird
   dafür nicht benutzt). Fehlt es, bietet `1_INSTALLIEREN.cmd` an, Python 3.13
   zu installieren (ohne Adminrechte): per winget, und wo winget fehlt (etwa
@@ -94,12 +95,16 @@ Codex-CLI.
    `1_INSTALLIEREN.cmd`, die Anleitung als PDF und der Ordner
    `Programmdateien` (darin alles andere, auch diese Anleitung).
 2. `1_INSTALLIEREN.cmd` doppelklicken. Es öffnet sich das
-   Einrichtungsfenster (seit 2026-10-09, statt des schwarzen Fensters).
+   Einrichtungsfenster (seit 2026-10-09, statt des schwarzen Fensters),
+   in der Sprache von Windows (Deutsch, Französisch, Italienisch,
+   sonst Englisch; `1_INSTALLIEREN.cmd -Sprache fr` wählt selbst).
    Es fragt zuerst alles, was es wissen muss: welche KI-Apps (gefundene
    sind angehakt; ist keine da, führen zwei Knöpfe zu den offiziellen
    Seiten von Claude Desktop und der ChatGPT-App), wo du mit der KI arbeitest (KI-App, Chat in Cadwork oder beides) und welche KI der Chat nimmt (Claude Code bzw. Codex: installiert mit dem offiziellen Befehl des Herstellers, ohne Node.js; danach meldest du dich einmal im Browser an), bei mehreren
-   Cadwork-Profilen welches, bei einer anderen Cadwork-Version ob
-   trotzdem, bei fehlendem Python ob es mitinstallieren darf. Nach
+   Cadwork-Versionen in welche (alle gefundenen Profile stehen mit Häkchen
+   da, vorausgewählt sind alle ab Cadwork 2025, in denen Cadwork
+   installiert ist; es richtet Open MCP CAD in jedem angehakten ein), bei
+   einer älteren Cadwork-Version ob trotzdem, bei fehlendem Python ob es mitinstallieren darf. Nach
    **Installieren** führt es `Programmdateien\install.ps1` mit diesen
    Antworten aus und zeigt jeden Schritt; das Protokoll steht in
    `C:\Users\Public\OpenMcpCad_installer.log`. Mit einem Schalter (etwa
@@ -110,16 +115,30 @@ Codex-CLI.
       (`C:\Users\Public\Documents\cadwork\userprofil_<JAHR>\3d\API.x64\`):
       vorgeschlagen wird `userprofil_2026`, sonst das neueste Profil, zu
       dem ein Cadwork installiert ist
-      (`C:\Program Files\cadwork.dir\EXE_<JAHR>`). Gibt es mehrere,
-      zeigt es die Liste mit Pfad und fragt nach. Es schreibt, welches
-      Profil es nimmt und warum,
-   2. prüft, ob das Profil zu Cadwork 2026 gehört. Wenn nicht, meldet es
-      zum Beispiel «Dieses Paket braucht Cadwork 3D 2026. Gefunden:
-      Cadwork 2025 im Profil userprofil_2025.» und fragt «Trotzdem in
+      (`C:\Program Files\cadwork.dir\EXE_<JAHR>`). Aus dem
+      Einrichtungsfenster kommen die angehakten Profile, mit dem Schalter
+      `-Profile "pfad1;pfad2"` mehrere auf einmal. Gibt es mehrere und
+      ist keines angegeben, zeigt das Textfenster die Liste mit Pfad und
+      fragt nach einer Zahl; «a» nimmt alle mit * markierten (ab Cadwork
+      2025, Cadwork installiert). Es schreibt, welches Profil es nimmt und
+      warum,
+   2. prüft für jedes Profil, ob es zu Cadwork 2025 oder 2026 gehört.
+      Bei einer älteren Version meldet es zum Beispiel
+      «Dieses Paket braucht Cadwork 3D 2025 oder neuer. Gefunden:
+      Cadwork 2024 im Profil userprofil_2024.» und fragt «Trotzdem in
       dieses Profil kopieren? [j/N]». Ohne ausdrückliches `j` (oder den
       Schalter `-TrotzdemKopieren`) bricht es ab und kopiert nichts — das
-      Plugin startet in einer anderen Version ohnehin nicht,
-   3. kopiert den Ordner `Open MCP CAD` in dieses Profil,
+      Plugin startet in einer älteren Version wahrscheinlich nicht. Sind
+      mehrere Profile gewählt, überspringt es nur das zu alte und nennt
+      den Grund,
+   3. kopiert den Ordner `Open MCP CAD` in jedes gewählte Profil. Liegt dort
+      noch das alte Plugin «LignoAI Connect» (der Name vor 0.1),
+      legt es dieses nach Rückfrage beiseite: verschoben nach
+      `C:\Users\Public\Documents\cadwork\OpenMcpCad_Backups\<Zeit>_alte_Version`,
+      nie gelöscht (sonst stünde es doppelt im Menü; im Fenster ein
+      Haken auf «Bereit zum Installieren», im Textfenster eine Frage
+      oder der Schalter `-AltesWegraeumen`). Das Ergebnis nennt den
+      Rückweg,
    4. richtet den Server in einem eigenen Python ein
       (`%LOCALAPPDATA%\OpenMcpCad\python`), mit den Type-Stubs `cwapi3d`
       für die API-Hilfe der KI (geht das nicht, ohne — das steht dann im
@@ -140,10 +159,11 @@ Codex-CLI.
       zum Eintragen von Hand,
    7. zeigt zum Schluss unter
       **Ergebnis** jeden Teil einzeln: «MCP-Server: installiert und
-      getestet», «Cadwork-Plugin: kopiert nach …, Cadwork-Version passt»,
-      oder was fehlt.
+      getestet», «Cadwork-Plugin: kopiert nach …, Cadwork-Version passt»
+      (bei mehreren Profilen eine Zeile je Profil), oder was fehlt.
 
-   Anderes Profil: `1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"`.
+   Anderes Profil: `1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"`,
+   mehrere: `1_INSTALLIEREN.cmd -Profile "C:\...\userprofil_2025\3d\API.x64;C:\...\userprofil_2026\3d\API.x64"`.
    Steht im Ergebnis **NICHT vollstaendig installiert**, nennen die Zeilen
    darüber den fehlenden Teil — beheben und `1_INSTALLIEREN.cmd` erneut starten.
 3. Das KI-Programm ganz schliessen und neu starten. Nur wenn der Installer
@@ -218,6 +238,34 @@ Fenster weiter, sondern meldet es.
 - Die KI arbeitet über die offizielle Cadwork-Python-Schnittstelle
   (cwapi3d), die Cadwork selbst mitbringt.
 
+## Updates
+
+Einmal am Tag fragt Open MCP CAD im Hintergrund bei GitHub
+(`api.github.com`, die Seite „neuestes Release“ des öffentlichen Repos),
+ob es eine neue Version gibt, nie während eines Auftrags. Dabei wird nichts
+über dich, dein Modell oder deinen Rechner gesendet (GitHub sieht wie bei
+jedem Abruf die IP-Adresse); LignoAI erhält keine Daten.
+
+Gibt es eine neue Version, steht im Fenster eine kleine Zeile „Neue Version
+0.x.y“ mit „Aktualisieren“. Erst dieser Klick lädt das Paket
+`Open-MCP-CAD.zip` des Releases, prüft Grösse und Prüfsumme (SHA-256) und
+dass es das Installationsprogramm enthält, entpackt es nach
+`%LOCALAPPDATA%\OpenMcpCad\updates\<version>\` und öffnet daraus das
+Einrichtungsfenster. Danach steht „Schliesse Cadwork, damit das Update
+eingespielt werden kann.“ Nie still, nie ohne Klick.
+
+Von Hand: ⋯ → „Nach Updates suchen“ (die Antwort lautet zum Beispiel „Du
+hast die neueste Version (0.2.2).“). Abschalten: ⋯ → „Einstellungen“,
+Karte „Updates“, Schalter „Einmal am Tag nach Updates suchen“. Gemerkt wird
+das in `chat.json` als `updates_suchen`, der Zeitpunkt des letzten
+Nachsehens als `updates_zuletzt`.
+
+**Weitere Cadwork-Versionen:** Merkt Open MCP CAD, dass es auf dem PC ein
+Cadwork ab 2025 gibt, in dem es fehlt, fragt es im Fenster einmal, zum
+Beispiel „Open MCP CAD auch in Cadwork 2027 einrichten?“. „Einrichten“
+öffnet das Einrichtungsfenster, „×“ heisst: nicht mehr fragen (gemerkt in
+`chat.json` als `profil_frage_weg`).
+
 ## Chat im Plugin (optional)
 
 Im Chat schreibst du mit einer KI, die direkt im offenen Cadwork-Modell
@@ -244,8 +292,8 @@ Leiste ein „×“ („Schliessen“): es schliesst das Fenster ganz, ein Klick
 Bereichen gleich: „Rückgängig“ und „Wiederherstellen“ (Cadworks eigenes
 Rückgängig, ein Klick = ein Auftrag), „Ansicht neu zeichnen“, „Hinweise“
 (Flagge mit der Zahl offener Prüfhinweise) und die drei Punkte ⋯ mit
-„Einstellungen“, „Pausieren“, „Nach Auftrag trennen“, „Anleitung öffnen“
-und „Technik-Details“. Die Flagge klappt die Prüfhinweise über dem Bereich
+„Einstellungen“, „Pausieren“, „Nach Auftrag trennen“, „Anleitung öffnen“,
+„Nach Updates suchen“ und „Technik-Details“. Die Flagge klappt die Prüfhinweise über dem Bereich
 auf: einen Hinweis antippen zeigt seine Bauteile im Modell; im Chat
 übernimmt „In den Chat übernehmen“ ihn in die Eingabe (gesendet wird erst
 mit deiner Nachricht).
@@ -277,8 +325,8 @@ legt (`ANLEITUNG.pdf`), sonst die Seite im Netz. Sobald ein Weg
 eingerichtet ist, verschwindet die Karte.
 
 **Einstellungen** (⋯ → „Einstellungen“; „Zurück“ führt zurück zum Chat
-bzw. Briefkasten): vier Karten, Chat, Verbindung, Zeichenmodus und
-„Technik-Details“. In der Karte Chat wählst du unter „Wer antwortet“:
+bzw. Briefkasten): fünf Karten, Chat, Verbindung, Zeichenmodus, „Updates“
+(siehe oben) und „Technik-Details“. In der Karte Chat wählst du unter „Wer antwortet“:
 
 - **Claude Code (Abo)**: der Agent von Anthropic auf diesem Rechner, mit
   deinem Claude-Abo. Claude Code muss installiert sein: mit dem
@@ -402,7 +450,9 @@ drückst hier „Neuer Chat“.
 
 - Ordner `Open MCP CAD` im Cadwork-Profil löschen
 - Ordner `%LOCALAPPDATA%\OpenMcpCad` löschen (Server-Python,
-  Arbeitsordner von Codex und die Erfahrungen `erfahrungen.jsonl`)
+  Arbeitsordner von Codex, die Erfahrungen `erfahrungen.jsonl` und im
+  Unterordner `%LOCALAPPDATA%\OpenMcpCad\updates` die heruntergeladenen
+  Updates; diesen Unterordner kannst du auch allein jederzeit löschen)
 - Ordner `%APPDATA%\OpenMcpCad` löschen (Chat-Einstellungen `chat.json`:
   Anbieter, Modelle, Arbeitsordner, die letzten vier Zeichen der
   Schlüssel)

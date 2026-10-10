@@ -77,11 +77,11 @@ Codex.
 
 ## Prérequis
 
-- Windows, **Cadwork 3D 2026**. Les versions plus anciennes ne
-  fonctionnent pas : le plugin a besoin de Python 3.14 et de PyQt6 fournis
-  par Cadwork 2026, alors que Cadwork 2025 fournit Python 3.12 et PyQt5.
-  L'installateur le vérifie et ne copie pas dans le profil d'une autre
-  version de Cadwork.
+- Windows, **Cadwork 3D 2025 ou 2026** (les deux testés). Cadwork 2026 fournit Python 3.14 et
+  PyQt6, Cadwork 2025 Python 3.12 et PyQt5 ; le plugin est construit pour
+  les deux. Les versions plus anciennes ne sont pas prises en charge :
+  l'installateur le vérifie et ne copie pas dans le profil d'une version
+  plus ancienne de Cadwork.
 - **Python 3.10 à 3.13** pour le serveur (le Python intégré à Cadwork n'est
   pas utilisé pour cela). S'il manque, `1_INSTALLIEREN.cmd` propose d'installer
   Python 3.13 (sans droits d'administrateur) : via winget, et là où winget
@@ -102,13 +102,15 @@ Codex.
    `1_INSTALLIEREN.cmd`, le guide en PDF et le dossier `Programmdateien`
    (tout le reste, y compris ce guide).
 2. Double-cliquer sur `1_INSTALLIEREN.cmd`. La fenêtre d'installation
-   s'ouvre (depuis le 2026-10-09, à la place de la fenêtre noire). Elle
+   s'ouvre (depuis le 2026-10-09, à la place de la fenêtre noire), dans
+   la langue de Windows (français, allemand, italien, sinon anglais ;
+   `1_INSTALLIEREN.cmd -Sprache fr` la choisit soi-même). Elle
    demande d'abord tout ce qu'elle doit savoir : quelles applications
    d'IA (celles trouvées sont cochées ; s'il n'y en a aucune, deux
    boutons mènent aux pages officielles de Claude Desktop et de
-   l'application ChatGPT), où tu travailles avec l'IA (application d'IA, chat dans Cadwork ou les deux) et quelle IA le chat utilise (Claude Code ou Codex : installé avec la commande officielle de l'éditeur, sans Node.js ; ensuite tu te connectes une fois dans le navigateur), quel profil Cadwork s'il y en a plusieurs, s'il
-   faut continuer avec une autre version de Cadwork, et si elle peut
-   installer aussi Python s'il manque. Après **Installieren** (installer),
+   l'application ChatGPT), où tu travailles avec l'IA (application d'IA, chat dans Cadwork ou les deux) et quelle IA le chat utilise (Claude Code ou Codex : installé avec la commande officielle de l'éditeur, sans Node.js ; ensuite tu te connectes une fois dans le navigateur), dans quelles versions de Cadwork s'il y en a plusieurs (tous les profils trouvés apparaissent avec des cases à cocher, sont présélectionnés tous ceux à partir de Cadwork 2025 dans lesquels Cadwork est installé ; elle installe Open MCP CAD dans chacun de ceux cochés), s'il
+   faut continuer avec une version plus ancienne de Cadwork, et si elle peut
+   installer aussi Python s'il manque. Après **Installer**,
    elle exécute `Programmdateien\install.ps1` avec ces réponses et montre
    chaque étape ; le journal est dans
    `C:\Users\Public\OpenMcpCad_installer.log`. Avec une option (par
@@ -118,18 +120,32 @@ Codex.
    1. choisit le profil Cadwork
       (`C:\Users\Public\Documents\cadwork\userprofil_<ANNÉE>\3d\API.x64\`) :
       il propose `userprofil_2026`, sinon le profil le plus récent pour
-      lequel Cadwork est installé (`C:\Program Files\cadwork.dir\EXE_<ANNÉE>`). S'il y en a plusieurs,
-      il affiche la liste avec les chemins et demande. Il indique quel
-      profil il utilise et pourquoi,
-   2. vérifie que le profil appartient à Cadwork 2026. Sinon, il affiche
-      par exemple « Dieses Paket braucht Cadwork 3D 2026. Gefunden:
-      Cadwork 2025 im Profil userprofil_2025. » (ce paquet nécessite
-      Cadwork 3D 2026 ; trouvé : Cadwork 2025) et demande « Trotzdem in
-      dieses Profil kopieren? [j/N] » (copier quand même dans ce profil ?).
-      Sans un `j` explicite (ou l'option `-TrotzdemKopieren`), il s'arrête
-      et ne copie rien ; le plugin ne démarrerait de toute façon pas dans
-      une autre version,
-   3. copie le dossier `Open MCP CAD` dans ce profil,
+      lequel Cadwork est installé (`C:\Program Files\cadwork.dir\EXE_<ANNÉE>`).
+      La fenêtre d'installation transmet les profils cochés, l'option
+      `-Profile "chemin1;chemin2"` plusieurs à la fois. S'il y en a
+      plusieurs et qu'aucun n'est indiqué, la fenêtre de texte affiche la
+      liste avec les chemins et demande un numéro ; « a » prend tous ceux
+      marqués d'un * (à partir de Cadwork 2025, Cadwork installé). Il
+      indique quel profil il utilise et pourquoi,
+   2. vérifie pour chaque profil qu'il appartient à Cadwork 2025 ou 2026.
+      Avec une version plus ancienne, il affiche par exemple
+      « Dieses Paket braucht Cadwork 3D 2025 oder neuer. Gefunden:
+      Cadwork 2024 im Profil userprofil_2024. » (ce paquet nécessite
+      Cadwork 3D 2025 ou plus récent ; trouvé : Cadwork 2024) et demande
+      « Trotzdem in dieses Profil kopieren? [j/N] » (copier quand même dans
+      ce profil ?). Sans un `j` explicite (ou l'option `-TrotzdemKopieren`),
+      il s'arrête et ne copie rien ; le plugin ne démarrerait probablement
+      pas dans une version plus ancienne. Si plusieurs profils sont
+      choisis, il saute seulement celui qui est trop ancien et en donne la
+      raison,
+   3. copie le dossier `Open MCP CAD` dans chaque profil choisi. Si l'ancien plugin
+      «LignoAI Connect» (le nom avant la 0.1) s'y trouve encore, il le met
+      de côté après avoir demandé : déplacé vers
+      `C:\Users\Public\Documents\cadwork\OpenMcpCad_Backups\<heure>_alte_Version`,
+      jamais supprimé (sinon il serait deux fois dans le menu ; dans la
+      fenêtre une case cochée sur «Prêt à installer», dans la fenêtre de
+      texte une question ou le commutateur `-AltesWegraeumen`). Le
+      résultat indique le chemin du retour,
    4. installe le serveur dans son propre Python
       (`%LOCALAPPDATA%\OpenMcpCad\python`), avec les type stubs `cwapi3d`
       pour l'aide API de l'IA (si cela échoue, sans eux — le résultat le
@@ -151,9 +167,11 @@ Codex.
    7. affiche tout à la fin
       sous **Ergebnis** (résultat), chaque partie sur sa propre ligne :
       serveur MCP installé et testé, plugin Cadwork copié et version de
-      Cadwork correcte, ou ce qui manque.
+      Cadwork correcte (avec plusieurs profils, une ligne par profil), ou
+      ce qui manque.
 
-   Autre profil : `1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"`.
+   Autre profil : `1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"`,
+   plusieurs : `1_INSTALLIEREN.cmd -Profile "C:\...\userprofil_2025\3d\API.x64;C:\...\userprofil_2026\3d\API.x64"`.
    Si le résultat indique **NICHT vollstaendig installiert** (installation
    incomplète), les lignes au-dessus nomment la partie manquante. La
    corriger et relancer `1_INSTALLIEREN.cmd`.
@@ -237,6 +255,38 @@ le signale.
 - L'IA travaille via l'interface Python officielle de Cadwork (cwapi3d),
   fournie avec Cadwork.
 
+## Mises à jour
+
+Une fois par jour, Open MCP CAD demande en arrière-plan à GitHub
+(`api.github.com`, la page « dernière release » du dépôt public) s'il existe
+une nouvelle version, jamais pendant une tâche. Rien n'est envoyé sur toi,
+ton modèle ou ton ordinateur (comme pour toute requête, GitHub voit
+l'adresse IP) ; LignoAI ne reçoit aucune donnée.
+
+S'il y a une nouvelle version, la fenêtre affiche une petite ligne
+« Neue Version 0.x.y » (nouvelle version) avec « Aktualisieren » (mettre à
+jour). Seul ce clic télécharge le paquet `Open-MCP-CAD.zip` de la release,
+vérifie sa taille et sa somme de contrôle (SHA-256) et qu'il contient le
+programme d'installation, le décompresse dans
+`%LOCALAPPDATA%\OpenMcpCad\updates\<version>\` et ouvre de là la fenêtre
+d'installation. Ensuite s'affiche « Schliesse Cadwork, damit das Update
+eingespielt werden kann. » (ferme Cadwork pour que la mise à jour puisse
+être appliquée). Jamais en silence, jamais sans clic.
+
+À la main : ⋯ → « Nach Updates suchen » (rechercher des mises à jour ; la
+réponse est par exemple « Du hast die neueste Version (0.2.2). », tu as la
+dernière version). Pour le désactiver : ⋯ → « Einstellungen », carte
+« Updates », interrupteur « Einmal am Tag nach Updates suchen » (une fois
+par jour). C'est gardé dans `chat.json` sous `updates_suchen`, le moment de
+la dernière recherche sous `updates_zuletzt`.
+
+**Autres versions de Cadwork :** si Open MCP CAD remarque qu'il y a sur le
+PC un Cadwork à partir de 2025 dans lequel il manque, il demande une fois
+dans la fenêtre, par exemple « Open MCP CAD auch in Cadwork 2027
+einrichten? » (installer Open MCP CAD aussi dans Cadwork 2027 ?).
+« Einrichten » (installer) ouvre la fenêtre d'installation, « × » veut
+dire : ne plus demander (gardé dans `chat.json` sous `profil_frage_weg`).
+
 ## Chat dans le plugin (facultatif)
 
 Dans le chat, on écrit avec une IA qui travaille directement dans le modèle
@@ -271,7 +321,8 @@ propre à Cadwork, un clic = une tâche), « Ansicht neu zeichnen »
 (redessiner la vue), « Hinweise » (notes de contrôle ; un drapeau avec le
 nombre de notes ouvertes) et les trois points ⋯ avec « Einstellungen »
 (réglages), « Pausieren » (pause), « Nach Auftrag trennen » (déconnecter
-après la tâche), « Anleitung öffnen » (ouvrir le guide) et
+après la tâche), « Anleitung öffnen » (ouvrir le guide),
+« Nach Updates suchen » (rechercher des mises à jour) et
 « Technik-Details » (détails techniques). Le drapeau déplie les notes de
 contrôle au-dessus de la zone : toucher une note montre ses pièces dans le
 modèle ; dans le chat, « In den Chat übernehmen » (reprendre dans le chat)
@@ -309,8 +360,8 @@ l'installateur place à côté du plugin (`ANLEITUNG.pdf`), sinon la page sur
 le web. Dès qu'un chemin est configuré, la carte disparaît.
 
 **Réglages** (⋯ → « Einstellungen » ; « Zurück » (retour) ramène au chat
-ou à la boîte aux lettres) : quatre cartes, chat, connexion, mode de
-dessin et « Technik-Details ». Dans la carte chat, sous « Wer antwortet »
+ou à la boîte aux lettres) : cinq cartes, chat, connexion, mode de
+dessin, « Updates » (mises à jour, voir plus haut) et « Technik-Details ». Dans la carte chat, sous « Wer antwortet »
 (qui répond), on choisit :
 
 - **Claude Code (Abo)** : l'agent d'Anthropic sur cet ordinateur, avec
@@ -448,7 +499,10 @@ Cadwork), continuer là-bas ou appuyer ici sur « Neuer Chat ».
 
 - Supprimer le dossier `Open MCP CAD` dans le profil Cadwork
 - Supprimer le dossier `%LOCALAPPDATA%\OpenMcpCad` (Python du serveur,
-  dossier de travail de Codex et les expériences `erfahrungen.jsonl`)
+  dossier de travail de Codex, les expériences `erfahrungen.jsonl` et,
+  dans le sous-dossier `%LOCALAPPDATA%\OpenMcpCad\updates`, les mises à
+  jour téléchargées ; ce sous-dossier peut aussi être supprimé seul à tout
+  moment)
 - Supprimer le dossier `%APPDATA%\OpenMcpCad` (réglages du chat
   `chat.json` : fournisseur, modèles, dossier de travail, les quatre
   derniers caractères des clés)

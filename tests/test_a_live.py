@@ -61,6 +61,16 @@ os.environ["OPEN_MCP_CAD_REGISTRY"] = os.path.join(_LIVE_TMP, "registry")
 # Die Vermerke "Chat laeuft in einem anderen Cadwork" (Nacharbeit D) NIE in
 # den echten Temp-Ordner, den laufende Docks lesen.
 os.environ["OPEN_MCP_CAD_BELEGT"] = os.path.join(_LIVE_TMP, "belegt")
+# Updates (2026-10-10): jedes Dock sieht beim ersten Takt nach. NIE bei
+# GitHub (Port 1 auf diesem Rechner: sofort abgewiesen), nie ins echte
+# %LOCALAPPDATA%, und die Suche nach weiteren Cadwork-Profilen in einem
+# leeren Ordner (sonst stuende auf diesem Rechner eine Zeile im Fenster).
+os.environ["OPEN_MCP_CAD_UPDATE_URL"] = "http://127.0.0.1:1/aus"
+os.environ["OPEN_MCP_CAD_UPDATES"] = os.path.join(_LIVE_TMP, "updates")
+os.environ["OPEN_MCP_CAD_CADWORK_WURZEL"] = os.path.join(_LIVE_TMP,
+                                                         "cadwork_leer")
+os.environ["OPEN_MCP_CAD_CADWORK_PROGRAMM"] = os.path.join(_LIVE_TMP,
+                                                           "programm_leer")
 
 HIER = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HIER)   # scripts/ bzw. tests/ liegen direkt im Repo
@@ -73,7 +83,45 @@ if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 A = os.path.join(REPO, "cad_plugin", "Open MCP CAD A")
 
+# Die Qt-Schicht des Plugins (PyQt6 ODER PyQt5, seit 2026-10-10): dieses
+# Gate laeuft in der venv omcadqt (PyQt6) UND in omcadqt5 (PyQt5) und
+# importiert Qt nur ueber sie — wie das Dock. Was geladen ist, sagt Q0.
+QT_SCHICHT = os.path.join(A, "omcad_qt.py")
+# Fuer Kind-Prozesse mit `-c`: dieselbe Schicht zuerst laden.
+QT_VORSPANN = (
+    "import importlib.util as _u, sys as _s\n"
+    "_sp = _u.spec_from_file_location('omcad_qt', %r)\n"
+    "_m = _u.module_from_spec(_sp); _s.modules['omcad_qt'] = _m\n"
+    "_sp.loader.exec_module(_m)\n" % QT_SCHICHT)
+
+
+def _qt_schicht_laden():
+    spec = importlib.util.spec_from_file_location("omcad_qt", QT_SCHICHT)
+    m = importlib.util.module_from_spec(spec)
+    sys.modules["omcad_qt"] = m
+    spec.loader.exec_module(m)
+    return m
+
+
+QT = _qt_schicht_laden()
+if QT.ist_qt5():
+    # "offscreen" rechnet unter Qt 5 mit 100 dpi (gemessen 5.15.2), unter
+    # Qt 6 und unter Windows bei 100 % mit 96 — sonst waeren Schrift und
+    # Breiten (L58/L59/L111) nicht die von Windows. Der Bildschirm bleibt
+    # unter Qt 5 800 x 600 (Qt 6: 800 x 800); `configfile` kennt Qt 5.15
+    # nicht (gemessen), L96 ist dort deshalb nicht messbar.
+    os.environ.setdefault("QT_FONT_DPI", "96")
+
 _ergebnisse = []
+# Zellen, die unter einer Qt-Fassung GRUNDSAETZLICH nicht messbar sind
+# (seit 2026-10-10, PyQt5): sie zaehlen weder als bestanden noch als
+# durchgefallen, stehen aber mit Grund in der Ausgabe und in der Summe.
+_nicht_messbar = []
+
+
+def nicht_messbar(titel, grund):
+    _nicht_messbar.append((titel, grund))
+    print("  [NICHT GEMESSEN unter %s] %s  — %s" % (QT.stand(), titel, grund))
 
 
 def pruefe(titel, bedingung, detail=""):
@@ -186,7 +234,7 @@ def aufbauen(hinweise=(), post=(), D=None):
     sonst frisch von der Platte.
     """
     global _APP
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     # Ohne die feste Bezugnahme raeumt Python die QApplication sofort wieder
     # ab, und `_zustand()` findet keine — der Zustand des Docks haengt naemlich
     # an ihr (das ist genau der Trick, mit dem er das Modul-Neuladen ueberlebt).
@@ -358,7 +406,7 @@ def zelle_vollbild():
            dlg is not None and dlg.isModal() is False,
            "modal waere fatal: es hielte Cadworks Ereignisschleife an, und "
            "in genau der laeuft die Auftragswarteschlange")
-    from PyQt6.QtWidgets import QTextBrowser
+    from omcad_qt.QtWidgets import QTextBrowser
     koerper = dlg.findChildren(QTextBrowser) if dlg else []
     ganzer = koerper[0].toPlainText() if koerper else ""
     kurz = z["w"]["hinweise"]["karten"][1].text.text()
@@ -381,7 +429,7 @@ def zelle_karten_hoehe():
     dort war der Text abgeschnitten (0/6 gemessen). Diese Zelle nagelt fest,
     dass das Board den Weg nimmt, der es richtig macht.
     """
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     D, z, d = aufbauen(_hinweise_probe())
     D._auffrischen(z)
     b = z["w"]["hinweise"]
@@ -550,7 +598,7 @@ def _frischer_start():
     also muss er an beiden Stellen entfernt werden.
     """
     global _APP
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     _APP = QApplication.instance() or QApplication([])
     anker = sys.modules.pop(_anker_name(), None)
     z = getattr(anker, "z", None) or getattr(_APP, "_omcad_a_prototyp", None)
@@ -634,8 +682,8 @@ def _senden_klick(D, z, text="Probe-Nachricht"):
 def _enter(D, z, text="Probe-Nachricht"):
     """Wie `_senden_klick`, aber mit Enter im Feld (auch bei gesperrtem
     Knopf moeglich). -> was danach im Feld steht."""
-    from PyQt6.QtCore import QEvent, Qt
-    from PyQt6.QtGui import QKeyEvent
+    from omcad_qt.QtCore import QEvent, Qt
+    from omcad_qt.QtGui import QKeyEvent
     feld = z["w"]["chat_eingabe"]
     feld.setPlainText(text)
     _APP.sendEvent(feld, QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return,
@@ -841,7 +889,7 @@ def _dock_mit_zeichnen(client, kern):
 
 
 def zelle_karten_nur_verbundene():
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtWidgets import QPushButton
     _frischer_start()
     client = _Client([(chr(ord("A") + i), 53127 + i) for i in range(6)])
     client.dauer_text = lambda s: ""
@@ -886,7 +934,7 @@ def zelle_karten_nur_verbundene():
                z["w"]["verb_kopf"].text())
         # Bild vom 2026-09-24: A dreizehnmal. Ein doppelter Port in den
         # Daten liess je Takt eine Karte liegen.
-        from PyQt6.QtWidgets import QApplication
+        from omcad_qt.QtWidgets import QApplication
         a, c = _status(53127, "A", "ready"), _status(53129, "C", "ready")
         for daten in ([a, a, c],) * 6 + ([a, c], [a, a, c]):
             z["monitor_daten"] = daten
@@ -1025,7 +1073,7 @@ def zelle_chat_anbieter():
     import json
     import tempfile
     import test_anbieter as TA
-    from PyQt6.QtWidgets import QLabel, QPushButton
+    from omcad_qt.QtWidgets import QLabel, QPushButton
 
     _frischer_start()
     D, z, d = aufbauen()
@@ -1318,9 +1366,9 @@ def _dock_loeschen_lauf(alter_weg=False):
     `chat_takt` None war; beim Neubau nur `dock = None`; `chat_gezeigt`
     nie zurueckgesetzt. -> dict mit den Messwerten.
     """
-    from PyQt6 import sip
-    from PyQt6.QtCore import QEvent, QTimer
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt import sip
+    from omcad_qt.QtCore import QEvent, QTimer
+    from omcad_qt.QtWidgets import QApplication
     _frischer_start()
     D, z, _r = _klick(_Client([]), _VerbindKern(1, 0), verbinden=False)
     if alter_weg:
@@ -1402,9 +1450,9 @@ def zelle_form_neubau():
     gebaut; Dienst und Chat bleiben. Vorher griff der neue Code in das alte
     Dock, fand einen Teil nicht (KeyError) — und der Einstieg meldete
     "Dashboard nicht möglich — NICHT verbunden"."""
-    from PyQt6 import sip
-    from PyQt6.QtCore import QEvent
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt import sip
+    from omcad_qt.QtCore import QEvent
+    from omcad_qt.QtWidgets import QApplication
     _frischer_start()
     p_y, = _freie_ports(1)
     client = _Client([("Y", p_y)])
@@ -1459,7 +1507,7 @@ def zelle_schnittstelle():
     """Chat und Anbieter bleiben bis zum Cadwork-Neustart im Speicher. Passt
     ihre Fassung nicht, startet kein Chat, und das Dock sagt warum."""
     import types
-    from PyQt6.QtWidgets import QTabWidget
+    from omcad_qt.QtWidgets import QTabWidget
     name_c, name_a = "omcad_a_chat_A", "omcad_a_anbieter_A"
     _frischer_start()
     D, z, d = aufbauen()
@@ -1548,7 +1596,7 @@ def zelle_schnittstelle():
                (normal, stapel.count() if stapel else None))
         # Die halb gebaute Karte "Chat" auf der Einstellungsseite ist weg —
         # sonst stuenden dort Felder, die zu keinem Tab mehr gehoeren.
-        from PyQt6.QtWidgets import QApplication
+        from omcad_qt.QtWidgets import QApplication
         QApplication.processEvents()
         platz = z3["w"]["einst_chat_lay"]
         platz_t = z3["w"]["einst_technik_lay"]
@@ -1613,7 +1661,7 @@ def zelle_takt_fehler():
     `_auffrischen` jede Ausnahme wortlos. Jetzt: einmal je Wortlaut auf
     stderr, und der Takt laeuft weiter."""
     import io
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     _frischer_start()
     D, z, d = aufbauen()
     alt_err, puffer = sys.stderr, io.StringIO()
@@ -2146,8 +2194,13 @@ def zelle_ersatz_nach_zug():
 # Aendert sich ein Teil: FORM im Dashboard heben UND diese Aufnahme
 # nachfuehren, beides im selben Commit.
 FORM_AUFNAHME = {
-    "form": 21,
+    "form": 22,
     "w": frozenset({
+        # FORM 22 (2026-10-10, Ruhe und Updates): die Update-Zeile, "Nach
+        # Updates suchen" im "⋯", die Karte "Updates" der Einstellungen.
+        "update_zeile", "update_text", "update_knopf", "update_weg",
+        "mehr_updates", "einst_karte_updates", "updates_an",
+        "updates_jetzt",
         # FORM 21 (2026-10-08): das "×" im Kopf ohne Verbindung.
         "kopf_schliessen",
         # FORM 20 (2026-10-08, angedockt unsichtbar in Cadwork): keine neuen
@@ -2225,7 +2278,7 @@ FORM_AUFNAHME = {
 
 def _dock_teile(z):
     """(Schluessel in z["w"], Namen der Timer in z) — gemessen, keine Liste."""
-    from PyQt6.QtCore import QTimer
+    from omcad_qt.QtCore import QTimer
     return (frozenset(z["w"]),
             frozenset(k for k, v in z.items() if isinstance(v, QTimer)))
 
@@ -2281,8 +2334,8 @@ def zelle_form_teile():
     Teile in `z["w"]` oder Timer des Docks aendern. Ohne das baute der Klick
     nach einem Update ein altes Dock nicht neu — und neuer Code griff in ein
     Dock ohne seine Teile (der KeyError, den L25 nachstellt)."""
-    from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtCore import QTimer
+    from omcad_qt.QtWidgets import QLabel
     D, z = _dock_vermessen()
     teile, timer = _dock_teile(z)
     D2, z2 = _dock_vermessen(ersatz=True)
@@ -2366,8 +2419,8 @@ def zelle_wrapper_messung():
     code = textwrap.dedent("""
         import gc, os
         os.environ["QT_QPA_PLATFORM"] = "offscreen"
-        from PyQt6 import sip
-        from PyQt6.QtWidgets import QApplication
+        from omcad_qt import sip
+        from omcad_qt.QtWidgets import QApplication
         app = QApplication([])
         app._omcad_probe = 1
         gehalten = hasattr(QApplication.instance(), "_omcad_probe")
@@ -2376,7 +2429,8 @@ def zelle_wrapper_messung():
         gc.collect()
         print(gehalten, hasattr(QApplication.instance(), "_omcad_probe"))
     """)
-    lauf = subprocess.run([sys.executable, "-c", code], capture_output=True,
+    lauf = subprocess.run([sys.executable, "-c", QT_VORSPANN + code],
+                          capture_output=True,
                           text=True, timeout=120)
     aus = lauf.stdout.split()
     pruefe("L32 gemessen: C++-eigene QApplication, neuer Wrapper -> "
@@ -2402,7 +2456,7 @@ class _Cadwork:
         self._vorher = {}
 
     def _merken(self):
-        from PyQt6.QtWidgets import QApplication
+        from omcad_qt.QtWidgets import QApplication
         self.aufrufe.append((time.monotonic(),
                              QApplication.activeModalWidget() is not None))
 
@@ -2653,8 +2707,8 @@ def zelle_klick_im_start():
 
 def zelle_qt_sonden():
     """Die ECHTEN Qt-Sonden des Kerns gegen echte Dialoge, Menues, Schleifen."""
-    from PyQt6.QtCore import QEventLoop, Qt, QTimer
-    from PyQt6.QtWidgets import QDialog, QMenu, QProgressDialog
+    from omcad_qt.QtCore import QEventLoop, Qt, QTimer
+    from omcad_qt.QtWidgets import QDialog, QMenu, QProgressDialog
     kern = _echter_kern_lader(0)()
     modal, popup, schleife = kern._qt_sonden()
 
@@ -2735,8 +2789,8 @@ def _auftrag_unter_dialog(port, cw, dauer_s=1.5):
 
     -> dict mit Zeitpunkten, Antworten und den cwapi3d-Aufrufen.
     """
-    from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QDialog
+    from omcad_qt.QtCore import QTimer
+    from omcad_qt.QtWidgets import QDialog
     erg = {}
     offen = threading.Event()
     n_vorher = len(cw.aufrufe)
@@ -2913,7 +2967,7 @@ class _CadworkBild:
 # Cadworks eigene Arbeit im Film (dabei zeichnete es die Schrauben schon).
 # Der Takt feuert darin und muss sich zurueckhalten (Wiedereintritt).
 L46_CODE = ("import element_controller as ec\n"
-            "from PyQt6.QtWidgets import QApplication\n"
+            "from omcad_qt.QtWidgets import QApplication\n"
             "result = []\n"
             "for _e in paket:\n"
             "    result.append(ec.create_rectangular_beam_vectors())\n"
@@ -3378,7 +3432,7 @@ def _hinweis_im_aufklapper(D, z):
     """Oeffnet den Modell-Aufklapper und liest den Hinweis "gilt ab dem
     nächsten Chat" (seit 2026-09-28 dort statt unter der Leiste). -> Text
     oder ""."""
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtWidgets import QLabel
     D._modell_aufklappen(z)
     auf = z["w"]["chat_modell_auf"]
     texte = [lb.text() for lb in auf.findChildren(QLabel)
@@ -3495,8 +3549,8 @@ def _modus_nach_neubau(weg, laden=None):
     Dock in DERSELBEN Cadwork-Sitzung neu: `weg` 'geloescht' (Cadwork raeumt
     das Dock ab, der naechste Klick baut es) oder 'form' (andere FORM).
     -> dict mit den Messwerten."""
-    from PyQt6.QtCore import QEvent
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QEvent
+    from omcad_qt.QtWidgets import QApplication
     _frischer_start()
     client, kern = _Client([]), _VerbindKern(1, 0)
     D, z, _r = _klick(client, kern, verbinden=False, laden=laden)
@@ -3633,7 +3687,7 @@ def _anbieter_tief_lauf(laden=None, alt=False):
 _SLOT_PROBE = r'''
 import os, sys
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-from PyQt6.QtWidgets import QApplication, QComboBox
+from omcad_qt.QtWidgets import QApplication, QComboBox
 app = QApplication([])
 feld = QComboBox()
 feld.addItems(["a", "b"])
@@ -3650,7 +3704,7 @@ print("LEBT")
 def _slot_ausnahme(haken):
     """Ein Prozess, in dem eine Ausnahme aus einem Qt-Slot laeuft.
     -> (Rueckgabecode, lief danach weiter?)."""
-    r = subprocess.run([sys.executable, "-c", _SLOT_PROBE]
+    r = subprocess.run([sys.executable, "-c", QT_VORSPANN + _SLOT_PROBE]
                        + (["haken"] if haken else []),
                        capture_output=True, text=True, timeout=120,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -4425,8 +4479,8 @@ def _alle_texte(wurzel):
 
     Gemessen an den Widgets, keine Liste von Schluesseln: auch ein Teil, den
     niemand in `z["w"]` eintraegt, wird gelesen."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QComboBox, QListWidget, QTabWidget, QWidget
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import QComboBox, QListWidget, QTabWidget, QWidget
     funde = []
     for wd in [wurzel] + wurzel.findChildren(QWidget):
         for art in ("text", "toolTip", "placeholderText", "toPlainText",
@@ -4478,7 +4532,7 @@ def _texte_des_docks(z):
 def _einst_lauf(laden=None):
     """K12: Fenster bauen, verbunden zeichnen, aus der Pille den Chat
     oeffnen, "⋯ → Einstellungen" bedienen, "← Zurück". -> dict."""
-    from PyQt6.QtWidgets import QApplication, QPushButton
+    from omcad_qt.QtWidgets import QApplication, QPushButton
     D, z, d = _neustart(laden)
     w = z["w"]
     m = {"treffer": getattr(D, "_mutant_treffer", None)}
@@ -4582,10 +4636,12 @@ def zelle_einstellungen():
                m["vorher"] == (True, False, False) and m["kopf_einst"] == [],
                (m["vorher"], m["kopf_einst"]))
         pruefe("L51 '⋯' zeigt Einstellungen, Pausieren, Nach Auftrag "
-               "trennen, Anleitung, Technik-Details",
+               "trennen, Anleitung, Nach Updates suchen (2026-10-10), "
+               "Technik-Details",
                m["mehr"][0] and m["mehr"][1] == [
                    "Einstellungen", "Pausieren", "Nach Auftrag trennen",
-                   "Anleitung öffnen", "Technik-Details"], m["mehr"])
+                   "Anleitung öffnen", "Nach Updates suchen",
+                   "Technik-Details"], m["mehr"])
         pruefe("L51 '⋯ → Einstellungen' zeigt die Seite im Koerper, das "
                "Menue geht zu, kein Segment ist gewaehlt",
                m["offen"] == (True, True, True, True, False), m["offen"])
@@ -4670,7 +4726,7 @@ def _schluessel_lauf(laden=None):
     """Den Schluessel-Teil wie ein Nutzer bedienen, Tresor als Attrappe.
     -> dict mit Messungen."""
     import uuid
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     _einst_setzen(None)
     D, z, _d = _neustart(laden)
     w = z["w"]
@@ -4943,7 +4999,7 @@ class _LokalWelt:
 
 
 def _warte_lokal(D, z, bedingung, frist=5.0):
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     ende = time.monotonic() + frist
     while time.monotonic() < ende:
         QApplication.processEvents()
@@ -4956,7 +5012,7 @@ def _warte_lokal(D, z, bedingung, frist=5.0):
 
 def _lokal_lauf(laden=None):
     """Ollama von "nicht installiert" bis "bereit", dazu LM Studio. -> dict."""
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     # Ollama ist schon gewaehlt (aus chat.json): erst das OEFFNEN der
     # Einstellungen muss die Pruefung anstossen, kein Anbieterwechsel.
     _einst_setzen(json.dumps({"anbieter": "ollama"}))
@@ -5159,7 +5215,7 @@ def _adresse_lauf(laden=None):
     """chat.json aus einer Fassung vor Etappe B: gemerkte Adressen auch fuer
     Anbieter mit vorgegebener Adresse. Je Anbieter: Feld sichtbar?, Adresse
     beim Start, Adresse der Modellabfrage. -> dict."""
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     _einst_setzen(json.dumps({
         "anbieter": "ollama",
         "basis": {"ollama": _FREMD_OLLAMA, "openai": _FREMD_OPENAI,
@@ -5267,7 +5323,7 @@ def _feinheiten_lauf(laden=None):
     """Die vier kleinen Schluessel-Regeln der Uebergabe (Befunde R7, R8, R9,
     R11), je gemessen. -> dict."""
     import uuid
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     _einst_setzen(None)
     D, z, _d = _neustart(laden)
     w = z["w"]
@@ -5409,7 +5465,7 @@ def _seite_lauf(laden=None):
     """Einstellungsseite, Nacharbeit: neu pruefen beim Oeffnen, Freigabe
     wartet, wer antwortet, Ausnahmen aus den Knoepfen. -> dict."""
     import io
-    from PyQt6.QtWidgets import QApplication, QPushButton
+    from omcad_qt.QtWidgets import QApplication, QPushButton
     _einst_setzen(json.dumps({"anbieter": "ollama"}))
     D, z, _d = _neustart(laden)
     w = z["w"]
@@ -5660,7 +5716,7 @@ def _chat_ziehen(D, z, breite=None, hoehe=700):
                                          or hoehe < lay_min.height())):
         # Nur fuer die Kontrollen: kleiner, als das Fenster sich ziehen
         # liesse (auch unter die Mindestgroesse seines Layouts).
-        from PyQt6.QtWidgets import QLayout
+        from omcad_qt.QtWidgets import QLayout
         inhalt.layout().setSizeConstraint(
             QLayout.SizeConstraint.SetNoConstraint)
         inhalt.setMinimumSize(0, 0)
@@ -5683,7 +5739,7 @@ def _chat_ziehen(D, z, breite=None, hoehe=700):
 def _chat_inhalt(f):
     """Der Inhalt des Fensters: `widget()` des Docks (seit K12 der Koerper
     mit Segmenten und dem Chat)."""
-    from PyQt6.QtWidgets import QDockWidget
+    from omcad_qt.QtWidgets import QDockWidget
     if isinstance(f, QDockWidget) and f.widget() is not None:
         return f.widget()
     return f
@@ -5718,7 +5774,7 @@ def _chat_fuellen(D, z, fall):
 def _unten_messen(D, z, fall, hoehe=700, breite=None):
     """-> dict: rollt das Dock, stehen Eingabe, Senden und Modell ganz im
     Bild, Hoehen der Karten und der laufenden Antwort."""
-    from PyQt6.QtCore import QPoint
+    from omcad_qt.QtCore import QPoint
     _chat_fuellen(D, z, fall)
     sc = _chat_ziehen(D, z, breite, hoehe)
     vp = sc.viewport()
@@ -5826,7 +5882,7 @@ def zelle_eingabe_bleibt_unten():
 def _breite_messen(D, z, breite=None):
     """-> dict: rollt das Dock quer, ist der Chat-Tab schmal genug, welche
     Knoepfe/Felder sind schmaler als ihr Mindestmass (gequetscht)."""
-    from PyQt6.QtWidgets import (QComboBox, QPlainTextEdit, QPushButton,
+    from omcad_qt.QtWidgets import (QComboBox, QPlainTextEdit, QPushButton,
                                  QWidget)
     sc = _chat_ziehen(D, z, breite)
     w = z["w"]
@@ -5918,7 +5974,7 @@ def _s8_lauf(laden=None):
     """Claude Code ueber die Start-Attrappe (Temp-Projekt, Temp-Heim): die
     erste Nachricht, eine zweite, "Neuer Chat" im Zug und dazwischen, die
     naechste Nachricht. -> dict."""
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtWidgets import QPushButton
     heim = _tempfile.mkdtemp(prefix="omcad_live_heim_")
     alt_heim = os.environ.get("USERPROFILE")
     os.environ["USERPROFILE"] = heim
@@ -6288,8 +6344,8 @@ def _knoepfe_messen(D, z, hoehe, zeilen=12, n=1, beschreibung="Probe",
     """Freigabe-Karten wie im Betrieb, Dock 300 x `hoehe`. -> dict: stehen
     "Erlauben"/"Ablehnen" der ERSTEN Karte ganz im Kartenbereich, Rollweg
     des Bereichs, seine Hoehe, rollt das Dock."""
-    from PyQt6.QtCore import QPoint
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtCore import QPoint
+    from omcad_qt.QtWidgets import QPushButton
     chat = z["chat"]
     chat.update(an=True, laeuft_zug=True, anbieter="claude",
                 ereignisse=[{"art": "text", "text": "Antwort %d" % i}
@@ -6356,7 +6412,7 @@ def _knopf_wirft_lauf(laden=None):
     """Eine Karte; das Beantworten wirft. "Erlauben" und "Ablehnen" klicken
     und zaehlen, was aus dem Slot laeuft (eigener excepthook, wie L57)."""
     import io
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtWidgets import QPushButton
     _frischer_start()
     D, z, _d = aufbauen(D=laden() if laden else None)
     C = D._chat_modul()
@@ -6772,7 +6828,7 @@ def _liste_lauf(laden=None):
     """L62: zwei Dock-Chats und eine Terminal-Sitzung im Arbeitsordner; die
     Liste, ihr Nebenthread, das Oeffnen, das Fortsetzen, das Ende, die
     Zeitangaben. -> dict."""
-    from PyQt6.QtCore import Qt
+    from omcad_qt.QtCore import Qt
     heim, alt_heim = _heim_setzen()
     m = {}
     try:
@@ -7088,7 +7144,7 @@ class _VerlaufBremse:
 
 
 def _item_mit(z, kennung):
-    from PyQt6.QtCore import Qt
+    from omcad_qt.QtCore import Qt
     lst = z["w"]["chat_liste"]
     return next((lst.item(i) for i in range(lst.count())
                  if lst.item(i).data(Qt.ItemDataRole.UserRole) == kennung),
@@ -7359,7 +7415,7 @@ class _DialogAttrappe:
     `waehlen` einen Ordner ueber das echte Signal `fileSelected`."""
 
     def __init__(self):
-        from PyQt6.QtCore import QObject, pyqtSignal
+        from omcad_qt.QtCore import QObject, pyqtSignal
 
         class _Q(QObject):
             fileSelected = pyqtSignal(str)
@@ -7390,8 +7446,8 @@ def _ordnerwahl_lauf(laden=None):
     """L64: der echte Dialog (Optionen, kehrt sofort zurueck), dann die
     Wahl ueber eine Attrappe: chat.json, Anzeige, Liste, Start, Vergessen.
     -> dict."""
-    from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QApplication, QFileDialog
+    from omcad_qt.QtCore import QTimer
+    from omcad_qt.QtWidgets import QApplication, QFileDialog
     heim, alt_heim = _heim_setzen()
     _einst_setzen(None)
     m = {}
@@ -7706,7 +7762,7 @@ def _sitzungskarten_lauf(modus, laden=None,
     """Ein Chat (Schleifen-Attrappe) mit ZWEI offenen Karten derselben Art
     und einer abgelehnten Anfrage im Verlauf, im Modus `modus`; auf der
     ersten Karte "Für diese Sitzung nicht mehr fragen". -> dict."""
-    from PyQt6.QtWidgets import QLabel, QPushButton
+    from omcad_qt.QtWidgets import QLabel, QPushButton
     D, z, d = _neustart(laden)
     w = z["w"]
     schleife = _SchleifenAttrappe()
@@ -7786,8 +7842,8 @@ def _fenster_lauf(laden=None):
     das Fenster beim Chat (ueber Cadwork, nicht modal); schliesst Cadwork
     es, steht die Pille, der Chat laeuft weiter; eine Freigabe laesst den
     Knopf auffallen; ein Neubau stellt den Zustand her. -> dict."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QApplication, QMainWindow
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import QApplication, QMainWindow
     _frischer_start()
     _einst_setzen(None)
     haupt = QMainWindow()
@@ -7972,8 +8028,8 @@ def zelle_chatfenster():
 def _leiste_lauf(laden=None):
     """Modus- und Modell-Aufklapper, Ring, Ordner-Menue, "+ Ordner" — im
     gezeigten Chatfenster, gemessen wie ein Klick. -> dict."""
-    from PyQt6.QtCore import QPoint, Qt
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QPoint, Qt
+    from omcad_qt.QtWidgets import QApplication
     heim, alt_heim = _heim_setzen()
     _einst_setzen(None)
     m = {}
@@ -8049,7 +8105,7 @@ def _leiste_lauf(laden=None):
         z["chat"].update(an=False, laeuft_zug=False)
         # -- Modell ohne Chat: die Kachel oeffnet die Liste DARUEBER, die
         # Wahl schliesst nur sie; die Denkstufe am Punktregler (Taste Pos1).
-        from PyQt6.QtTest import QTest
+        QTest = importlib.import_module(QT.BINDUNG + ".QtTest").QTest
         w["chat_modell_knopf"].click()
         QApplication.processEvents()
         w["stufe_kachel"].click()
@@ -8264,7 +8320,7 @@ class _DateienAttrappe:
     ueber das echte Signal `filesSelected`."""
 
     def __init__(self):
-        from PyQt6.QtCore import QObject, pyqtSignal
+        from omcad_qt.QtCore import QObject, pyqtSignal
 
         class _Q(QObject):
             filesSelected = pyqtSignal(list)
@@ -8287,7 +8343,7 @@ class _DateienAttrappe:
 
 
 def _png_datei(pfad, groesse=24, farbe=(20, 40, 220)):
-    from PyQt6.QtGui import QColor, QImage
+    from omcad_qt.QtGui import QColor, QImage
     bild = QImage(groesse, groesse, QImage.Format.Format_RGB32)
     bild.fill(QColor(*farbe))
     bild.save(pfad, "PNG")
@@ -8303,9 +8359,9 @@ def _chips(z):
 def _anhang_lauf(laden=None):
     """"+", Dateidialog (Attrappe), Einfuegen, Ablegen, zu grosse Datei,
     Senden an Claude Code und an OpenAI. -> dict."""
-    from PyQt6.QtCore import QMimeData, QUrl
-    from PyQt6.QtGui import QColor, QImage
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QMimeData, QUrl
+    from omcad_qt.QtGui import QColor, QImage
+    from omcad_qt.QtWidgets import QApplication
     _einst_setzen(None)
     _frischer_start()
     D, z, _d = aufbauen(D=laden() if laden else None)
@@ -8534,8 +8590,8 @@ def _gespraech(t0, jetzt):
 
 def _lesbar_lauf(laden=None):
     """Blasen, Schrittgruppe, Zeitlinien, Zeit laeuft weiter. -> dict."""
-    from PyQt6.QtCore import QPoint, Qt
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtCore import QPoint, Qt
+    from omcad_qt.QtWidgets import QLabel
     _einst_setzen(None)
     _frischer_start()
     D, z, _d = aufbauen(D=laden() if laden else None)
@@ -8730,7 +8786,7 @@ def _auftraege_lauf(laden=None):
             "beschreibung": "<img src=x> Wand", "laufzeit_s": 4.2})
         D._auffrischen(z)
         lb = z["w"]["briefkasten_laeuft_text"]
-        from PyQt6.QtCore import Qt as _Qt
+        from omcad_qt.QtCore import Qt as _Qt
         m["kopf"] = (lb.text(), lb.toolTip(),
                      lb.textFormat() == _Qt.TextFormat.PlainText,
                      not z["w"]["briefkasten_laeuft"].isHidden())
@@ -8931,7 +8987,7 @@ def zelle_lesbarer_chat():
                k["voll"])
         k = _auftraege_lauf(lambda: _mutant(_anweisungen(
             "_auffrischen", lambda s_: isinstance(s_, ast.For)
-            and "item.setText(text)" in ast.unparse(s_))))
+            and "item.setText(g['text'])" in ast.unparse(s_))))
         pruefe("L71 KONTROLLE: ohne das Nachfuehren bleibt 'gerade eben'",
                k["treffer"] == [1] and k["zeit"][1].endswith("gerade eben"),
                k["zeit"])
@@ -8949,7 +9005,7 @@ TECHNIK_ZEILEN = ("Claude Code (Abo)", "ein Agent auf diesem Rechner",
 
 def _sichtbare_texte(wurzel, ausser=()):
     """Sichtbare QLabel-Texte unter `wurzel`, ohne die unter `ausser`."""
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtWidgets import QLabel
     return [lb.text() for lb in wurzel.findChildren(QLabel)
             if lb.isVisibleTo(wurzel) and lb.text()
             and not any(a.isAncestorOf(lb) for a in ausser)]
@@ -8958,7 +9014,7 @@ def _sichtbare_texte(wurzel, ausser=()):
 def _feinschliff_lauf(laden=None):
     """Chatfenster mit laufendem Chat: was ueber dem Gespraech steht, die
     Statuszeile in vier Lagen, das "…", der Ordner-Hinweis. -> dict."""
-    from PyQt6.QtCore import QPoint
+    from omcad_qt.QtCore import QPoint
     _einst_setzen(None)
     _frischer_start()
     D, z, d = aufbauen(D=laden() if laden else None)
@@ -9048,7 +9104,7 @@ def _feinschliff_lauf(laden=None):
         _warte_qt(D, z, lambda: not w["chat_verlauf"].widgets("tippt"), 2)
         m["tippt_danach"] = bool(w["chat_verlauf"].widgets("tippt"))
         # -- Ordner-Aufklapper: Hinweis nur im laufenden Chat ------------------
-        from PyQt6.QtWidgets import QLabel
+        from omcad_qt.QtWidgets import QLabel
 
         def ordner_hinweis():
             D._ordner_aufklappen(z)
@@ -9230,7 +9286,7 @@ def _wechsel_lauf(ziel, laden=None):
     """Ein Chat (Schleifen-Attrappe) im Modus "Fragen" mit drei offenen
     Karten: ein Cadwork-Befehl, ein Lesen AUSSERHALB des Ordners, ein
     Befehl am Rechner. Dann im Aufklapper `ziel` gewaehlt. -> dict."""
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtWidgets import QPushButton
     D, z, _d = _neustart(laden)
     w = z["w"]
     schleife = _SchleifenAttrappe()
@@ -9264,7 +9320,7 @@ def _wechsel_lauf(ziel, laden=None):
 def _einfuegen_lauf(laden=None):
     """Einfuegen in die Eingabe, waehrend `_anhang_aus_mime` wirft.
     -> (wirft beim Einfuegen?, Text im Feld, Treffer)."""
-    from PyQt6.QtCore import QMimeData
+    from omcad_qt.QtCore import QMimeData
     D, z, _d = _neustart(laden)
     feld = z["w"]["chat_eingabe"]
 
@@ -9400,7 +9456,7 @@ def _sperre_lauf(laden=None):
     """Ein Chat (Schleifen-Attrappe) in "Nur lesen" hat im laufenden Zug
     einen Cadwork-Befehl ohne Frage abgelehnt bekommen. Was zeigt das
     Chatfenster, was der Monitor, und was tut der Knopf? -> dict."""
-    from PyQt6.QtWidgets import QApplication, QLabel
+    from omcad_qt.QtWidgets import QApplication, QLabel
     _einst_setzen(None)
     D, z, _d = _neustart(laden)
     w = z["w"]
@@ -9530,16 +9586,18 @@ def _symbole_lauf(laden=None, ohne_svg=False):
     `ohne_svg` fehlt PyQt6.QtSvg (wie es in Cadwork sein koennte — dort
     nicht gemessen). -> dict."""
     import io as _io
-    from PyQt6.QtWidgets import QLabel, QPushButton
-    alt_svg = sys.modules.get("PyQt6.QtSvg", "fehlt")
+    from omcad_qt.QtWidgets import QLabel, QPushButton
+    svg_name = QT.BINDUNG + ".QtSvg"
+    alt_svg = sys.modules.get(svg_name, "fehlt")
     alt_err = sys.stderr
     sys.stderr = _io.StringIO()
-    import PyQt6 as _pyqt
+    _pyqt = importlib.import_module(QT.BINDUNG)
     alt_attr = getattr(_pyqt, "QtSvg", None)
     if ohne_svg:
         # Import scheitert: der Eintrag in sys.modules UND das Attribut am
         # Paket (sonst liefert "from PyQt6 import QtSvg" das alte Modul).
-        sys.modules["PyQt6.QtSvg"] = None
+        # Die Schicht laedt das frische Dashboard neu — sie sieht es dann.
+        sys.modules[svg_name] = None
         if alt_attr is not None:
             delattr(_pyqt, "QtSvg")
     m = {}
@@ -9603,9 +9661,9 @@ def _symbole_lauf(laden=None, ohne_svg=False):
     finally:
         sys.stderr = alt_err
         if alt_svg == "fehlt":
-            sys.modules.pop("PyQt6.QtSvg", None)
+            sys.modules.pop(svg_name, None)
         else:
-            sys.modules["PyQt6.QtSvg"] = alt_svg
+            sys.modules[svg_name] = alt_svg
         if alt_attr is not None:
             _pyqt.QtSvg = alt_attr
         _einst_setzen(None)
@@ -9705,7 +9763,7 @@ def zelle_symbole():
 def _ganz_auf_schirm(teil):
     """Steht der Rahmen von `teil` ganz im verfuegbaren Bereich EINES
     Bildschirms?"""
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     g = teil.frameGeometry()
     return any(s.availableGeometry().contains(g)
                for s in QApplication.screens())
@@ -9733,7 +9791,7 @@ def _einstieg_lauf(laden=None):
     der Karte druecken. Das Nachsehen laeuft im echten Nebenthread, nur
     `_einstieg_wege` ist ersetzt (kein Claude Code usw.). -> dict."""
     import tempfile as _tf
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     _einst_setzen(None)
     D, z, _d = _neustart(laden)
     w = z["w"]
@@ -9926,7 +9984,7 @@ _K11_FENSTER = _K10_DOCKS + ("OpenMcpCadMini", "OpenMcpCadFenster",
 
 
 def _pumpen(sekunden):
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     ende = time.monotonic() + sekunden
     while True:
         QApplication.processEvents()
@@ -9943,8 +10001,8 @@ def _windows_nachahmer(spaet_ms=None):
     Zeigen noch einmal dorthin (je Fenster einmal) — "Qt verschiebt es nach
     dem Zeigen". -> der Filter (installiert; `entfernen()` nimmt ihn wieder
     weg)."""
-    from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, Qt, QTimer
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QEvent, QObject, QPoint, QRect, Qt, QTimer
+    from omcad_qt.QtWidgets import QApplication
 
     def mitte(obj):
         try:
@@ -10005,8 +10063,8 @@ class _ListenLog(logging.Handler):
 def _cadwork_ersatz(ort=(120, 60), groesse=(640, 700)):
     """Ein Hauptfenster wie Cadworks — NICHT bei (0, 0), mit Menue und
     Werkzeugleiste (die Mitte beginnt darunter). Bleibt am Leben."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QLabel, QMainWindow
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import QLabel, QMainWindow
     haupt = QMainWindow()
     haupt.setWindowTitle("Cadwork (Ersatz)")
     haupt.menuBar().addMenu("Datei")
@@ -10026,7 +10084,7 @@ def _cadwork_ersatz(ort=(120, 60), groesse=(640, 700)):
 def _global(wd, rahmen=True):
     """(links, oben, rechts_exkl, unten_exkl) von `wd` global — bei Fenstern
     mit Rahmen (`rahmen`), sonst die Innenflaeche wie `mapToGlobal`."""
-    from PyQt6.QtCore import QPoint
+    from omcad_qt.QtCore import QPoint
     if wd.isWindow() and rahmen:
         g = wd.frameGeometry()
         return (g.left(), g.top(), g.left() + g.width(), g.top() + g.height())
@@ -10048,6 +10106,23 @@ def _global(wd, rahmen=True):
 _K11_NAMEN = ("OpenMcpCadMini", "OpenMcpCadADock", "OpenMcpCadChatDock")
 
 
+def _ersatz_mass(ort=None, groesse=None):
+    """Ort und Groesse des Cadwork-Ersatzes, wenn die Zelle keine nennt.
+
+    120/60 mit 640 x 700 — passt auf den 800 px hohen Bildschirm von
+    "offscreen" unter Qt 6. Unter Qt 5 ist er nur 600 hoch (gemessen
+    5.15.2): dort 120/0 mit 640 x 600, sonst ragte das Hauptfenster ueber den
+    Bildschirm, und das offene Fenster (immer ganz darauf, mindestens 520
+    hoch) rueckte zu Recht nach oben (L97, L100)."""
+    if ort is not None and groesse is not None:
+        return ort, groesse
+    from omcad_qt.QtGui import QGuiApplication
+    hoch = QGuiApplication.primaryScreen().availableGeometry().height()
+    if hoch >= 800:
+        return ort or (120, 60), groesse or (640, 700)
+    return ort or (120, 0), groesse or (640, hoch)
+
+
 class _K12:
     """Ein Plugin-Klick neben einem Cadwork-Ersatz (K12): Dienst-Attrappe
     (verbunden), das Log des Kerns im Speicher, auf Wunsch der
@@ -10055,10 +10130,11 @@ class _K12:
     `ende()` raeumt ab."""
 
     def __init__(self, laden=None, nachahmer=False, spaet_ms=None,
-                 ort=(120, 60), groesse=(640, 700), fremd_dock=False,
+                 ort=None, groesse=None, fremd_dock=False,
                  anker=None, nativ=False):
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtWidgets import QDockWidget, QLabel
+        from omcad_qt.QtCore import Qt
+        from omcad_qt.QtWidgets import QDockWidget, QLabel
+        ort, groesse = _ersatz_mass(ort, groesse)
         _frischer_start()
         _einst_setzen(None)
         self.filt = _windows_nachahmer(spaet_ms) if nachahmer else None
@@ -10122,9 +10198,9 @@ class _K12:
 
 def _maus(ziel, art, lokal, knopf=None, gedrueckt=None):
     """Ein Mausereignis an `ziel` (lokale Koordinaten). -> global."""
-    from PyQt6.QtCore import QEvent, QPointF, Qt
-    from PyQt6.QtGui import QMouseEvent
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QEvent, QPointF, Qt
+    from omcad_qt.QtGui import QMouseEvent
+    from omcad_qt.QtWidgets import QApplication
     if knopf is None:
         knopf = Qt.MouseButton.LeftButton
     if gedrueckt is None:
@@ -10141,8 +10217,8 @@ def _sichtbare_fenster():
     """Die sichtbaren Fenster des Prozesses, die zu Open MCP CAD gehoeren
     koennten: alles ausser Cadwork-Ersatz (QMainWindow), Popups (Aufklapper,
     Popover) und der Arbeitsanzeige. -> [objectName]."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QApplication, QMainWindow
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import QApplication, QMainWindow
     namen = []
     for wd in QApplication.topLevelWidgets():
         if not wd.isVisible() or isinstance(wd, QMainWindow):
@@ -10161,8 +10237,8 @@ def _mini_lauf(laden=None):
     """L20: die Pille nach dem Plugin-Klick — gemessen wie ein Nutzer sie
     sieht und bedient: Chat-Knopf, Ziehen am Kopf, Aussehen, der Chat geht
     auf, Verkleinern, ein zweiter Klick. -> dict."""
-    from PyQt6.QtCore import QEvent, QPoint, Qt
-    from PyQt6.QtGui import QColor
+    from omcad_qt.QtCore import QEvent, QPoint, Qt
+    from omcad_qt.QtGui import QColor
     k = _K12(laden=laden)
     D, z, w, f = k.D, k.z, k.w, k.f
     m = {"treffer": k.treffer}
@@ -10244,9 +10320,14 @@ def _mini_lauf(laden=None):
         # steht das Fenster immer GANZ darauf (L79) und rueckte dann mit
         # dem Kopf nach innen. Gemessen wird das Stehenbleiben an einer
         # Pille, die ganz auf dem Bildschirm steht.
+        # Und so hoch, dass das offene Fenster (mindestens OFFEN_HOEHE_MIN)
+        # darunter Platz hat: der Bildschirm von "offscreen" ist unter Qt 6
+        # 800 px hoch, unter Qt 5 nur 600 (gemessen 5.15.2) — dort rueckte
+        # das Fenster sonst zu Recht nach oben.
         r = f.screen().availableGeometry()
         f.move(min(f.x(), r.right() + 1 - f.width() - 40),
-               max(f.y(), r.top() + 40))
+               max(r.top() + 40,
+                   min(f.y(), r.bottom() + 1 - D.OFFEN_HOEHE_MIN - 10)))
         _pumpen(0.05)
         rechts_oben = k.kopf_g()
         chat.click()
@@ -10386,7 +10467,7 @@ def _ein_fenster_lauf(laden=None):
             k.aktion(aktion)
             m["fenster"][aktion + "_" + k.z["fenster_zustand"]] = \
                 _sichtbare_fenster()
-        from PyQt6.QtWidgets import QApplication
+        from omcad_qt.QtWidgets import QApplication
         m["k11"] = sorted({wd.objectName() for wd in
                            QApplication.allWidgets()
                            if wd.objectName() in _K11_NAMEN
@@ -10418,7 +10499,7 @@ def zelle_ein_fenster():
         k = _ein_fenster_lauf(lambda: _mutant(_anweisungen(
             "_fenster_bauen", _beginnt("_haken_setzen(z)"),
             "_haken_setzen(z)\n"
-            "from PyQt6.QtWidgets import QWidget as _QW\n"
+            "from omcad_qt.QtWidgets import QWidget as _QW\n"
             "_leiste = _QW(haupt, Qt.WindowType.Tool)\n"
             "_leiste.setObjectName('OpenMcpCadMini')\n"
             "_leiste.show()\n"
@@ -10442,7 +10523,7 @@ _KOPF_SOLL = {
 
 def _kopf_lauf(laden=None):
     """-> dict: Kopf je Zustand (Objekt, sichtbare Knoepfe, Titelleiste)."""
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtWidgets import QPushButton
     k = _K12(laden=laden)
     m = {"treffer": k.treffer, "zustaende": {}}
     try:
@@ -10524,11 +10605,18 @@ def zelle_kopf():
 
 # --- L96: der Ort der Pille (K10-Regel, Windows-Nachahmer, zwei Schirme) ----
 
-def _ort_lauf(laden=None, nachahmer=True, ort=(120, 60), groesse=(640, 700),
+def _ort_lauf(laden=None, nachahmer=True, ort=None, groesse=None,
               spaet_ms=100, fremd_dock=False):
     """-> dict: wo die Pille steht, wo sie stehen soll, was das Log sagt;
     mit `fremd_dock` ein eigenes Dock von Cadwork rechts: ob die Pille
-    darueber liegt."""
+    darueber liegt.
+
+    Ohne `ort`/`groesse`: der Ersatz bei 120/60 mit 640 x 700 — passt auf
+    den 800 px hohen Bildschirm von "offscreen" unter Qt 6. Unter Qt 5 ist
+    er nur 600 hoch (gemessen 5.15.2): dort 120/0 mit 640 x 600, sonst
+    ragte das Hauptfenster ueber den Bildschirm, und das offene Fenster
+    (immer ganz darauf, mindestens 520 hoch) koennte den unteren Rand des
+    Hauptfensters gar nicht erreichen."""
     k = _K12(laden=laden, nachahmer=nachahmer, spaet_ms=spaet_ms, ort=ort,
              groesse=groesse, fremd_dock=fremd_dock)
     m = {"treffer": k.treffer}
@@ -10588,8 +10676,8 @@ def _k12_kind():
     """Im KIND-Prozess (zwei Bildschirme, L96): der Ersatz auf dem ZWEITEN
     Bildschirm links vom ersten, dazu die Kontrolle ohne globale
     Koordinaten. Druckt eine JSON-Zeile."""
-    from PyQt6.QtCore import QPoint, QRect
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QPoint, QRect
+    from omcad_qt.QtWidgets import QApplication
     global _APP
     _APP = QApplication.instance() or QApplication([])
     _draht_legen()
@@ -10617,17 +10705,33 @@ def zelle_ort_pille():
     try:
         m = _ort_lauf()
         pruefe("L96 die Pille steht oben rechts im Hauptfenster (Ersatz bei "
-               "120/60, Nachahmer an): %s, soll %s" % (m["pille"], m["soll"]),
+               "120/60, unter Qt 5 120/0, Nachahmer an): %s, soll %s"
+               % (m["pille"], m["soll"]),
                m["ort"], m)
         pruefe("L96 sie ist 44 +-2 px hoch", abs(m["hoehe"] - 44) <= 2,
                m["hoehe"])
         pruefe("L96 eine Zeile 'Fenster: pille gesetzt' im Log der Instanz",
                len(m["log"]) >= 1 and "Hauptfenster" in m["log"][0],
                m["log"][:1])
-        pruefe("L96 offen: Kopf an derselben Stelle, Koerper bis RAND_UNTEN "
-               "ueber dem unteren Rand des Hauptfensters, 420 px breit",
-               m["offen"][:3] == (True, True, True)
-               and m["offen"][3] == 420, (m["offen"], m["offen_g"]))
+        if QT.ist_qt5():
+            # 600 px Bildschirm: Pille ~74 px unter der Oberkante (Kopf und
+            # Leisten des Ersatzes), dazu mindestens 520 hoch — bis 16 px
+            # ueber dem unteren Rand passt das nicht; das Fenster bleibt
+            # (richtig) ganz auf dem Bildschirm.
+            pruefe("L96 offen: Kopf an derselben Stelle, 420 px breit "
+                   "(Qt 5: ohne den unteren Rand, s. NICHT GEMESSEN)",
+                   m["offen"][:2] == (True, True)
+                   and m["offen"][3] == 420, (m["offen"], m["offen_g"]))
+            nicht_messbar("L96 offen: Koerper bis RAND_UNTEN ueber dem "
+                          "unteren Rand des Hauptfensters",
+                          "offscreen-Bildschirm unter Qt 5 nur 600 px hoch: "
+                          "Ersatz + Mindesthoehe 520 passen nicht darauf")
+        else:
+            pruefe("L96 offen: Kopf an derselben Stelle, Koerper bis "
+                   "RAND_UNTEN ueber dem unteren Rand des Hauptfensters, "
+                   "420 px breit",
+                   m["offen"][:3] == (True, True, True)
+                   and m["offen"][3] == 420, (m["offen"], m["offen_g"]))
         f = _ort_lauf(fremd_dock=True, nachahmer=False)
         pruefe("L96 mit einem Dock von Cadwork rechts: die Pille am rechten "
                "Rand der ZEICHENFLAECHE, nicht ueber dem Dock "
@@ -10670,6 +10774,16 @@ def zelle_ort_pille():
             {"name": "links", "x": -1440, "y": 200, "width": 1440,
              "height": 900, "logicalDpi": 96, "logicalBaseDpi": 96,
              "dpr": 1}]}, fh)
+    if QT.ist_qt5():
+        # Qt 5.15 "offscreen" kennt `configfile` nicht (gemessen 5.15.2: ein
+        # Bildschirm 800 x 600, was immer die Datei sagt) — zwei Bildschirme
+        # lassen sich ohne sichtbares Fenster nicht nachstellen.
+        for titel in ("L96 zweiter Bildschirm links: die Pille dort",
+                      "L96 ... und offen ebenso dort",
+                      "L96 KONTROLLE ohne globale Koordinaten"):
+            nicht_messbar(titel, "offscreen unter Qt 5 hat nur EINEN "
+                          "Bildschirm (kein configfile)")
+        return
     env = dict(os.environ)
     # RELATIV: der Doppelpunkt in "C:" trennte sonst die Optionen.
     env["QT_QPA_PLATFORM"] = "offscreen:configfile=schirm.json"
@@ -10712,7 +10826,7 @@ class _Elternwechsel:
     addWidget)."""
 
     def __init__(self, teile):
-        from PyQt6.QtCore import QEvent, QObject
+        from omcad_qt.QtCore import QEvent, QObject
 
         class F(QObject):
             def __init__(self):
@@ -10847,7 +10961,7 @@ def zelle_uebergaenge():
 def _angedockt_lauf(laden=None, groesse=(1000, 700)):
     """Cadwork-Ersatz mit eigenem Dock rechts; das Fenster angedockt.
     -> dict."""
-    from PyQt6.QtCore import Qt
+    from omcad_qt.QtCore import Qt
     k = _K12(laden=laden, fremd_dock=True, ort=(20, 40), groesse=groesse)
     m = {"treffer": k.treffer}
     try:
@@ -10974,8 +11088,8 @@ def _segmente_lauf(laden=None):
         _pumpen(0.05)
         m["einst"] = (einst, w["seiten"].currentWidget() is brief)
         # Tastatur: Ctrl+1 = Chat.
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtTest import QTest
+        from omcad_qt.QtCore import Qt
+        QTest = importlib.import_module(QT.BINDUNG + ".QtTest").QTest
         w["post_eingabe"].setFocus()
         QTest.keyClick(w["post_eingabe"], Qt.Key.Key_1,
                        Qt.KeyboardModifier.ControlModifier)
@@ -11048,10 +11162,13 @@ def _anker_lauf(laden=None, im_signal=False):
     m = {"treffer": k.treffer}
     try:
         # Die Pille verschieben (Ort), offen, Briefkasten, Hinweise auf.
-        from PyQt6.QtCore import QEvent, QPoint, Qt
+        from omcad_qt.QtCore import QEvent, QPoint, Qt
         kopf = w["kopf"]
         start = _maus(kopf, QEvent.Type.MouseButtonPress, QPoint(30, 10))
-        ziel = start + QPoint(-60, 30)
+        # Unter Qt 5 (offscreen 600 px hoch, s. `_ersatz_mass`) nach OBEN
+        # gezogen: 30 px tiefer haette das offene Fenster (mindestens 520)
+        # nicht mehr darunter Platz und rueckte zu Recht nach oben.
+        ziel = start + QPoint(-60, -30 if QT.ist_qt5() else 30)
         _maus(kopf, QEvent.Type.MouseMove, kopf.mapFromGlobal(ziel),
               Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton)
         _maus(kopf, QEvent.Type.MouseButtonRelease, kopf.mapFromGlobal(ziel))
@@ -11169,8 +11286,8 @@ def zelle_anker():
 def _k11_anker_bauen(proc):
     """Ein Anker, wie ihn ein K11-Dashboard (FORM 16) hinterlaesst: Leiste,
     Steuerfenster und Chat-Dock offen, ihre Merker, ein laufender Chat."""
-    from PyQt6.QtCore import Qt, QTimer
-    from PyQt6.QtWidgets import (QApplication, QDockWidget, QLabel,
+    from omcad_qt.QtCore import Qt, QTimer
+    from omcad_qt.QtWidgets import (QApplication, QDockWidget, QLabel,
                                  QMainWindow, QWidget)
     D0 = dashboard_laden()
     z = D0._zustand()
@@ -11221,9 +11338,9 @@ def _k11_anker_bauen(proc):
 
 
 def _update_lauf(laden=None):
-    from PyQt6 import sip
-    from PyQt6.QtCore import QEvent
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt import sip
+    from omcad_qt.QtCore import QEvent
+    from omcad_qt.QtWidgets import QApplication
     proc = _ProzessAttrappe()
     alt = {}
 
@@ -11301,7 +11418,7 @@ def zelle_update_k11():
         _frischer_start()
         # Die Kontrolle laesst die nachgebauten Fenster von K11 stehen (ihre
         # Merker sind schon weg, `_frischer_start` findet sie nicht mehr).
-        from PyQt6.QtWidgets import QApplication
+        from omcad_qt.QtWidgets import QApplication
         for wd in QApplication.topLevelWidgets():
             if wd.isVisible() and wd.objectName() in (
                     "OpenMcpCadMini", "OpenMcpCadADock", "OpenMcpCadChatDock",
@@ -11314,8 +11431,8 @@ def zelle_update_k11():
 def _alter_regler(M):
     """Fuer die Kontrolle: der Regler bis K11 — eine Spur (QSlider) MIT dem
     Namen der Stufe daneben; die Spur wird mit "Ultracode" schmaler."""
-    from PyQt6.QtCore import Qt, pyqtSignal
-    from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
+    from omcad_qt.QtCore import Qt, pyqtSignal
+    from omcad_qt.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
     ns = M._qt_klassen()
 
     class Alt(QWidget):
@@ -11372,9 +11489,9 @@ def _alter_regler(M):
 def _popover_lauf(laden=None):
     """-> dict: Aufbau, Breiten je Stufe, Text neben der Spur, Tasten,
     Modellliste, Codex, mitten im Chat."""
-    from PyQt6.QtCore import QPoint, Qt
-    from PyQt6.QtTest import QTest
-    from PyQt6.QtWidgets import QApplication, QLabel, QSlider
+    from omcad_qt.QtCore import QPoint, Qt
+    QTest = importlib.import_module(QT.BINDUNG + ".QtTest").QTest
+    from omcad_qt.QtWidgets import QApplication, QLabel, QSlider
     k = _K12(laden=laden)
     D, z, w = k.D, k.z, k.w
     m = {"treffer": k.treffer}
@@ -11588,8 +11705,8 @@ def _anzeige_lauf(laden=None, kern_lader=None):
     """Ein echter Lauf (schreibend, dann lesend) ueber TCP, der Hauptthread
     dreht Qt; die Probe liest die Anzeige WAEHREND der Auftraege. Danach der
     Chat des Docks (Zug, Freigabe), Cadwork rechnet, das Ende. -> dict."""
-    from PyQt6.QtCore import QPoint
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtCore import QPoint
+    from omcad_qt.QtWidgets import QApplication
     if REPO not in sys.path:
         sys.path.insert(0, REPO)
     from open_mcp_cad import bridge_client
@@ -11678,7 +11795,7 @@ def _anzeige_lauf(laden=None, kern_lader=None):
         # Attribut pruefen. Auf der echten Windows-Plattform von Qt 6.11
         # bleibt Cadworks Fenster damit aktiv, ohne es nicht (gemessen,
         # Skript messung_fokus.py, Uebergabe K12).
-        from PyQt6.QtCore import Qt as _Qt
+        from omcad_qt.QtCore import Qt as _Qt
         m["aktiv"] = bool(
             anz is not None
             and anz.testAttribute(_Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -11689,6 +11806,11 @@ def _anzeige_lauf(laden=None, kern_lader=None):
             m["ort"] = (abs((g[0] + g[2]) // 2 - (c[0] + c[2]) // 2) <= 2,
                         abs(g[1] - (c[1] + 12)) <= 2)
             m["logo"] = not z["w"]["anzeige_logo"].pixmap().isNull()
+        # Ruhe (2026-10-10): der Arbeitsblock endet RUHE_BEREIT_S nach dem
+        # letzten Auftrag — hier vorgespult, statt zu warten.
+        if hasattr(D, "_block_schritt"):
+            z["ruhe_block"] = D._block_schritt(z.get("ruhe_block"),
+                                               time.monotonic() + 60)
         # Der Chat des Docks: ein Zug ohne Auftrag.
         cad = "mcp__open-mcp-cad__execute_cadwork_command"
         z["chat"].update(an=True, laeuft_zug=True, kurzname="Claude",
@@ -11767,7 +11889,7 @@ def _trennen_im_lauf(laden=None):
     (die Probe ruft `_trennen` IM Auftrag — so kaeme ein Klick an, wenn
     Cadwork mitten im Auftrag Ereignisse verteilt). Gezaehlt: wie oft der
     Kern sein eigenes Fenster setzen wollte. -> dict."""
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     if REPO not in sys.path:
         sys.path.insert(0, REPO)
     from open_mcp_cad import bridge_client
@@ -11867,9 +11989,10 @@ def zelle_arbeitsanzeige():
         pruefe("L103 WAEHREND des schreibenden Auftrags: 'KI zeichnet'",
                (m["schreiben"] or {}).get("titel") == "KI zeichnet",
                m["schreiben"])
-        pruefe("L103 WAEHREND des lesenden Auftrags (im Lauf): 'KI schaut "
-               "ins Modell'",
-               (m["lesen"] or {}).get("titel") == "KI schaut ins Modell",
+        pruefe("L103 WAEHREND des lesenden Auftrags im selben Arbeitsblock: "
+               "weiter 'KI zeichnet' (Ruhe 2026-10-10: der Titel springt "
+               "nicht je Auftrag)",
+               (m["lesen"] or {}).get("titel") == "KI zeichnet",
                m["lesen"])
         pruefe("L103 das Fenster des Kerns ('Open MCP CAD zeichnet …') nie "
                "zu sehen", not m["kern_popup_je"]
@@ -11894,17 +12017,20 @@ def zelle_arbeitsanzeige():
         pruefe("L103 am Ende 'Fertig', danach ist die Anzeige weg",
                "Fertig" in m["ende"][0] and m["ende"][1] is False, m["ende"])
         pruefe("L103 WAEHREND der Auftraege sagt die Pille im Kopf "
-               "'Zeichnet' bzw. 'Liest' (nicht 'Bereit'; Gegenpruefung K12)",
+               "'Zeichnet' (nicht 'Bereit'; Gegenpruefung K12) — auch beim "
+               "Lesen im selben Block (Ruhe)",
                (m["schreiben"] or {}).get("pille") == "● Zeichnet"
-               and (m["lesen"] or {}).get("pille") == "● Liest",
+               and (m["lesen"] or {}).get("pille") == "● Zeichnet",
                ((m["schreiben"] or {}).get("pille"),
                 (m["lesen"] or {}).get("pille")))
         pruefe("L103 WAEHREND des Auftrags steht im Briefkasten 'Läuft jetzt' "
-               "mit seiner Beschreibung",
+               "mit seiner Beschreibung (im Block hoechstens alle "
+               "BRIEFKASTEN_TAKT_S neu: beim zweiten noch der erste)",
                list((m["schreiben"] or {}).get("laeuft") or ())
                == [True, "Wand Nord"]
-               and list((m["lesen"] or {}).get("laeuft") or ())
-               == [True, "Wände zählen"],
+               and list((m["lesen"] or {}).get("laeuft") or ())[:1] == [True]
+               and (m["lesen"] or {}).get("laeuft")[1] in (
+                   "Wand Nord", "Wände zählen"),
                ((m["schreiben"] or {}).get("laeuft"),
                 (m["lesen"] or {}).get("laeuft")))
         o = m["ohne_lauf"] if isinstance(m["ohne_lauf"], dict) else {}
@@ -11945,12 +12071,12 @@ def zelle_arbeitsanzeige():
                "dazu — zwei Anzeigen (die Zelle oben wird rot)",
                k["treffer"] == [1] and k["kern_popup_je"], k["kern_popup"][:5])
         k = _anzeige_lauf(lambda: _mutant(_anweisungen(
-            "_anzeige_setzen", lambda s: isinstance(s, ast.Expr)
-            and ast.unparse(s).startswith("titel.setText(zustand["),
-            "titel.setText('KI zeichnet')")))
-        pruefe("L103 KONTROLLE: mit festem Titel steht auch beim Lesen "
-               "'KI zeichnet'", k["treffer"] == [1]
-               and (k["lesen"] or {}).get("titel") == "KI zeichnet",
+            "_anzeige_zeichnen", _beginnt("schreibblock = "),
+            "schreibblock = False")))
+        pruefe("L103 KONTROLLE: ohne den Arbeitsblock (alte Logik) springt "
+               "der Titel beim Lesen auf 'KI schaut ins Modell'",
+               k["treffer"] == [1]
+               and (k["lesen"] or {}).get("titel") == "KI schaut ins Modell",
                k["lesen"])
         k = _anzeige_lauf(lambda: _mutant(_anweisungen(
             "_anzeige_bauen", _beginnt(
@@ -11983,7 +12109,7 @@ def zelle_arbeitsanzeige():
 def _aussehen_lauf(laden=None):
     """-> dict: Rot im Kopf, Knopfhoehen, blauer Rand schwebend/angedockt,
     Emoji in sichtbaren Texten."""
-    from PyQt6.QtWidgets import QPushButton
+    from omcad_qt.QtWidgets import QPushButton
     k = _K12(laden=laden)
     D, z, w = k.D, k.z, k.w
     m = {"treffer": k.treffer}
@@ -12058,7 +12184,7 @@ def zelle_aussehen():
 def _schirm_lauf(laden=None):
     """Ein Hauptfenster hoeher als der Bildschirm; das offene Fenster, und
     die Pille nach dem Ziehen neben alle Bildschirme. -> dict."""
-    from PyQt6.QtCore import QEvent, QPoint, Qt
+    from omcad_qt.QtCore import QEvent, QPoint, Qt
     k = _K12(laden=laden, ort=(30, 30), groesse=(700, 1200))
     D, z, w = k.D, k.z, k.w
     m = {"treffer": k.treffer}
@@ -12113,16 +12239,26 @@ def _rueckfrage_lauf(laden=None):
     """L92: die Pille steht, der Chat arbeitet, "Trennen" im Kopf -> die
     Rueckfrage "Chat beenden?" (exec durch eine Attrappe ersetzt, die nur
     misst). -> dict."""
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from omcad_qt.QtWidgets import QApplication, QMessageBox
     k = _K12(laden=laden)
     D, z = k.D, k.z
     gesehen = []
     echt_exec = QMessageBox.exec
 
     def exec_attrappe(box):
+        p = box.parentWidget()
+        if QT.ist_qt5():
+            # Qt 5.15.2 "offscreen" stuerzt bei JEDEM QMessageBox.show() ab
+            # (access violation, gemessen auch ohne Eltern und ohne das Dock
+            # in einem leeren Prozess) — gemessen wird dort nur der Eltern,
+            # nicht der Ort (s. NICHT GEMESSEN in L92).
+            gesehen.append({"eltern": p.objectName() if p is not None
+                            else None,
+                            "sichtbar": bool(p is not None and p.isVisible()),
+                            "mitte": None})
+            return 0
         box.show()
         QApplication.processEvents()
-        p = box.parentWidget()
         g = box.frameGeometry()
         gesehen.append({"eltern": p.objectName() if p is not None else None,
                         "sichtbar": bool(p is not None and p.isVisible()),
@@ -12147,8 +12283,9 @@ def _rueckfrage_lauf(laden=None):
             QMessageBox.exec = echt_exec
         m["gesehen"] = gesehen
         h = _global(k.haupt, rahmen=False)
-        m["ueber_cadwork"] = [h[0] <= g["mitte"][0] < h[2]
-                              and h[1] <= g["mitte"][1] < h[3]
+        m["ueber_cadwork"] = [g["mitte"] is None
+                              or (h[0] <= g["mitte"][0] < h[2]
+                                  and h[1] <= g["mitte"][1] < h[3])
                               for g in gesehen]
     finally:
         if C is not None:
@@ -12167,8 +12304,13 @@ def zelle_rueckfrage_sichtbar():
     pruefe("L92 vorher steht nur die Pille, ihr Knopf heisst 'Trennen'",
            m["vorher"] == (True, True, "Trennen"), m["vorher"])
     g = m["gesehen"]
+    if QT.ist_qt5():
+        nicht_messbar("L92 die Mitte der Rueckfrage ueber Cadwork",
+                      "QMessageBox.show() stuerzt unter Qt 5.15.2 offscreen "
+                      "ab (gemessen in einem leeren Prozess); geprueft ist "
+                      "nur der sichtbare Eltern")
     pruefe("L92 die Rueckfrage geht am sichtbaren Fenster auf, ihre Mitte "
-           "ueber Cadwork",
+           "ueber Cadwork (Qt 5: nur der Eltern)",
            len(g) == 1 and g[0]["eltern"] == "OpenMcpCadFenster"
            and g[0]["sichtbar"] and m["ueber_cadwork"] == [True], m)
     M = _mutant()
@@ -12325,7 +12467,7 @@ def zelle_k11_slots_sicher():
 def _post_lauf(laden=None):
     """Der Briefkasten als Ablage (K12: das Segment Briefkasten): was darin
     steht, Enter und "Ablegen", die Notizen mit Zeit und Chip. -> dict."""
-    from PyQt6.QtWidgets import (QLabel, QLineEdit, QPlainTextEdit,
+    from omcad_qt.QtWidgets import (QLabel, QLineEdit, QPlainTextEdit,
                                  QPushButton, QTextEdit, QWidget)
     _einst_setzen(None)
     jetzt = time.time()
@@ -12463,8 +12605,8 @@ def zelle_briefkasten_ablage():
 def _protokoll_lauf(laden=None):
     """"Letzte Aufträge" im Briefkasten (K12): Kopf, Liste, wie sie
     gezeichnet wird. -> dict."""
-    from PyQt6.QtGui import QColor
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtGui import QColor
+    from omcad_qt.QtWidgets import QLabel
     _einst_setzen(None)
     D, z, d = _neustart(laden() if laden else None)
     m = {"treffer": getattr(D, "_mutant_treffer", None)}
@@ -12600,7 +12742,7 @@ def zelle_kopfknoepfe():
 def _geloescht_lauf(laden=None):
     """L106: die Arbeitsanzeige zeigt "Fertig", dann loescht Cadwork das
     Fenster (mit ihm den Takt). -> dict."""
-    from PyQt6 import sip
+    from omcad_qt import sip
     k = _K12(laden=laden)
     D, z = k.D, k.z
     m = {"treffer": k.treffer}
@@ -12609,8 +12751,12 @@ def _geloescht_lauf(laden=None):
         m["gesetzt"] = D._haken_setzen(z)
         haken = z["dienst"].cfg.lauf_anzeige
         haken("start", {"zugriff": "write", "beschreibung": "Wand",
-                        "neu_lauf": True, "popup": True})
+                        "neu_lauf": True, "popup": True, "lauf_gesamt": 3})
         haken("ende", {"lauf_gezeichnet": 3})
+        if hasattr(D, "_block_schritt"):
+            # Ruhe: der Arbeitsblock endet RUHE_BEREIT_S spaeter (vorgespult).
+            z["ruhe_block"] = D._block_schritt(z.get("ruhe_block"),
+                                               time.monotonic() + 60)
         D._auffrischen(z)
         anz = z["anzeige"]
         m["vorher"] = (anz.isVisible(), z["w"]["anzeige_titel"].text())
@@ -12669,8 +12815,8 @@ def _menue_lauf(laden=None):
     """L107: der Popover fuer Modell und Denkstufe ist offen — was sagen
     die Sonde des echten Kerns, Pille, Meldezeile und Anzeige; dagegen ein
     fremdes Popup. -> dict."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QWidget
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import QWidget
     km = _kern_modul_lesen()
     k = _K12(laden=laden)
     D, z, w = k.D, k.z, k.w
@@ -12819,7 +12965,7 @@ def _pfeil_fuellung(feld):
     fuellt: Anteil der dunklen Bildpunkte an ihrem umschliessenden Rechteck.
     Der alte Rahmen-Trick zeichnete einen VOLLEN Balken (~1,0), ein
     Winkel aus zwei Strichen fuellt ihn halb. -> (Anteil, Zahl)."""
-    from PyQt6.QtGui import QImage
+    from omcad_qt.QtGui import QImage
     bild = QImage(feld.size(), QImage.Format.Format_ARGB32)
     bild.fill(0xFFFFFFFF)
     feld.render(bild)
@@ -12840,8 +12986,8 @@ def _gestalt_lauf(laden=None):
     """L109: Kopf des Chats ohne Ordnerzeile, Koepfe und Liste im
     Briefkasten, die Karten der Einstellungsseite, der Pfeil der
     Auswahlfelder. -> dict."""
-    from PyQt6.QtCore import QPoint
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtCore import QPoint
+    from omcad_qt.QtWidgets import QLabel
     k = _K12(laden=laden)
     D, z, w = k.D, k.z, k.w
     m = {"treffer": k.treffer}
@@ -13043,7 +13189,7 @@ def zelle_zahl_einmal():
 def _knopf_texte_lauf(laden=None, breite=None):
     """L111: Knoepfe ohne Wort, die Woerter im offenen Fenster, der letzte
     Knopf des Kopfs. -> dict."""
-    from PyQt6.QtWidgets import QAbstractButton
+    from omcad_qt.QtWidgets import QAbstractButton
     k = _K12(laden=laden)
     D, z, w = k.D, k.z, k.w
     m = {"treffer": k.treffer}
@@ -13149,7 +13295,7 @@ _FACHWORT = re.compile(r"Steckplatz|\bPort\b|\b\d+\s*ms\b|Vorgabe von|"
 
 
 def _alle_sichtbaren(wurzel):
-    from PyQt6.QtWidgets import QAbstractButton, QLabel
+    from omcad_qt.QtWidgets import QAbstractButton, QLabel
     texte = [lb.text() for lb in wurzel.findChildren(QLabel)
              if lb.isVisible() and lb.text()]
     texte += [b.text() for b in wurzel.findChildren(QAbstractButton)
@@ -13250,7 +13396,7 @@ def zelle_fachwoerter():
 def _hinweis_platz_lauf(laden=None):
     """L113: der Hinweis-Bereich angedockt mit drei Hinweisen (einer
     lang), ohne und mit Wahl. -> dict."""
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtWidgets import QLabel
     k = _K12(laden=laden)
     D, z, w = k.D, k.z, k.w
     m = {"treffer": k.treffer}
@@ -13441,9 +13587,13 @@ def _deckend_lauf(laden=None):
     """Klick, Chat, Andocken, Abdocken, Verkleinern neben einer nativen
     Mitte; WA_TranslucentBackground am Dock wird bei JEDEM Setzen
     mitgeschrieben (auch beim Bau). -> dict."""
-    import PyQt6.QtWidgets as QtW
-    from PyQt6.QtCore import QPoint, Qt
-    from PyQt6.QtWidgets import QApplication
+    # Der Spion muss in der ECHTEN Bindung UND in der Schicht stehen: ein
+    # frisch geladenes Dashboard laedt die Schicht neu (unter PyQt5 kopiert
+    # sie dann die Namen der echten QtWidgets).
+    QtW = importlib.import_module(QT.BINDUNG + ".QtWidgets")
+    QtS = sys.modules["omcad_qt.QtWidgets"]
+    from omcad_qt.QtCore import QPoint, Qt
+    from omcad_qt.QtWidgets import QApplication
     transl = Qt.WidgetAttribute.WA_TranslucentBackground
     gesetzt = []
     echt = QtW.QDockWidget
@@ -13454,11 +13604,14 @@ def _deckend_lauf(laden=None):
                 gesetzt.append(self.objectName() or "?")
             super().setAttribute(attr, an)
     QtW.QDockWidget = Spion
+    QtS.QDockWidget = Spion
     try:
         k = _K12(laden=laden, fremd_dock=True, nativ=True, ort=(20, 40),
                  groesse=(1000, 700))
     finally:
         QtW.QDockWidget = echt
+        QtS.QDockWidget = echt
+        sys.modules["omcad_qt.QtWidgets"].QDockWidget = echt
     z, f = k.z, k.f
     m = {"treffer": k.treffer, "gesetzt": gesetzt, "je_zustand": {}}
 
@@ -13575,7 +13728,7 @@ def _deckend_kind():
     native Fenster, die bis zum Ende des Interpreters leben, brechen
     offscreen beim Aufraeumen mit Segmentation fault ab (gemessen, rc 139;
     auch ein Freigeben vorher stuerzte) — das darf das Gate nicht treffen."""
-    from PyQt6.QtWidgets import QApplication
+    from omcad_qt.QtWidgets import QApplication
     global _APP
     _APP = QApplication.instance() or QApplication([])
     _draht_legen()
@@ -13616,10 +13769,21 @@ def zelle_angedockt_deckend():
            "offen, angedockt, abgedockt, Pille)", _deckend_ok(m) == []
            and len(m["je_zustand"]) == 5, (_deckend_ok(m), m["je_zustand"]))
     a = m["angedockt"]
+    # Qt 5 "offscreen" meldet fuer das native Fenster NIE einen Alphakanal
+    # — auch fuer das alte, durchsichtig gebaute nicht (gemessen 5.15.2:
+    # -1 statt 8). Die Format-Pruefung waere dort leer; sie steht unter
+    # Qt 5 als NICHT GEMESSEN, der Rest (Setzen, Kinder, Pixel) gilt.
+    qt5 = QT.ist_qt5()
+    if qt5:
+        nicht_messbar("L115 angedockt: Format OHNE Alphakanal (und die "
+                      "Kontrolle 'Alphakanal 8')",
+                      "offscreen unter Qt 5 meldet nie einen Alphakanal, "
+                      "auch nicht fuer das alte Fenster")
     pruefe("L115 angedockt neben nativer Mitte: natives Kind wie in "
-           "Cadwork, Format OHNE Alphakanal",
+           "Cadwork, Format OHNE Alphakanal%s" % (" (Qt 5: ohne Format)"
+                                                  if qt5 else ""),
            a["schwebt"] is False and a["nativ"] is True
-           and a["alpha"] is not None and a["alpha"] <= 0, a)
+           and (qt5 or (a["alpha"] is not None and a["alpha"] <= 0)), a)
     pruefe("L115 angedockt keine Maske, Grund gefuellt, grab() ohne "
            "einen durchsichtigen Pixel (ganzes Fenster)",
            a["maske_leer"] and a["fuellt"] and a["durchsichtig"] == 0
@@ -13640,8 +13804,10 @@ def zelle_angedockt_deckend():
     ka = k["angedockt"]
     pruefe("L115 KONTROLLE: das alte Fenster (durchsichtig gebaut) faellt "
            "auf — Setzen mitgeschrieben, angedockt Alphakanal 8, ein "
-           "durchsichtiges Kind im Dock", k["treffer"] == [1]
-           and _deckend_ok(k) != [] and ka["alpha"] == 8
+           "durchsichtiges Kind im Dock%s" % (" (Qt 5: ohne Alphakanal)"
+                                              if qt5 else ""),
+           k["treffer"] == [1]
+           and _deckend_ok(k) != [] and (qt5 or ka["alpha"] == 8)
            and k["kinder"] == ["OpenMcpCadFenster"],
            (k["treffer"], _deckend_ok(k), ka["alpha"], k["kinder"]))
     k = d["kurz"]
@@ -13867,6 +14033,572 @@ def zelle_schliessen():
         _frischer_start()
 
 
+# --- Q0: welche Qt-Bindung lief WIRKLICH (seit 2026-10-10) ----------------
+
+def zelle_qt_bindung(D, z):
+    """Q0: dieses Gate laeuft unter PyQt6 (venv omcadqt) und PyQt5 (venv
+    omcadqt5). Am ENDE gemessen, nach allen Zellen: die Schicht hat die
+    Bindung gewaehlt, die die QApplication und das Fenster des Docks WIRKLICH
+    gebaut hat, und die ANDERE Generation wurde nie geladen (kein heimliches
+    PyQt6 unter Qt 5). `OMCAD_LIVE_QT=PyQt5` verlangt eine bestimmte."""
+    from omcad_qt.QtWidgets import QApplication
+    andere = "PyQt5" if QT.BINDUNG == "PyQt6" else "PyQt6"
+    app_modul = type(QApplication.instance()).__module__
+    fenster_mro = [k.__module__ for k in type(z["fenster"]).__mro__]
+    geladen_andere = sorted(n for n in sys.modules
+                            if n == andere or n.startswith(andere + "."))
+    gewollt = os.environ.get("OMCAD_LIVE_QT")
+    pruefe("Q0 Qt-Bindung %s: QApplication und Fenster des Docks aus %s, "
+           "Version %s.x, %s nie geladen%s"
+           % (QT.stand(), QT.BINDUNG, QT.BINDUNG[-1], andere,
+              (", verlangt %s" % gewollt) if gewollt else ""),
+           app_modul.startswith(QT.BINDUNG + ".")
+           and (QT.BINDUNG + ".QtWidgets") in fenster_mro
+           and QT.QT_VERSION.startswith(QT.BINDUNG[-1] + ".")
+           and geladen_andere == []
+           and (not gewollt or gewollt == QT.BINDUNG)
+           and D._QT is not None and D._QT.BINDUNG == QT.BINDUNG,
+           (app_modul, fenster_mro[:3], QT.QT_VERSION, geladen_andere[:5],
+            gewollt))
+    pruefe("Q0 KONTROLLE: gegen die ANDERE Bindung gemessen faellt es auf",
+           not app_modul.startswith(andere + ".")
+           and (andere + ".QtWidgets") not in fenster_mro, app_modul)
+
+
+# --- L117-L119: Ruhe in der Anzeige, Updates (2026-10-10) --------------------
+
+#: Der Stand vor der Ruhe (Basis dieses Auftrags) — die Kontrollen laden das
+#: Dashboard dieses Commits als "alte Logik".
+ALT_STAND = "fc4dbfa"
+
+
+def _alter_stand():
+    """Das Dashboard aus ALT_STAND (git show), ausgefuehrt wie der Mutant
+    (`__file__` im A-Ordner). -> Modul oder None (kein git)."""
+    try:
+        quelle = subprocess.run(
+            ["git", "show", "%s:cad_plugin/Open MCP CAD A/omcad_a_dashboard.py"
+             % ALT_STAND], cwd=REPO, capture_output=True, check=True,
+            timeout=30).stdout.decode("utf-8")
+    except (OSError, subprocess.SubprocessError):
+        return None
+    pfad = os.path.join(A, "omcad_a_dashboard.py")
+    m = types.ModuleType("a_dash_alt")
+    m.__file__ = pfad
+    sys.modules[m.__name__] = m
+    exec(compile(quelle, pfad, "exec"), m.__dict__)
+    m._mutant_treffer = None
+    return m
+
+
+def _pille_breiten(laden=None):
+    """L117: als Pille alle Zustandstexte setzen; je Text die Breite von
+    Pille, Kopf und Fenster. -> dict."""
+    k = _K12(laden=laden)
+    D, z, w = k.D, k.z, k.w
+    m = {"treffer": k.treffer, "breiten": {}}
+    try:
+        z["dienst"].zustand = "busy_read"           # verbunden, arbeitet
+        texte = []
+        for tf in list(D.PILLE.values()) + [
+                D.PILLE_CADWORK, D.PILLE_FREIGABE, D.PILLE_DENKT,
+                D.PILLE_MENUE]:
+            if tf not in texte:
+                texte.append(tf)
+        for tf in texte:
+            D._pille_setzen(z, None, tf)
+            _pumpen(0.05)
+            m["breiten"][tf[0]] = (w["pille"].width(), w["kopf"].width(),
+                                   k.f.width(), k.f.frameGeometry().right())
+        m["zustand"] = z["fenster_zustand"]
+        # Offen: der Koerper bestimmt die Breite, die Pille ist frei.
+        k.aktion("chat")
+        D._pille_setzen(z, None, D.PILLE["ready"])
+        _pumpen(0.05)
+        m["offen_frei"] = w["pille"].maximumWidth() == getattr(
+            D, "BREITE_FREI", -1)
+    finally:
+        k.ende()
+    return m
+
+
+def zelle_pille_breite():
+    """L117 (Rueckmeldung 2026-10-10 mit Bild): als Pille ist die
+    Zustandspille immer gleich breit (breitester Zustandstext, gemessen mit
+    der echten Schrift) — Kopf und Fenster werden bei Bereit/Liest/Zeichnet/
+    … weder breiter noch schmaler, die rechte Kante bleibt. Kontrolle: ohne
+    `_pille_breite_halten` aendern sie sich."""
+    try:
+        m = _pille_breiten()
+        werte = set(m["breiten"].values())
+        pruefe("L117 als Pille: Pille, Kopf, Fenster und rechte Kante gleich "
+               "fuer alle %d Zustandstexte" % len(m["breiten"]),
+               m["zustand"] == "pille" and len(werte) == 1
+               and len(m["breiten"]) >= 12, m["breiten"])
+        breiteste = max(m["breiten"], key=len)
+        pruefe("L117 der breiteste Text passt ganz hinein (kein Abschneiden)",
+               len(werte) == 1 and list(werte)[0][0] > 0, breiteste)
+        pruefe("L117 offen ist die Pille wieder frei (Kopf passt in die "
+               "Mindestbreite)", m["offen_frei"], m)
+        k = _pille_breiten(lambda: _mutant(_anweisungen(
+            "_pille_breite_halten", lambda s: isinstance(s, ast.For))))
+        pruefe("L117 KONTROLLE: ohne gleiche Breite (alte Logik) aendern sich "
+               "Kopf- und Fensterbreite mit dem Text",
+               k["treffer"] == [1]
+               and len({v[2] for v in k["breiten"].values()}) > 3,
+               (k["treffer"], k["breiten"]))
+    finally:
+        _frischer_start()
+
+
+def _disco_lauf(muster, laden=None, pause=0.25):
+    """L118: der ECHTE Kern (Qt-Antrieb, cwapi3d-Attrappe), eine Folge
+    kurzer Auftraege ueber TCP aus einem Thread ("l" lesen, "z" zeichnen),
+    der Hauptthread dreht Qt und schaut alle 10 ms auf Pille und
+    Arbeitsanzeige. -> dict mit den Wechseln."""
+    from omcad_qt.QtWidgets import QApplication
+    if REPO not in sys.path:
+        sys.path.insert(0, REPO)
+    from open_mcp_cad import bridge_client
+    _frischer_start()
+    _einst_setzen(None)
+    cw = _CadworkBild().einsetzen()
+    haupt = _cadwork_ersatz(ort=(10, 30), groesse=(780, 700))
+    p_y, = _freie_ports(1)
+    client = _Client([("Y", p_y)])
+    lade = _echter_kern_lader(p_y)
+    m = {"proben": []}
+    kern = None
+    try:
+        D = (laden or dashboard_laden)()
+        D._monitor_starten = lambda z: None
+        D._verbindungen_zeichnen = lambda z: None
+        D._ablage_pflegen = lambda z: None
+        D._verbindungen_client = lambda: client
+        D.oeffnen(lade, lambda k: k.Konfiguration(), verbinden=True)
+        z = D._zustand()
+        kern, d = z["kern"], z["dienst"]
+        cw.dienst = d
+        d.ms_je_teil = 1000.0          # 2 Bauteile -> 2 s: der Kern fuehrt
+        _pumpen(0.6)                   # einen Lauf (wie bei echter Arbeit)
+        D._auffrischen(z)
+        fehler = []
+
+        def lauf():
+            for i, art in enumerate(muster):
+                p = {"code": "result = %d\n" % i, "client_id": "anon",
+                     "description": "Schritt %d" % i}
+                if art == "z":
+                    p["bauteile"] = 2
+                else:
+                    p["access_mode"] = "read"
+                try:
+                    bridge_client.call("execute_cwapi3d", p, port=p_y,
+                                       antwort_timeout=30)
+                except Exception as exc:              # noqa: BLE001
+                    fehler.append(repr(exc))
+                time.sleep(pause)
+        anz = z.get("anzeige")
+
+        def probe():
+            if "proben" not in m:                 # nach dem Lauf
+                return
+            sichtbar = bool(anz is not None and anz.isVisible())
+            m["proben"].append((z["w"]["pille"].text(), sichtbar,
+                                z["w"]["anzeige_titel"].text() if sichtbar
+                                else None, z["fenster"].width()))
+
+        # Auch WAEHREND eines Auftrags (der Hauptthread gehoert ihm, die
+        # Schleife unten steht): nach jedem Setzen von Pille und Anzeige —
+        # genau dann zeichnen die Haken neu (`repaint`).
+        def gemessen(fn):
+            def hulle(*a, **kw):
+                erg = fn(*a, **kw)
+                probe()
+                return erg
+            return hulle
+        D._pille_setzen = gemessen(D._pille_setzen)
+        D._anzeige_zeichnen = gemessen(D._anzeige_zeichnen)
+        t = threading.Thread(target=lauf, daemon=True)
+        t.start()
+        ende = time.monotonic() + 120
+        nach = None
+        while time.monotonic() < ende:
+            QApplication.processEvents()
+            probe()
+            if not t.is_alive():
+                nach = nach or time.monotonic() + 6.0
+                if time.monotonic() > nach:
+                    break
+            time.sleep(0.01)
+        m["fehler"] = fehler
+    finally:
+        if kern is not None:
+            pruefe("L118 Dienst laesst sich sauber beenden",
+                   _alle_beenden(kern))
+        cw.entfernen()
+        haupt.hide()
+        _frischer_start()
+
+    def wechsel(i):
+        werte = [p[i] for p in m["proben"]]
+        return sum(1 for a, b in zip(werte, werte[1:]) if a != b)
+    m["pille"], m["anzeige"] = wechsel(0), wechsel(1)
+    m["titel"] = len({p[2] for p in m["proben"] if p[2] is not None})
+    m["titel_wechsel"] = wechsel(2)
+    m["breiten"] = sorted({p[3] for p in m["proben"]})
+    m["breite_je"] = sorted({(p[0], p[3]) for p in m["proben"]})
+    m["ende"] = m["proben"][-1][:2] if m["proben"] else None
+    del m["proben"]
+    return m
+
+
+def zelle_disco():
+    """L118 (Rueckmeldung 2026-10-10 "Disco"): mit dem echten Kern 30
+    kurze Leseauftraege hintereinander, dann gemischt (zeichnen + 4x
+    lesen, 6 Runden). Gemessen werden die Wechsel der Pille und der
+    Sichtbarkeit der Arbeitsanzeige — neu und mit der alten Logik (das
+    Dashboard aus ALT_STAND) als Kontrolle."""
+    try:
+        lesen = _disco_lauf("l" * 30)
+        gemischt = _disco_lauf("zllll" * 6)
+        alt = _alter_stand()
+        alt_l = _disco_lauf("l" * 30, laden=lambda: alt) if alt else None
+        alt_g = _disco_lauf("zllll" * 6, laden=lambda: alt) if alt else None
+        print("  [info] L118 30 Leseauftraege neu %s / alt %s"
+              % (lesen, alt_l))
+        print("  [info] L118 gemischt neu %s / alt %s" % (gemischt, alt_g))
+        pruefe("L118 30 kurze Leseauftraege: die Pille wechselt hoechstens "
+               "zweimal (Bereit -> Liest -> Bereit), die Anzeige erscheint "
+               "nie, am Ende 'Bereit'",
+               not lesen["fehler"] and lesen["pille"] <= 2
+               and lesen["anzeige"] == 0
+               and lesen["ende"] == ("● Bereit", False), lesen)
+        pruefe("L118 gemischt: Pille hoechstens zweimal, Anzeige einmal an "
+               "und einmal aus, ihr Titel bleibt 'KI zeichnet' (dann "
+               "'Fertig'), das Fenster gleich breit",
+               not gemischt["fehler"] and gemischt["pille"] <= 2
+               and gemischt["anzeige"] == 2 and gemischt["titel"] <= 2
+               and len(gemischt["breiten"]) == 1, gemischt)
+        pruefe("L118 KONTROLLE: die alte Logik (%s) wechselt die Pille je "
+               "Auftrag und den Titel der Anzeige je Auftrag" % ALT_STAND,
+               alt_l is not None and alt_l["pille"] >= 20
+               and alt_g["pille"] >= 20 and alt_g["titel_wechsel"] >= 8,
+               (alt_l, alt_g))
+    finally:
+        _frischer_start()
+
+
+import hashlib                                              # noqa: E402
+import io                                                   # noqa: E402
+import shutil                                               # noqa: E402
+import tempfile                                             # noqa: E402
+
+
+class _UpdateDienst:
+    """Ein lokaler HTTP-Dienst als GitHub-API (ephemerer Port ausserhalb des
+    Cadwork-Bereichs): /api antwortet mit `antwort`, /paket.zip mit
+    `paket`. `abrufe` zaehlt mit."""
+
+    def __init__(self, version="9.0.1", sha=None):
+        import http.server
+        import zipfile
+        puffer = io.BytesIO()
+        with zipfile.ZipFile(puffer, "w") as zf:
+            zf.writestr("Open-MCP-CAD-%s/1_INSTALLIEREN.cmd" % version, "@x")
+            zf.writestr("Open-MCP-CAD-%s/Programmdateien/install.ps1"
+                        % version, "#")
+        self.paket = puffer.getvalue()
+        self.abrufe = []
+        dienst = self
+        s, self.port = _belegen()
+        self.basis = "http://127.0.0.1:%d" % self.port
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):                         # noqa: N802
+                dienst.abrufe.append(self.path)
+                daten = (json.dumps(dienst.antwort).encode()
+                         if self.path == "/api" else
+                         dienst.paket if self.path == "/paket.zip" else None)
+                if daten is None:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(daten)))
+                self.end_headers()
+                self.wfile.write(daten)
+        self.antwort = {"tag_name": "v" + version, "assets": [{
+            "name": "Open-MCP-CAD.zip", "size": len(self.paket),
+            "browser_download_url": self.basis + "/paket.zip",
+            "digest": "sha256:" + (sha or hashlib.sha256(
+                self.paket).hexdigest())}]}
+        self.srv = http.server.HTTPServer(("127.0.0.1", 0), H,
+                                          bind_and_activate=False)
+        self.srv.socket.close()
+        self.srv.socket = s
+        self.srv.server_address = s.getsockname()
+        self.srv.server_activate()
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.alt = os.environ.get("OPEN_MCP_CAD_UPDATE_URL")
+        os.environ["OPEN_MCP_CAD_UPDATE_URL"] = self.basis + "/api"
+
+    def ende(self):
+        self.srv.shutdown()
+        self.srv.server_close()
+        os.environ["OPEN_MCP_CAD_UPDATE_URL"] = self.alt
+
+
+def _warten_bis(D, z, bedingung, frist=5.0):
+    ende = time.monotonic() + frist
+    while time.monotonic() < ende:
+        D._auffrischen(z)
+        if bedingung():
+            return True
+        _pumpen(0.05)
+    return bedingung()
+
+
+def _upd_lauf(einst=None, laden=None, beschaeftigt=False, sha=None,
+                 profile=False):
+    """L119: ein Dock gegen den lokalen Dienst. `einst`: chat.json VOR dem
+    Klick (der erste Takt sieht schon nach); `beschaeftigt`: das Dock wird
+    mit abgeschalteter Suche gebaut, dann arbeitet der Dienst, und die
+    Suche wird eingeschaltet. -> dict."""
+    dienst = _UpdateDienst(sha=sha)
+    if profile:
+        dienst.antwort["tag_name"] = "v0.0.1"       # nichts Neueres
+    if beschaeftigt:
+        einst = {"updates_suchen": False}
+    tmp = tempfile.mkdtemp(prefix="omcad_l119_")
+    alt_env = {k: os.environ.get(k) for k in (
+        "OPEN_MCP_CAD_UPDATES", "OPEN_MCP_CAD_CADWORK_WURZEL",
+        "OPEN_MCP_CAD_CADWORK_PROGRAMM")}
+    os.environ["OPEN_MCP_CAD_UPDATES"] = os.path.join(tmp, "updates")
+    if profile:
+        wurzel = os.path.join(tmp, "cw")
+        os.makedirs(os.path.join(wurzel, "USERPROFIL_2027", "3d", "API.x64"))
+        os.makedirs(os.path.join(tmp, "prog", "EXE_2027"))
+        os.environ["OPEN_MCP_CAD_CADWORK_WURZEL"] = wurzel
+        os.environ["OPEN_MCP_CAD_CADWORK_PROGRAMM"] = os.path.join(tmp,
+                                                                   "prog")
+    m = {}
+    k = None
+    try:
+        k = _K12(laden=laden, anker=lambda: _einst_setzen(
+            json.dumps(einst) if einst is not None else None))
+        D, z, w = k.D, k.z, k.w
+        m["treffer"] = k.treffer
+        U = D._update_modul()
+        gestartet = []
+        U.STARTEN = gestartet.append
+        k.aktion("chat")
+        if beschaeftigt:
+            _pumpen(0.3)
+            vorher = list(dienst.abrufe)
+            z["dienst"].zustand = "busy_read"
+            z["update"]["an"] = True
+            for _ in range(6):
+                D._auffrischen(z)
+                _pumpen(0.05)
+            m["abrufe_besch"] = dienst.abrufe[len(vorher):]
+            z["dienst"].zustand = "ready"
+            z["ruhe_block"] = None
+        m["auto"] = _warten_bis(D, z, lambda: not w["update_zeile"]
+                                .isHidden(), 3.0)
+        m["abrufe_auto"] = list(dienst.abrufe)
+        m["text"] = w["update_text"].text()
+        m["knopf"] = (w["update_knopf"].text(),
+                      not w["update_knopf"].isHidden())
+        m["zuletzt"] = (_einst_lesen() or {}).get("updates_zuletzt")
+        if profile:
+            m["profil_text"] = w["update_text"].text()
+            m["profil_sichtbar"] = not w["update_zeile"].isHidden()
+            w["update_weg"].click()
+            m["profil_weg"] = (_einst_lesen() or {}).get("profil_frage_weg")
+            m["profil_nach"] = not w["update_zeile"].isHidden()
+            return m
+        if m["auto"] and m["knopf"][1]:
+            w["update_knopf"].click()
+            m["fertig"] = _warten_bis(D, z, lambda: not (
+                z["update"].get("laden") or {}).get("laeuft"), 8.0)
+            m["text_nach"] = w["update_text"].text()
+            m["gestartet"] = gestartet
+            m["entpackt"] = sorted(os.listdir(os.path.join(
+                tmp, "updates"))) if os.path.isdir(os.path.join(
+                    tmp, "updates")) else []
+        # Manuell ueber "⋯": gleiche Version -> "neueste Version".
+        dienst.antwort["tag_name"] = "v" + U.VERSION
+        z["update"].pop("laden", None)
+        w["mehr_updates"].click()
+        m["manuell"] = _warten_bis(D, z, lambda: "neueste Version"
+                                   in w["update_text"].text(), 3.0)
+    finally:
+        if k is not None:
+            k.ende()
+        dienst.ende()
+        for kk, v in alt_env.items():
+            if v is None:
+                os.environ.pop(kk, None)
+            else:
+                os.environ[kk] = v
+        shutil.rmtree(tmp, ignore_errors=True)
+        _einst_setzen(None)
+        _frischer_start()
+    return m
+
+
+def zelle_updates():
+    """L119 (Auftrag 2026-10-10): das Dock sieht im Takt von selbst nach
+    (Nebenthread, lokaler Dienst statt GitHub), zeigt "Neue Version …" mit
+    "Aktualisieren"; der Klick laedt, prueft, entpackt nach updates/<v>/ und
+    startet das Einrichtungsfenster ueber den ERSETZTEN Starter, dann
+    "Schliesse Cadwork …"; "⋯ Nach Updates suchen" sagt "neueste Version".
+    Abgeschaltet, zuletzt vor 1 h und waehrend eines Auftrags: kein Abruf.
+    Falsche Pruefsumme: kein Start. Weitere Cadwork-Version: einmal
+    gefragt, "Nein danke" gemerkt."""
+    try:
+        m = _upd_lauf()
+        pruefe("L119 von selbst nachgesehen (EIN Abruf), 'Neue Version 9.0.1' "
+               "mit 'Aktualisieren', Zeitpunkt in chat.json",
+               m["auto"] and m["abrufe_auto"] == ["/api"]
+               and m["text"] == "Neue Version 9.0.1"
+               and m["knopf"] == ("Aktualisieren", True)
+               and isinstance(m["zuletzt"], float), m)
+        pruefe("L119 Aktualisieren: geladen, entpackt nach updates/9.0.1, das "
+               "Einrichtungsfenster ueber den ersetzten Starter, dann "
+               "'Schliesse Cadwork …'",
+               m.get("fertig") and m.get("entpackt") == ["9.0.1"]
+               and "Schliesse Cadwork" in m.get("text_nach", "")
+               and len(m.get("gestartet") or ()) == 1
+               and m["gestartet"][0].endswith("1_INSTALLIEREN.cmd"), m)
+        pruefe("L119 ⋯ Nach Updates suchen bei gleicher Version: 'Du hast die "
+               "neueste Version'", m.get("manuell"), m)
+        for name, einst in (
+                ("abgeschaltet", {"updates_suchen": False}),
+                ("vor 1 h nachgesehen", {"updates_zuletzt":
+                                         time.time() - 3600})):
+            a = _upd_lauf(einst=einst)
+            pruefe("L119 %s: kein Abruf von selbst (von Hand schon)" % name,
+                   a["abrufe_auto"] == [] and not a["auto"]
+                   and a.get("manuell"), a)
+        a = _upd_lauf(beschaeftigt=True)
+        pruefe("L119 waehrend eines Auftrags: kein Abruf, danach schon",
+               a["abrufe_besch"] == [] and a["abrufe_auto"] == ["/api"], a)
+        a = _upd_lauf(sha="0" * 64)
+        pruefe("L119 falsche Pruefsumme: kein Start, 'Update ging nicht'",
+               a.get("gestartet") == [] and a.get("entpackt") == []
+               and "Prüfsumme" in (a.get("text_nach") or ""), a)
+        p = _upd_lauf(profile=True)
+        pruefe("L119 weitere Cadwork-Version (USERPROFIL_2027 ohne Plugin): "
+               "einmal gefragt; 'Nein danke' gemerkt, Zeile weg",
+               p["profil_sichtbar"] and p["profil_text"]
+               == "Open MCP CAD auch in Cadwork 2027 einrichten?"
+               and p["profil_weg"] == [2027] and not p["profil_nach"], p)
+        k = _upd_lauf(laden=lambda: _mutant(_anweisungen(
+            "_updates_an", lambda s: isinstance(s, ast.Return),
+            "return True")), einst={"updates_suchen": False})
+        pruefe("L119 KONTROLLE: liest das Dock den Schalter nicht, sieht es "
+               "trotz 'abgeschaltet' nach", k["treffer"] == [1]
+               and k["abrufe_auto"] == ["/api"], k)
+        k = _upd_lauf(laden=lambda: _mutant(_anweisungen(
+            "_update_beschaeftigt", lambda s: isinstance(s, ast.Return),
+            "return False")), beschaeftigt=True)
+        pruefe("L119 KONTROLLE: ohne die Sperre waehrend der Arbeit sieht es "
+               "auch mitten im Auftrag nach", k["treffer"] == [1]
+               and k["abrufe_besch"] == ["/api"], k)
+    finally:
+        _frischer_start()
+
+
+def _gruppen_lauf(laden=None):
+    """L120: die Auftragsliste mit vielen Zeilen, eine gewaehlt, mittendrin
+    gerollt; dann kommen ein Leseauftrag (gehoert zur obersten Zeile) und
+    ein aendernder dazu. -> dict."""
+    from omcad_qt.QtCore import QPoint
+    _einst_setzen(None)
+    _frischer_start()
+    D, z, d = aufbauen(D=laden() if laden else None)
+    m = {"treffer": getattr(D, "_mutant_treffer", None)}
+    lst = z["w"]["liste_auftraege"]
+    try:
+        z["w"]["briefkasten_seite"].show()
+        lst.show()
+        lst.resize(300, 120)
+        jetzt = time.time()
+        with d.sperre:
+            d.verlauf[:] = []
+            for i in range(30):
+                d.verlauf.append({"methode": "execute_cwapi3d",
+                                  "zugriff": "write", "ok": True,
+                                  "beschreibung": "Wand %d" % i,
+                                  "beendet": jetzt - 600 + i * 10})
+                d.verlauf += [{"methode": "execute_cwapi3d",
+                               "zugriff": "read", "ok": True,
+                               "beschreibung": "Lesen %d.%d" % (i, j),
+                               "beendet": jetzt - 600 + i * 10 + j}
+                              for j in range(3)]
+        D._auffrischen(z)
+        m["zeilen"] = lst.count()
+        m["text0"] = lst.item(0).text()
+        lst.setCurrentRow(20)
+        lst.scrollToItem(lst.item(15),
+                         type(lst).ScrollHint.PositionAtTop)
+        _pumpen(0.05)
+        from omcad_qt.QtCore import Qt as _Qt
+        rolle = int(QT.wert(_Qt.ItemDataRole.UserRole))
+
+        def kennung(item):
+            return (item.data(rolle), item.text().split(" ·")[0])                 if item is not None else None
+        gewaehlt = kennung(lst.currentItem())
+        oben = kennung(lst.itemAt(QPoint(4, 4)))
+        with d.sperre:
+            d.verlauf.append({"methode": "execute_cwapi3d",
+                              "zugriff": "read", "ok": True,
+                              "beschreibung": "Lesen neu",
+                              "beendet": jetzt + 1})
+            d.verlauf.append({"methode": "execute_cwapi3d",
+                              "zugriff": "write", "ok": True,
+                              "beschreibung": "Dach", "beendet": jetzt + 2})
+        D._auffrischen(z)
+        _pumpen(0.05)
+        m["nach"] = (lst.count(), lst.item(0).text().split(" ·")[0],
+                     lst.item(1).text().split(" ·")[0])
+        m["wahl"] = (gewaehlt, kennung(lst.currentItem()))
+        m["oben"] = (oben, kennung(lst.itemAt(QPoint(4, 4))))
+    finally:
+        _frischer_start()
+    return m
+
+
+def zelle_auftraege_gruppen():
+    """L120 (Ruhe 2026-10-10): gleichartige Leseauftraege hintereinander
+    sind EINE Zeile ("KI schaut ins Modell (3×)"); kommen neue Auftraege
+    dazu, bleiben die gewaehlte Zeile und die oberste sichtbare Zeile."""
+    try:
+        m = _gruppen_lauf()
+        pruefe("L120 120 Auftraege -> 60 Zeilen, oben 'KI schaut ins Modell "
+               "(3×)'", m["zeilen"] == 60
+               and m["text0"].startswith("KI schaut ins Modell (3×)"), m)
+        pruefe("L120 neue Auftraege: Dach oben, der Leseauftrag gehoert zur "
+               "Zeile darunter (4×); Auswahl und Rollstand bleiben",
+               m["nach"] == (61, "Dach", "KI schaut ins Modell (4×)")
+               and m["wahl"][0] is not None and m["wahl"][0] == m["wahl"][1]
+               and m["oben"][0] == m["oben"][1], m)
+        k = _gruppen_lauf(lambda: _mutant(_anweisungen(
+            "_auftraege_setzen", lambda s_: isinstance(s_, ast.If)
+            and ("gewaehlt" in ast.unparse(s_.test)
+                 or ast.unparse(s_.test) == "oben"))))
+        pruefe("L120 KONTROLLE: ohne das Wiederherstellen geht die Auswahl "
+               "verloren", k["treffer"] == [2]
+               and k["wahl"][0] != k["wahl"][1], k)
+    finally:
+        _frischer_start()
+
+
 def main():
     # Die Konsole ist cp1252: ein "⚙" im Detail einer ROTEN Zelle brach das
     # Gate sonst mit UnicodeEncodeError ab (Etappe D, L64).
@@ -13874,10 +14606,8 @@ def main():
         sys.stdout.reconfigure(errors="replace")
     except (AttributeError, ValueError):
         pass
-    try:
-        import PyQt6                                   # noqa: F401
-    except ImportError:
-        print("PyQt6 fehlt — die Live-Pruefungen laufen NICHT.")
+    if QT.BINDUNG is None:
+        print("Weder PyQt6 noch PyQt5 — die Live-Pruefungen laufen NICHT.")
         print("Einrichten: siehe Kopf dieser Datei.")
         print("(Das ist kein bestandener Test. Es ist gar keiner.)")
         return 2
@@ -13894,6 +14624,15 @@ def main():
     _draht_legen()
     D, _z, _d = aufbauen()
     H = D._hinweis_modul()
+    if "--nur" in sys.argv:
+        # Nur einzelne Zellen (Entwicklung): --nur disco,updates. Ersetzt
+        # NIE den vollen Lauf.
+        for name in sys.argv[sys.argv.index("--nur") + 1].split(","):
+            globals()["zelle_" + name.strip()]()
+        print("\nNUR %s: %d/%d bestanden" % (
+            sys.argv[sys.argv.index("--nur") + 1], sum(_ergebnisse),
+            len(_ergebnisse)))
+        return 0 if all(_ergebnisse) else 1
 
     zelle_auswahl()
     zelle_aktivieren()
@@ -13997,11 +14736,25 @@ def main():
     zelle_freigabe_sicht()
     zelle_angedockt_deckend()
     zelle_schliessen()
+    zelle_pille_breite()
+    zelle_disco()
+    zelle_updates()
+    zelle_auftraege_gruppen()
     zelle_ports_ausserhalb()
     zelle_stolperdraht()
+    # Zuletzt: welche Qt-Bindung lief wirklich (am frischen Dock gemessen).
+    _frischer_start()
+    D, _z, _d = aufbauen()
+    zelle_qt_bindung(D, _z)
 
     print("\n" + "=" * 62)
+    print("Qt: %s (Python %s)" % (QT.stand(), sys.version.split()[0]))
     print("%d/%d bestanden" % (sum(_ergebnisse), len(_ergebnisse)))
+    if _nicht_messbar:
+        print("dazu %d Zelle(n) unter %s NICHT gemessen (grundsaetzlich "
+              "nicht nachstellbar):" % (len(_nicht_messbar), QT.BINDUNG))
+        for titel, grund in _nicht_messbar:
+            print("  - %s — %s" % (titel, grund))
     if all(_ergebnisse):
         print("Das Board verhaelt sich, wie es soll — echt gebaut, echt "
               "bedient.")

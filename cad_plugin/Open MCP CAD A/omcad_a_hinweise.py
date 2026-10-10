@@ -168,8 +168,8 @@ class Karte:
     """
 
     def __init__(self, hinweis, umgebung):
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtWidgets import (QCheckBox, QHBoxLayout, QLabel,
+        from omcad_qt.QtCore import Qt
+        from omcad_qt.QtWidgets import (QCheckBox, QHBoxLayout, QLabel,
                                      QVBoxLayout, QWidget)
         self.u = umgebung
         self.nr = hinweis["nr"]
@@ -298,8 +298,8 @@ def bauen(umgebung):
         antworten(nr, text) · loeschen(nr)
     So kennt dieses Modul weder den Dienst noch die Warteschlange.
     """
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import (QCheckBox, QHBoxLayout, QLabel, QLineEdit,
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import (QCheckBox, QHBoxLayout, QLabel, QLineEdit,
                                  QPushButton, QScrollArea, QVBoxLayout,
                                  QWidget)
     tab = QWidget()
@@ -398,7 +398,7 @@ def zeichnen(teile, hinweise, umgebung, aktive_elemente=0):
     Gruppen, welche Reihenfolge) wird nur neu gelegt, wenn er sich wirklich
     unterscheidet — sonst zappelt die Liste im Takt.
     """
-    from PyQt6.QtWidgets import QLabel
+    from omcad_qt.QtWidgets import QLabel
 
     sichtbar = [h for h in hinweise
                 if not teile["nur_offen"].isChecked()
@@ -543,8 +543,8 @@ def vollbild_zeigen(eltern, hinweis, umgebung):
     Dialog wuerde die Ereignisschleife anhalten, und in genau der laeuft die
     Auftragswarteschlange.
     """
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton,
+    from omcad_qt.QtCore import Qt
+    from omcad_qt.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton,
                                  QTextBrowser, QVBoxLayout)
     dlg = QDialog(eltern)
     dlg.setWindowTitle("Prüfhinweis #%s" % hinweis["nr"])

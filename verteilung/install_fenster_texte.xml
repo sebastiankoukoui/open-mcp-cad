@@ -1,0 +1,938 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Open MCP CAD - die Texte des Einrichtungsfensters in vier Sprachen (seit
+2026-10-10; vorher nur deutsch in install_fenster.xaml). EINE Quelle fuer
+alles, was man im Fenster sieht: die XAML nennt nur Schluessel
+({DynamicResource t_...}), install_fenster.ps1 (Texte-Laden) setzt die
+Texte der gewaehlten Sprache als Ressourcen der Wurzel, bevor etwas
+gezeigt wird. Fehlt einer Sprache ein Text, steht der deutsche da - die
+Gates (test_installer I31) verlangen aber jeden Schluessel in jeder
+Sprache, nichts leer, dieselben Platzhalter {0} wie im Deutschen und keine
+deutschen Reste in fr/it/en.
+
+Deutsch ist verbindlich: eine inhaltliche Aenderung in allen vier
+nachziehen. Begriffe wie in den Schnellstart-Fassungen
+(verteilung/SCHNELLSTART(.xx).md), dort mit Du/tu (Rueckmeldung: wie die
+Anleitungen). gleich="fr it en": in diesen Sprachen darf der Text dem
+deutschen gleichen (Namen, Zeichen, "Details" im Englischen) - sonst
+ist ein gleicher Text ein vergessener. Das schmale Leerzeichen vor ?, : und ! im Franzoesischen
+ist ein geschuetztes (U+00A0), damit es nie allein in die naechste Zeile
+rutscht.
+
+Gewaehlt wird die Sprache aus der Anzeigesprache von Windows
+(CurrentUICulture: de*/fr*/it* -> diese, sonst en), ueberschreibbar mit
+1_INSTALLIEREN.cmd -Sprache fr (bzw. install_fenster.ps1 -Sprache). Das
+Textfenster (install.ps1) bleibt deutsch.
+-->
+<texte sprachen="de fr it en" verbindlich="de">
+  <t id="t_suche">
+    <de>Ich schaue nach, was schon da ist …</de>
+    <fr>Je regarde ce qui est déjà là …</fr>
+    <it>Controllo che cosa c'è già …</it>
+    <en>Checking what is already there …</en>
+  </t>
+  <t id="t_bereit_zum_start">
+    <de>Alles bereit. Es kann losgehen.</de>
+    <fr>Tout est prêt. On peut commencer.</fr>
+    <it>È tutto pronto. Si può iniziare.</it>
+    <en>All ready. Let's begin.</en>
+  </t>
+  <t id="t_gefunden">
+    <de>Gefunden</de>
+    <fr>Trouvé</fr>
+    <it>Trovata</it>
+    <en>Found</en>
+  </t>
+  <t id="t_profil_empfohlen">
+    <de>empfohlen</de>
+    <fr>recommandé</fr>
+    <it>consigliato</it>
+    <en>recommended</en>
+  </t>
+  <t id="t_profil_installiert">
+    <de>installiert</de>
+    <fr>installé</fr>
+    <it>installato</it>
+    <en>installed</en>
+  </t>
+  <t id="t_profil_nicht_installiert">
+    <de>Programm nicht gefunden</de>
+    <fr>programme introuvable</fr>
+    <it>programma non trovato</it>
+    <en>program not found</en>
+  </t>
+  <t id="t_trenner" gleich="fr it en">
+    <de> · </de>
+    <fr> · </fr>
+    <it> · </it>
+    <en> · </en>
+  </t>
+  <t id="t_profil_name" gleich="fr it en">
+    <de>Cadwork {0}</de>
+    <fr>Cadwork {0}</fr>
+    <it>Cadwork {0}</it>
+    <en>Cadwork {0}</en>
+  </t>
+  <t id="t_profil_unbekannt">
+    <de>Unbekannte Cadwork-Version</de>
+    <fr>Version de Cadwork inconnue</fr>
+    <it>Versione di Cadwork sconosciuta</it>
+    <en>Unknown Cadwork version</en>
+  </t>
+  <t id="t_python_winget">
+    <de>Es kommt über den Paketmanager von Windows.</de>
+    <fr>Il vient du gestionnaire de paquets de Windows.</fr>
+    <it>Arriva dal gestore di pacchetti di Windows.</it>
+    <en>It comes from the Windows package manager.</en>
+  </t>
+  <t id="t_python_org">
+    <de>Es kommt direkt von python.org (rund 30 MB). Vorher prüfe ich die digitale Unterschrift.</de>
+    <fr>Il vient directement de python.org (environ 30 Mo). Je vérifie d'abord sa signature numérique.</fr>
+    <it>Arriva direttamente da python.org (circa 30 MB). Prima ne verifico la firma digitale.</it>
+    <en>It comes straight from python.org (about 30 MB). I check its digital signature first.</en>
+  </t>
+  <t id="t_bereit_plugin" gleich="it en">
+    <de>Open MCP CAD in Cadwork {0}</de>
+    <fr>Open MCP CAD dans Cadwork {0}</fr>
+    <it>Open MCP CAD in Cadwork {0}</it>
+    <en>Open MCP CAD in Cadwork {0}</en>
+  </t>
+  <t id="t_bereit_plugin_trotzdem">
+    <de>Open MCP CAD in Cadwork {0} (passt nicht, auf deinen Wunsch)</de>
+    <fr>Open MCP CAD dans Cadwork {0} (ne convient pas, à ta demande)</fr>
+    <it>Open MCP CAD in Cadwork {0} (non adatto, su tua richiesta)</it>
+    <en>Open MCP CAD in Cadwork {0} (does not match, as you asked)</en>
+  </t>
+  <t id="t_bereit_ki">
+    <de>Verbindung für {0}</de>
+    <fr>Connexion pour {0}</fr>
+    <it>Collegamento per {0}</it>
+    <en>Connection for {0}</en>
+  </t>
+  <t id="t_bereit_keine_ki">
+    <de>Keine KI-App. Du kannst sie später nachtragen.</de>
+    <fr>Aucune application d'IA. Tu pourras l'ajouter plus tard.</fr>
+    <it>Nessuna app di IA. Puoi aggiungerla più tardi.</it>
+    <en>No AI app. You can add one later.</en>
+  </t>
+  <t id="t_bereit_python">
+    <de>Python wird mitinstalliert</de>
+    <fr>Python est installé en même temps</fr>
+    <it>Python viene installato insieme</it>
+    <en>Python is installed as well</en>
+  </t>
+  <t id="t_und">
+    <de>und</de>
+    <fr>et</fr>
+    <it>e</it>
+    <en>and</en>
+  </t>
+  <t id="t_fertig_mit">
+    <de>Verbunden mit {0}.</de>
+    <fr>Connecté à {0}.</fr>
+    <it>Collegato con {0}.</it>
+    <en>Connected to {0}.</en>
+  </t>
+  <t id="t_fertig_ohne">
+    <de>Noch mit keiner KI-App verbunden. Installiere eine und starte die Einrichtung nochmals.</de>
+    <fr>Pas encore connecté à une application d'IA. Installe-en une et relance l'installation.</fr>
+    <it>Non ancora collegato a nessuna app di IA. Installane una e avvia di nuovo la configurazione.</it>
+    <en>Not connected to an AI app yet. Install one and run the setup again.</en>
+  </t>
+  <t id="t_fertig_teilweise">
+    <de>In {0} ging das Eintragen nicht, siehe Details.</de>
+    <fr>Inscription impossible pour : {0}, voir les détails.</fr>
+    <it>Inserimento non riuscito per: {0}, vedi i dettagli.</it>
+    <en>Adding it to {0} did not work, see the details.</en>
+  </t>
+  <t id="t_name_codex">
+    <de>ChatGPT-App</de>
+    <fr>l'application ChatGPT</fr>
+    <it>l'app ChatGPT</it>
+    <en>the ChatGPT app</en>
+  </t>
+  <t id="t_name_claude_desktop" gleich="fr it en">
+    <de>Claude Desktop</de>
+    <fr>Claude Desktop</fr>
+    <it>Claude Desktop</it>
+    <en>Claude Desktop</en>
+  </t>
+  <t id="t_name_claude_code" gleich="fr it en">
+    <de>Claude Code</de>
+    <fr>Claude Code</fr>
+    <it>Claude Code</it>
+    <en>Claude Code</en>
+  </t>
+  <t id="t_fehler_unerwartet">
+    <de>Die Einrichtung wurde unerwartet beendet.</de>
+    <fr>L'installation s'est arrêtée de façon inattendue.</fr>
+    <it>La configurazione si è interrotta inaspettatamente.</it>
+    <en>The setup stopped unexpectedly.</en>
+  </t>
+  <t id="t_fehler_profil">
+    <de>Ich habe kein Cadwork gefunden. Ist Cadwork 3D 2025 oder 2026 auf diesem PC installiert?</de>
+    <fr>Je n'ai trouvé aucun Cadwork. Cadwork 3D 2025 ou 2026 est-il installé sur ce PC ?</fr>
+    <it>Non ho trovato nessun Cadwork. Cadwork 3D 2025 o 2026 è installato su questo PC?</it>
+    <en>I could not find Cadwork. Is Cadwork 3D 2025 or 2026 installed on this PC?</en>
+  </t>
+  <t id="t_fehler_plugin">
+    <de>Open MCP CAD liess sich nicht in Cadwork einrichten.</de>
+    <fr>Open MCP CAD n'a pas pu être installé dans Cadwork.</fr>
+    <it>Non è stato possibile configurare Open MCP CAD in Cadwork.</it>
+    <en>Open MCP CAD could not be set up in Cadwork.</en>
+  </t>
+  <t id="t_fehler_version">
+    <de>Open MCP CAD liegt jetzt in Cadwork, passt aber nicht zu dieser Cadwork-Version. Dort startet es wahrscheinlich nicht.</de>
+    <fr>Open MCP CAD est maintenant dans Cadwork, mais ne convient pas à cette version de Cadwork. Il n'y démarrera probablement pas.</fr>
+    <it>Open MCP CAD ora è in Cadwork, ma non è adatto a questa versione di Cadwork. Lì probabilmente non si avvia.</it>
+    <en>Open MCP CAD is now in Cadwork, but does not match this Cadwork version. It will probably not start there.</en>
+  </t>
+  <t id="t_fehler_python">
+    <de>Python fehlt noch, und ich konnte es nicht installieren. Ist der PC mit dem Internet verbunden?</de>
+    <fr>Python manque encore et je n'ai pas pu l'installer. Le PC est-il connecté à Internet ?</fr>
+    <it>Python manca ancora e non sono riuscito a installarlo. Il PC è collegato a Internet?</it>
+    <en>Python is still missing, and I could not install it. Is the PC connected to the internet?</en>
+  </t>
+  <t id="t_fehler_server">
+    <de>Der Teil für die KI-App liess sich nicht einrichten. Meist fehlt kurz die Internetverbindung. Versuche es einfach nochmals.</de>
+    <fr>La partie pour l'application d'IA n'a pas pu être installée. Le plus souvent, Internet a manqué un instant. Réessaie simplement.</fr>
+    <it>Non è stato possibile configurare la parte per l'app di IA. Di solito manca per un attimo la connessione a Internet. Riprova semplicemente.</it>
+    <en>The part for the AI app could not be set up. Usually the internet connection dropped for a moment. Just try again.</en>
+  </t>
+  <t id="t_kopiert">
+    <de>Kopiert.</de>
+    <fr>Copié.</fr>
+    <it>Copiato.</it>
+    <en>Copied.</en>
+  </t>
+  <t id="t_ki_hilfe">
+    <de>Hilf mir bitte, Open MCP CAD einzurichten. Es verbindet Cadwork 3D 2025 oder 2026 mit einer KI. Führe mich Schritt für Schritt, immer nur einen Schritt, und warte, bis ich ihn erledigt habe. 1) Die neueste ZIP-Datei herunterladen: https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2) Cadwork schliessen und die ZIP-Datei entpacken (rechte Maustaste, «Alle extrahieren»). 3) Im entpackten Ordner 1_INSTALLIEREN.cmd doppelklicken und im Einrichtungsfenster «Installieren» klicken. Das ist der empfohlene Weg. 4) Danach die KI-App ganz beenden und neu starten. 5) In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht. Klappt etwas nicht, lies die Datei Programmdateien\FUER_KI_ASSISTENTEN.md im entpackten Ordner. Bau keinen eigenen Adapter und sprich nicht selbst mit dem Port des Plugins, alles ist schon da.</de>
+    <fr>Aide-moi s'il te plaît à installer Open MCP CAD. Il relie Cadwork 3D 2025 ou 2026 à une IA. Guide-moi pas à pas, une seule étape à la fois, et attends que je l'aie faite. 1) Télécharger le dernier fichier ZIP : https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2) Fermer Cadwork et extraire le fichier ZIP (clic droit, «Extraire tout»). 3) Dans le dossier extrait, double-cliquer sur 1_INSTALLIEREN.cmd et cliquer sur «Installer» dans la fenêtre d'installation. C'est le chemin recommandé. 4) Ensuite, quitter complètement l'application d'IA et la redémarrer. 5) Dans Cadwork, cliquer sur «Open MCP CAD» jusqu'à ce que «Bereit» s'affiche. Si quelque chose ne marche pas, lis le fichier Programmdateien\FUER_KI_ASSISTENTEN.md dans le dossier extrait. Ne construis pas d'adaptateur et ne parle pas toi-même au port du plugin, tout est déjà là.</fr>
+    <it>Aiutami per favore a configurare Open MCP CAD. Collega Cadwork 3D 2025 o 2026 a un'IA. Guidami passo dopo passo, un solo passo alla volta, e aspetta che l'abbia fatto. 1) Scaricare l'ultimo file ZIP: https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2) Chiudere Cadwork ed estrarre il file ZIP (clic destro, «Estrai tutto»). 3) Nella cartella estratta fare doppio clic su 1_INSTALLIEREN.cmd e cliccare su «Installa» nella finestra di configurazione. È la via consigliata. 4) Poi chiudere completamente l'app di IA e riavviarla. 5) In Cadwork cliccare su «Open MCP CAD» finché appare «Bereit». Se qualcosa non funziona, leggi il file Programmdateien\FUER_KI_ASSISTENTEN.md nella cartella estratta. Non costruire un tuo adattatore e non parlare tu stesso con la porta del plugin, è già tutto pronto.</it>
+    <en>Please help me set up Open MCP CAD. It connects Cadwork 3D 2025 or 2026 with an AI. Guide me step by step, one step at a time, and wait until I have done it. 1) Download the latest ZIP file: https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2) Close Cadwork and unzip the ZIP file (right-click, «Extract All»). 3) In the unzipped folder, double-click 1_INSTALLIEREN.cmd and click «Install» in the setup window. That is the recommended way. 4) Then quit the AI app completely and start it again. 5) In Cadwork, click «Open MCP CAD» until it says «Bereit». If something does not work, read the file Programmdateien\FUER_KI_ASSISTENTEN.md in the unzipped folder. Do not build your own adapter and do not talk to the plugin's port yourself, everything is already there.</en>
+  </t>
+  <t id="t_schon_da">
+    <de>Schon da</de>
+    <fr>Déjà là</fr>
+    <it>Già presente</it>
+    <en>Already there</en>
+  </t>
+  <t id="t_chat_name_claude" gleich="fr it en">
+    <de>Claude</de>
+    <fr>Claude</fr>
+    <it>Claude</it>
+    <en>Claude</en>
+  </t>
+  <t id="t_chat_name_codex" gleich="fr it en">
+    <de>ChatGPT (Codex)</de>
+    <fr>ChatGPT (Codex)</fr>
+    <it>ChatGPT (Codex)</it>
+    <en>ChatGPT (Codex)</en>
+  </t>
+  <t id="t_bereit_chat">
+    <de>{0} für den Chat in Cadwork (wird installiert, danach meldest du dich an)</de>
+    <fr>{0} pour le chat dans Cadwork (sera installé, puis tu te connectes)</fr>
+    <it>{0} per la chat in Cadwork (viene installato, poi accedi)</it>
+    <en>{0} for the chat in Cadwork (will be installed, then you sign in)</en>
+  </t>
+  <t id="t_bereit_chat_da">
+    <de>{0} für den Chat in Cadwork (schon da)</de>
+    <fr>{0} pour le chat dans Cadwork (déjà là)</fr>
+    <it>{0} per la chat in Cadwork (già presente)</it>
+    <en>{0} for the chat in Cadwork (already there)</en>
+  </t>
+  <t id="t_bereit_chat_spaeter">
+    <de>Chat in Cadwork: die KI wählst du später im Chat</de>
+    <fr>Chat dans Cadwork : tu choisiras l'IA plus tard dans le chat</fr>
+    <it>Chat in Cadwork: scegli l'IA più tardi nella chat</it>
+    <en>Chat in Cadwork: you choose the AI later in the chat</en>
+  </t>
+  <t id="t_unter_python_laden">
+    <de>Python wird heruntergeladen (rund 30 MB) …</de>
+    <fr>Téléchargement de Python (environ 30 Mo) …</fr>
+    <it>Download di Python (circa 30 MB) …</it>
+    <en>Downloading Python (about 30 MB) …</en>
+  </t>
+  <t id="t_unter_python_installieren">
+    <de>Python wird installiert …</de>
+    <fr>Installation de Python …</fr>
+    <it>Installazione di Python …</it>
+    <en>Installing Python …</en>
+  </t>
+  <t id="t_unter_pip_laden">
+    <de>Zusatzteile werden geladen: {0} …</de>
+    <fr>Téléchargement des composants : {0} …</fr>
+    <it>Download dei componenti: {0} …</it>
+    <en>Downloading components: {0} …</en>
+  </t>
+  <t id="t_unter_pip_installieren">
+    <de>Zusatzteile werden installiert …</de>
+    <fr>Installation des composants …</fr>
+    <it>Installazione dei componenti …</it>
+    <en>Installing components …</en>
+  </t>
+  <t id="t_unter_cli_laden">
+    <de>{0} wird heruntergeladen und installiert …</de>
+    <fr>Téléchargement et installation de {0} …</fr>
+    <it>Download e installazione di {0} …</it>
+    <en>Downloading and installing {0} …</en>
+  </t>
+  <t id="t_unter_pruefen">
+    <de>Ich prüfe, ob alles läuft …</de>
+    <fr>Je vérifie que tout marche …</fr>
+    <it>Controllo che tutto funzioni …</it>
+    <en>Checking that everything works …</en>
+  </t>
+  <t id="t_anmelden_titel">
+    <de>Bei {0} anmelden</de>
+    <fr>Se connecter à {0}</fr>
+    <it>Accedere a {0}</it>
+    <en>Sign in to {0}</en>
+  </t>
+  <t id="t_anmelden_warte">
+    <de>Warte auf die Anmeldung im Browser …</de>
+    <fr>J'attends la connexion dans le navigateur …</fr>
+    <it>Attendo l'accesso nel browser …</it>
+    <en>Waiting for you to sign in in the browser …</en>
+  </t>
+  <t id="t_anmelden_nicht">
+    <de>Die Anmeldung ist noch nicht abgeschlossen. Versuche es nochmals.</de>
+    <fr>La connexion n'est pas encore terminée. Réessaie.</fr>
+    <it>L'accesso non è ancora completato. Riprova.</it>
+    <en>Signing in is not finished yet. Please try again.</en>
+  </t>
+  <t id="t_fertig_app_1">
+    <de>Deine KI-App ganz beenden und neu starten.</de>
+    <fr>Fermer complètement ton application d'IA et la redémarrer.</fr>
+    <it>Chiudere completamente la tua app di IA e riavviarla.</it>
+    <en>Quit your AI app completely and start it again.</en>
+  </t>
+  <t id="t_fertig_app_2">
+    <de>In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht.</de>
+    <fr>Dans Cadwork, cliquer sur «Open MCP CAD» jusqu'à ce que «Bereit» s'affiche.</fr>
+    <it>In Cadwork cliccare su «Open MCP CAD» finché appare «Bereit».</it>
+    <en>In Cadwork, click «Open MCP CAD» until it says «Bereit».</en>
+  </t>
+  <t id="t_fertig_app_3">
+    <de>In der App einfach schreiben, was du in Cadwork brauchst.</de>
+    <fr>Dans l'application, écrire simplement ce dont tu as besoin dans Cadwork.</fr>
+    <it>Nell'app scrivere semplicemente che cosa ti serve in Cadwork.</it>
+    <en>In the app, just write what you need in Cadwork.</en>
+  </t>
+  <t id="t_fertig_chat_1">
+    <de>In Cadwork auf «Open MCP CAD» klicken, bis «Bereit» steht.</de>
+    <fr>Dans Cadwork, cliquer sur «Open MCP CAD» jusqu'à ce que «Bereit» s'affiche.</fr>
+    <it>In Cadwork cliccare su «Open MCP CAD» finché appare «Bereit».</it>
+    <en>In Cadwork, click «Open MCP CAD» until it says «Bereit».</en>
+  </t>
+  <t id="t_fertig_chat_2">
+    <de>In der Leiste auf die Sprechblase klicken. Der Chat öffnet sich.</de>
+    <fr>Dans la barre, cliquer sur la bulle. Le chat s'ouvre.</fr>
+    <it>Nella barra cliccare sul fumetto. Si apre la chat.</it>
+    <en>Click the speech bubble in the bar. The chat opens.</en>
+  </t>
+  <t id="t_fertig_chat_3">
+    <de>Schreib, was du brauchst. Vor jeder Änderung fragt dich die KI.</de>
+    <fr>Écris ce dont tu as besoin. Avant chaque modification, l'IA te demande.</fr>
+    <it>Scrivi che cosa ti serve. Prima di ogni modifica l'IA ti chiede.</it>
+    <en>Write what you need. The AI asks you before every change.</en>
+  </t>
+  <t id="t_fertig_beides_4">
+    <de>Oder direkt in Cadwork: in der Leiste auf die Sprechblase klicken.</de>
+    <fr>Ou directement dans Cadwork : cliquer sur la bulle de la barre.</fr>
+    <it>Oppure direttamente in Cadwork: cliccare sul fumetto nella barra.</it>
+    <en>Or right in Cadwork: click the speech bubble in the bar.</en>
+  </t>
+  <t id="t_fertig_spaeter_4">
+    <de>Im Chat unter «⋯» die Einstellungen öffnen und deine KI wählen.</de>
+    <fr>Dans le chat, ouvrir les réglages sous «⋯» et choisir ton IA.</fr>
+    <it>Nella chat aprire le impostazioni sotto «⋯» e scegliere la tua IA.</it>
+    <en>In the chat, open the settings under «⋯» and choose your AI.</en>
+  </t>
+  <t id="t_fertig_anmelden_4">
+    <de>Anmelden kannst du später: 1_INSTALLIEREN.cmd nochmals starten.</de>
+    <fr>Tu peux te connecter plus tard : relance 1_INSTALLIEREN.cmd.</fr>
+    <it>Puoi accedere più tardi: avvia di nuovo 1_INSTALLIEREN.cmd.</it>
+    <en>You can sign in later: run 1_INSTALLIEREN.cmd again.</en>
+  </t>
+  <t id="t_fertig_chat_ki">
+    <de>Der Chat in Cadwork arbeitet mit {0}.</de>
+    <fr>Le chat dans Cadwork travaille avec {0}.</fr>
+    <it>La chat in Cadwork lavora con {0}.</it>
+    <en>The chat in Cadwork works with {0}.</en>
+  </t>
+  <t id="t_fehler_chat">
+    <de>Die KI für den Chat in Cadwork liess sich nicht einrichten. Ist der PC mit dem Internet verbunden?</de>
+    <fr>L'IA pour le chat dans Cadwork n'a pas pu être installée. Le PC est-il connecté à Internet ?</fr>
+    <it>Non è stato possibile configurare l'IA per la chat in Cadwork. Il PC è collegato a Internet?</it>
+    <en>The AI for the chat in Cadwork could not be set up. Is the PC connected to the internet?</en>
+  </t>
+  <t id="t_schritt_laeuft">
+    <de>läuft …</de>
+    <fr>en cours …</fr>
+    <it>in corso …</it>
+    <en>running …</en>
+  </t>
+  <t id="t_fenster_titel">
+    <de>Open MCP CAD einrichten</de>
+    <fr>Installer Open MCP CAD</fr>
+    <it>Configurare Open MCP CAD</it>
+    <en>Set up Open MCP CAD</en>
+  </t>
+  <t id="t_einrichtung">
+    <de>Einrichtung</de>
+    <fr>Installation</fr>
+    <it>Configurazione</it>
+    <en>Setup</en>
+  </t>
+  <t id="t_los_gehts">
+    <de>Los geht’s</de>
+    <fr>C'est parti</fr>
+    <it>Iniziamo</it>
+    <en>Let's go</en>
+  </t>
+  <t id="t_willkommen_bei_open_mcp">
+    <de>Willkommen bei Open MCP CAD</de>
+    <fr>Bienvenue dans Open MCP CAD</fr>
+    <it>Benvenuto in Open MCP CAD</it>
+    <en>Welcome to Open MCP CAD</en>
+  </t>
+  <t id="t_damit_zeichnet_eine_ki">
+    <de>Damit zeichnet eine KI für dich in Cadwork. Ich richte alles ein. Das dauert ein paar Minuten und braucht Internet.</de>
+    <fr>Grâce à lui, une IA dessine pour toi dans Cadwork. J'installe tout. Cela prend quelques minutes et demande Internet.</fr>
+    <it>Con questo un'IA disegna per te in Cadwork. Configuro io tutto. Ci vogliono alcuni minuti e serve Internet.</it>
+    <en>With it, an AI draws for you in Cadwork. I set everything up. It takes a few minutes and needs the internet.</en>
+  </t>
+  <t id="t_schliesse_cadwork_bevor_du">
+    <de>Schliesse Cadwork, bevor du beginnst.</de>
+    <fr>Ferme Cadwork avant de commencer.</fr>
+    <it>Chiudi Cadwork prima di iniziare.</it>
+    <en>Close Cadwork before you begin.</en>
+  </t>
+  <t id="t_text_kopieren">
+    <de>Text kopieren</de>
+    <fr>Copier le texte</fr>
+    <it>Copia il testo</it>
+    <en>Copy text</en>
+  </t>
+  <t id="t_weiter">
+    <de>Weiter</de>
+    <fr>Suivant</fr>
+    <it>Avanti</it>
+    <en>Next</en>
+  </t>
+  <t id="t_wo_moechtest_du_mit">
+    <de>Wo möchtest du mit der KI arbeiten?</de>
+    <fr>Où veux-tu travailler avec l'IA ?</fr>
+    <it>Dove vuoi lavorare con l'IA?</it>
+    <en>Where do you want to work with the AI?</en>
+  </t>
+  <t id="t_du_kannst_spaeter_jederzeit">
+    <de>Du kannst später jederzeit wechseln.</de>
+    <fr>Tu peux changer à tout moment plus tard.</fr>
+    <it>Puoi cambiare in qualsiasi momento più tardi.</it>
+    <en>You can switch at any time later.</en>
+  </t>
+  <t id="t_in_deiner_ki_app">
+    <de>In deiner KI-App</de>
+    <fr>Dans ton application d'IA</fr>
+    <it>Nella tua app di IA</it>
+    <en>In your AI app</en>
+  </t>
+  <t id="t_claude_desktop_oder_die">
+    <de>Claude Desktop oder die ChatGPT-App. Die gewohnte Oberfläche, die KI zeichnet in Cadwork.</de>
+    <fr>Claude Desktop ou l'application ChatGPT. L'interface habituelle, l'IA dessine dans Cadwork.</fr>
+    <it>Claude Desktop o l'app ChatGPT. L'interfaccia di sempre, l'IA disegna in Cadwork.</it>
+    <en>Claude Desktop or the ChatGPT app. The interface you know, the AI draws in Cadwork.</en>
+  </t>
+  <t id="t_direkt_in_cadwork_im">
+    <de>Direkt in Cadwork im Chat</de>
+    <fr>Directement dans Cadwork, dans le chat</fr>
+    <it>Direttamente in Cadwork, nella chat</it>
+    <en>Right in Cadwork, in the chat</en>
+  </t>
+  <t id="t_der_chat_steht_neben">
+    <de>Der Chat steht neben der Zeichnung. Du bestimmst, was die KI allein darf.</de>
+    <fr>Le chat est à côté du dessin. Tu décides ce que l'IA peut faire seule.</fr>
+    <it>La chat sta accanto al disegno. Decidi tu che cosa l'IA può fare da sola.</it>
+    <en>The chat sits next to the drawing. You decide what the AI may do on its own.</en>
+  </t>
+  <t id="t_beides">
+    <de>Beides</de>
+    <fr>Les deux</fr>
+    <it>Entrambi</it>
+    <en>Both</en>
+  </t>
+  <t id="t_die_app_fuer_den">
+    <de>Die App für den Alltag, der Chat in Cadwork zum Ausprobieren.</de>
+    <fr>L'application au quotidien, le chat dans Cadwork pour essayer.</fr>
+    <it>L'app per tutti i giorni, la chat in Cadwork per provare.</it>
+    <en>The app for every day, the chat in Cadwork to try things out.</en>
+  </t>
+  <t id="t_welche_ki_im_chat">
+    <de>Welche KI im Chat in Cadwork?</de>
+    <fr>Quelle IA pour le chat dans Cadwork ?</fr>
+    <it>Quale IA per la chat in Cadwork?</it>
+    <en>Which AI for the chat in Cadwork?</en>
+  </t>
+  <t id="t_der_chat_braucht_ein">
+    <de>Der Chat braucht ein kleines Programm des Anbieters. Ich installiere es mit, und du meldest dich einmal an.</de>
+    <fr>Le chat a besoin d'un petit programme du fournisseur. Je l'installe aussi, et tu te connectes une fois.</fr>
+    <it>La chat ha bisogno di un piccolo programma del fornitore. Lo installo io, e tu accedi una volta.</it>
+    <en>The chat needs a small program from the provider. I install it too, and you sign in once.</en>
+  </t>
+  <t id="t_mit_einem_claude_abo">
+    <de>mit einem Claude-Abo (Pro oder Max)</de>
+    <fr>avec un abonnement Claude (Pro ou Max)</fr>
+    <it>con un abbonamento Claude (Pro o Max)</it>
+    <en>with a Claude subscription (Pro or Max)</en>
+  </t>
+  <t id="t_mit_einem_chatgpt_abo">
+    <de>mit einem ChatGPT-Abo (Plus oder Pro)</de>
+    <fr>avec un abonnement ChatGPT (Plus ou Pro)</fr>
+    <it>con un abbonamento ChatGPT (Plus o Pro)</it>
+    <en>with a ChatGPT subscription (Plus or Pro)</en>
+  </t>
+  <t id="t_spaeter_oder_mit_eigenem">
+    <de>Später oder mit eigenem Schlüssel</de>
+    <fr>Plus tard ou avec ta propre clé</fr>
+    <it>Più tardi o con una tua chiave</it>
+    <en>Later or with your own key</en>
+  </t>
+  <t id="t_im_chat_unter_einstellungen">
+    <de>Im Chat unter Einstellungen: Schlüssel eingeben oder eine KI auf deinem PC wählen.</de>
+    <fr>Dans le chat, sous «Einstellungen» : saisir une clé ou choisir une IA sur ton PC.</fr>
+    <it>Nella chat, sotto «Einstellungen»: inserire una chiave o scegliere un'IA sul tuo PC.</it>
+    <en>In the chat, under «Einstellungen»: enter a key or choose an AI on your PC.</en>
+  </t>
+  <t id="t_nochmal_suchen">
+    <de>Nochmal suchen</de>
+    <fr>Chercher à nouveau</fr>
+    <it>Cerca di nuovo</it>
+    <en>Search again</en>
+  </t>
+  <t id="t_deine_ki_app">
+    <de>Deine KI-App</de>
+    <fr>Ton application d'IA</fr>
+    <it>La tua app di IA</it>
+    <en>Your AI app</en>
+  </t>
+  <t id="t_in_welcher_app_moechtest">
+    <de>In welcher App möchtest du mit Cadwork arbeiten? Was ich gefunden habe, ist schon angehakt.</de>
+    <fr>Dans quelle application veux-tu travailler avec Cadwork ? Ce que j'ai trouvé est déjà coché.</fr>
+    <it>In quale app vuoi lavorare con Cadwork? Ciò che ho trovato è già spuntato.</it>
+    <en>Which app do you want to use with Cadwork? What I found is already ticked.</en>
+  </t>
+  <t id="t_herunterladen">
+    <de>Holen</de>
+    <fr>Obtenir</fr>
+    <it>Scarica</it>
+    <en>Get</en>
+  </t>
+  <t id="t_fuer_ein_claude_abo">
+    <de>für ein Claude-Abo</de>
+    <fr>pour un abonnement Claude</fr>
+    <it>per un abbonamento Claude</it>
+    <en>for a Claude subscription</en>
+  </t>
+  <t id="t_chatgpt_app_mit_codex">
+    <de>ChatGPT-App (mit Codex)</de>
+    <fr>Application ChatGPT (avec Codex)</fr>
+    <it>App ChatGPT (con Codex)</it>
+    <en>ChatGPT app (with Codex)</en>
+  </t>
+  <t id="t_fuer_ein_chatgpt_abo_desktop">
+    <de>für ein ChatGPT-Abo, die Desktop-App am PC</de>
+    <fr>pour un abonnement ChatGPT, l'application de bureau sur le PC</fr>
+    <it>per un abbonamento ChatGPT, l'app desktop sul PC</it>
+    <en>for a ChatGPT subscription, the desktop app on the PC</en>
+  </t>
+  <t id="t_claude_im_befehlsfenster">
+    <de>Claude im Befehlsfenster</de>
+    <fr>Claude dans la fenêtre de commandes</fr>
+    <it>Claude nella finestra dei comandi</it>
+    <en>Claude in the command window</en>
+  </t>
+  <t id="t_es_geht_nur_mit">
+    <de>Es geht nur mit der App am PC, nicht im Browser oder am Handy.</de>
+    <fr>Cela marche seulement avec l'application sur le PC, pas dans le navigateur ni sur le téléphone.</fr>
+    <it>Funziona solo con l'app sul PC, non nel browser né sul telefono.</it>
+    <en>It only works with the app on the PC, not in the browser or on the phone.</en>
+  </t>
+  <t id="t_ohne_ki_app_weiter">
+    <de>Ohne KI-App weiter</de>
+    <fr>Continuer sans application d'IA</fr>
+    <it>Continua senza app di IA</it>
+    <en>Continue without an AI app</en>
+  </t>
+  <t id="t_du_brauchst_zuerst_eine">
+    <de>Du brauchst zuerst eine KI-App</de>
+    <fr>Il te faut d'abord une application d'IA</fr>
+    <it>Prima ti serve un'app di IA</it>
+    <en>First you need an AI app</en>
+  </t>
+  <t id="t_open_mcp_cad_verbindet">
+    <de>Open MCP CAD verbindet Cadwork mit einer KI-App auf diesem PC. Installiere eine davon, melde dich an und klicke dann auf «Nochmal suchen».</de>
+    <fr>Open MCP CAD relie Cadwork à une application d'IA sur ce PC. Installe-en une, connecte-toi, puis clique sur «Chercher à nouveau».</fr>
+    <it>Open MCP CAD collega Cadwork a un'app di IA su questo PC. Installane una, accedi e poi clicca su «Cerca di nuovo».</it>
+    <en>Open MCP CAD connects Cadwork with an AI app on this PC. Install one, sign in and then click «Search again».</en>
+  </t>
+  <t id="t_claude_desktop_holen">
+    <de>Claude Desktop holen</de>
+    <fr>Obtenir Claude Desktop</fr>
+    <it>Scarica Claude Desktop</it>
+    <en>Get Claude Desktop</en>
+  </t>
+  <t id="t_chatgpt_app_holen">
+    <de>ChatGPT-App holen</de>
+    <fr>Obtenir l'application ChatGPT</fr>
+    <it>Scarica l'app ChatGPT</it>
+    <en>Get the ChatGPT app</en>
+  </t>
+  <t id="t_fuer_ein_chatgpt_abo">
+    <de>für ein ChatGPT-Abo</de>
+    <fr>pour un abonnement ChatGPT</fr>
+    <it>per un abbonamento ChatGPT</it>
+    <en>for a ChatGPT subscription</en>
+  </t>
+  <t id="t_welches_cadwork">
+    <de>Welches Cadwork?</de>
+    <fr>Quel Cadwork ?</fr>
+    <it>Quale Cadwork?</it>
+    <en>Which Cadwork?</en>
+  </t>
+  <t id="t_auf_diesem_pc_gibt">
+    <de>Auf diesem PC gibt es mehrere Cadwork-Versionen. Open MCP CAD läuft in Cadwork 3D 2025 und 2026. Ich richte es in jedem angehakten Cadwork ein.</de>
+    <fr>Il y a plusieurs versions de Cadwork sur ce PC. Open MCP CAD fonctionne dans Cadwork 3D 2025 et 2026. Je l'installe dans chaque Cadwork coché.</fr>
+    <it>Su questo PC ci sono più versioni di Cadwork. Open MCP CAD funziona in Cadwork 3D 2025 e 2026. Lo configuro in ogni Cadwork spuntato.</it>
+    <en>There are several Cadwork versions on this PC. Open MCP CAD runs in Cadwork 3D 2025 and 2026. I set it up in every Cadwork that is ticked.</en>
+  </t>
+  <t id="t_schliessen">
+    <de>Schliessen</de>
+    <fr>Fermer</fr>
+    <it>Chiudi</it>
+    <en>Close</en>
+  </t>
+  <t id="t_zurueck">
+    <de>Zurück</de>
+    <fr>Retour</fr>
+    <it>Indietro</it>
+    <en>Back</en>
+  </t>
+  <t id="t_trotzdem_installieren">
+    <de>Trotzdem installieren</de>
+    <fr>Installer quand même</fr>
+    <it>Installa comunque</it>
+    <en>Install anyway</en>
+  </t>
+  <t id="t_das_passt_nicht_zu">
+    <de>Das passt nicht zu deinem Cadwork</de>
+    <fr>Cela ne convient pas à ton Cadwork</fr>
+    <it>Non è adatto al tuo Cadwork</it>
+    <en>This does not match your Cadwork</en>
+  </t>
+  <t id="t_dort_startet_open_mcp">
+    <de>Dort startet Open MCP CAD wahrscheinlich nicht. Installiere zuerst Cadwork 3D 2025 oder 2026. Oder installiere trotzdem, wenn du genau weisst, was du tust.</de>
+    <fr>Open MCP CAD n'y démarrera probablement pas. Installe d'abord Cadwork 3D 2025 ou 2026. Ou installe quand même, si tu sais exactement ce que tu fais.</fr>
+    <it>Lì Open MCP CAD probabilmente non si avvia. Installa prima Cadwork 3D 2025 o 2026. Oppure installa comunque, se sai esattamente che cosa fai.</it>
+    <en>Open MCP CAD will probably not start there. Install Cadwork 3D 2025 or 2026 first. Or install anyway if you know exactly what you are doing.</en>
+  </t>
+  <t id="t_mitinstallieren">
+    <de>Mitinstallieren</de>
+    <fr>L'installer aussi</fr>
+    <it>Installa anche questo</it>
+    <en>Install it too</en>
+  </t>
+  <t id="t_abbrechen">
+    <de>Abbrechen</de>
+    <fr>Annuler</fr>
+    <it>Annulla</it>
+    <en>Cancel</en>
+  </t>
+  <t id="t_ein_programmteil_fehlt_noch">
+    <de>Ein Programmteil fehlt noch</de>
+    <fr>Il manque encore un composant</fr>
+    <it>Manca ancora un componente</it>
+    <en>A component is still missing</en>
+  </t>
+  <t id="t_open_mcp_cad_braucht">
+    <de>Open MCP CAD braucht Python, eine kostenlose Programmiersprache. Ich installiere es mit, nur für dein Benutzerkonto und ohne Administratorrechte.</de>
+    <fr>Open MCP CAD a besoin de Python, un langage de programmation gratuit. Je l'installe aussi, seulement pour ton compte d'utilisateur et sans droits d'administrateur.</fr>
+    <it>Open MCP CAD ha bisogno di Python, un linguaggio di programmazione gratuito. Lo installo io, solo per il tuo account utente e senza diritti di amministratore.</it>
+    <en>Open MCP CAD needs Python, a free programming language. I install it too, only for your user account and without administrator rights.</en>
+  </t>
+  <t id="t_installieren">
+    <de>Installieren</de>
+    <fr>Installer</fr>
+    <it>Installa</it>
+    <en>Install</en>
+  </t>
+  <t id="t_bereit_zum_installieren">
+    <de>Bereit zum Installieren</de>
+    <fr>Prêt à installer</fr>
+    <it>Pronto per l'installazione</it>
+    <en>Ready to install</en>
+  </t>
+  <t id="t_das_richte_ich_jetzt">
+    <de>Das richte ich jetzt ein:</de>
+    <fr>Voici ce que j'installe maintenant :</fr>
+    <it>Ecco che cosa configuro adesso:</it>
+    <en>This is what I set up now:</en>
+  </t>
+  <t id="t_vorher_sichere_ich_die">
+    <de>Vorher sichere ich die Einstellungen deiner KI-App. Andere Einträge bleiben, wie sie sind.</de>
+    <fr>Avant, je sauvegarde les réglages de ton application d'IA. Les autres entrées restent comme elles sont.</fr>
+    <it>Prima salvo le impostazioni della tua app di IA. Le altre voci restano come sono.</it>
+    <en>First I back up your AI app's settings. Other entries stay as they are.</en>
+  </t>
+  <t id="t_details_anzeigen">
+    <de>Details anzeigen</de>
+    <fr>Afficher les détails</fr>
+    <it>Mostra i dettagli</it>
+    <en>Show details</en>
+  </t>
+  <t id="t_das_dauert_ein_paar">
+    <de>Das dauert ein paar Minuten.</de>
+    <fr>Cela prend quelques minutes.</fr>
+    <it>Ci vogliono alcuni minuti.</it>
+    <en>This takes a few minutes.</en>
+  </t>
+  <t id="t_wird_eingerichtet">
+    <de>Wird eingerichtet …</de>
+    <fr>Installation en cours …</fr>
+    <it>Configurazione in corso …</it>
+    <en>Setting up …</en>
+  </t>
+  <t id="t_cadwork_pruefen">
+    <de>Cadwork prüfen</de>
+    <fr>Vérifier Cadwork</fr>
+    <it>Controllare Cadwork</it>
+    <en>Check Cadwork</en>
+  </t>
+  <t id="t_open_mcp_cad_in">
+    <de>Open MCP CAD in Cadwork einrichten</de>
+    <fr>Installer Open MCP CAD dans Cadwork</fr>
+    <it>Configurare Open MCP CAD in Cadwork</it>
+    <en>Set up Open MCP CAD in Cadwork</en>
+  </t>
+  <t id="t_verbindung_fuer_die_ki">
+    <de>Verbindung für die KI-App einrichten</de>
+    <fr>Préparer la connexion pour l'application d'IA</fr>
+    <it>Configurare il collegamento per l'app di IA</it>
+    <en>Set up the connection for the AI app</en>
+  </t>
+  <t id="t_einstellungen_speichern">
+    <de>Einstellungen speichern</de>
+    <fr>Enregistrer les réglages</fr>
+    <it>Salvare le impostazioni</it>
+    <en>Save the settings</en>
+  </t>
+  <t id="t_ki_app_verbinden">
+    <de>KI-App verbinden</de>
+    <fr>Connecter l'application d'IA</fr>
+    <it>Collegare l'app di IA</it>
+    <en>Connect the AI app</en>
+  </t>
+  <t id="t_ki_fuer_den_chat">
+    <de>KI für den Chat in Cadwork einrichten</de>
+    <fr>Installer l'IA pour le chat dans Cadwork</fr>
+    <it>Configurare l'IA per la chat in Cadwork</it>
+    <en>Set up the AI for the chat in Cadwork</en>
+  </t>
+  <t id="t_anmelden">
+    <de>Anmelden</de>
+    <fr>Se connecter</fr>
+    <it>Accedi</it>
+    <en>Sign in</en>
+  </t>
+  <t id="t_spaeter">
+    <de>Später</de>
+    <fr>Plus tard</fr>
+    <it>Più tardi</it>
+    <en>Later</en>
+  </t>
+  <t id="t_bei_claude_anmelden">
+    <de>Bei Claude anmelden</de>
+    <fr>Se connecter à Claude</fr>
+    <it>Accedere a Claude</it>
+    <en>Sign in to Claude</en>
+  </t>
+  <t id="t_damit_der_chat_in">
+    <de>Damit der Chat in Cadwork mit deinem Abo arbeitet, meldest du dich einmal an.</de>
+    <fr>Pour que le chat dans Cadwork travaille avec ton abonnement, tu te connectes une fois.</fr>
+    <it>Perché la chat in Cadwork lavori con il tuo abbonamento, accedi una volta.</it>
+    <en>So that the chat in Cadwork works with your subscription, you sign in once.</en>
+  </t>
+  <t id="t_nach_anmelden_oeffnet_sich">
+    <de>Nach «Anmelden» öffnet sich ein kleines schwarzes Fenster und dein Browser. Melde dich im Browser an. Danach schliesst sich das kleine Fenster von selbst.</de>
+    <fr>Après «Se connecter», une petite fenêtre noire et ton navigateur s'ouvrent. Connecte-toi dans le navigateur. Ensuite, la petite fenêtre se ferme toute seule.</fr>
+    <it>Dopo «Accedi» si aprono una piccola finestra nera e il tuo browser. Accedi nel browser. Poi la piccola finestra si chiude da sola.</it>
+    <en>After «Sign in», a small black window and your browser open. Sign in in the browser. The small window then closes by itself.</en>
+  </t>
+  <t id="t_anleitung_oeffnen">
+    <de>Anleitung öffnen</de>
+    <fr>Ouvrir le guide</fr>
+    <it>Apri la guida</it>
+    <en>Open the guide</en>
+  </t>
+  <t id="t_details" gleich="en">
+    <de>Details</de>
+    <fr>Détails</fr>
+    <it>Dettagli</it>
+    <en>Details</en>
+  </t>
+  <t id="t_fertig_eingerichtet">
+    <de>Fertig eingerichtet</de>
+    <fr>Installation terminée</fr>
+    <it>Configurazione completata</it>
+    <en>All set up</en>
+  </t>
+  <t id="t_so_geht_es_weiter">
+    <de>So geht es weiter:</de>
+    <fr>La suite :</fr>
+    <it>Come continuare:</it>
+    <en>What to do next:</en>
+  </t>
+  <t id="t_details_kopieren">
+    <de>Details kopieren</de>
+    <fr>Copier les détails</fr>
+    <it>Copia i dettagli</it>
+    <en>Copy details</en>
+  </t>
+  <t id="t_das_hat_nicht_ganz">
+    <de>Das hat nicht ganz geklappt</de>
+    <fr>Cela n'a pas tout à fait marché</fr>
+    <it>Non ha funzionato del tutto</it>
+    <en>That did not quite work</en>
+  </t>
+  <t id="t_was_genau_passiert_ist">
+    <de>Was genau passiert ist, steht im Protokoll. Schick es mit, wenn du um Hilfe bittest:</de>
+    <fr>Ce qui s'est passé exactement est dans le journal. Joins-le si tu demandes de l'aide :</fr>
+    <it>Che cosa è successo esattamente è nel registro. Allegalo se chiedi aiuto:</it>
+    <en>What exactly happened is in the log. Send it along when you ask for help:</en>
+  </t>
+  <t id="t_version_text">
+    <de>Dieses Paket braucht Cadwork 3D {0} oder neuer. Gefunden: Cadwork {1} im Profil {2}.</de>
+    <fr>Ce paquet a besoin de Cadwork 3D {0} ou plus récent. Trouvé : Cadwork {1} dans le profil {2}.</fr>
+    <it>Questo pacchetto richiede Cadwork 3D {0} o più recente. Trovato: Cadwork {1} nel profilo {2}.</it>
+    <en>This package needs Cadwork 3D {0} or newer. Found: Cadwork {1} in the profile {2}.</en>
+  </t>
+  <t id="t_version_unbekannt">
+    <de>Dieses Paket braucht Cadwork 3D {0} oder neuer. Zu welcher Cadwork-Version dieser Ordner gehört, ist unbekannt.</de>
+    <fr>Ce paquet a besoin de Cadwork 3D {0} ou plus récent. On ne sait pas à quelle version de Cadwork ce dossier appartient.</fr>
+    <it>Questo pacchetto richiede Cadwork 3D {0} o più recente. Non si sa a quale versione di Cadwork appartenga questa cartella.</it>
+    <en>This package needs Cadwork 3D {0} or newer. It is unknown which Cadwork version this folder belongs to.</en>
+  </t>
+  <t id="t_bereit_alt">
+    <de>Eine ältere Version wurde gefunden. Sie wird beiseitegelegt, damit Cadwork nur Open MCP CAD zeigt.</de>
+    <fr>Une version plus ancienne a été trouvée. Elle est mise de côté pour que Cadwork n'affiche qu'Open MCP CAD.</fr>
+    <it>È stata trovata una versione precedente. Viene messa da parte, così Cadwork mostra solo Open MCP CAD.</it>
+    <en>An older version was found. It is put aside so that Cadwork only shows Open MCP CAD.</en>
+  </t>
+  <t id="t_bereit_alt_name">
+    <de>Gefunden: {0}</de>
+    <fr>Trouvé : {0}</fr>
+    <it>Trovato: {0}</it>
+    <en>Found: {0}</en>
+  </t>
+  <t id="t_fertig_alt">
+    <de>Die ältere Version ist beiseitegelegt.</de>
+    <fr>L'ancienne version est mise de côté.</fr>
+    <it>La versione precedente è messa da parte.</it>
+    <en>The older version has been put aside.</en>
+  </t>
+  <t id="t_fehler_alt">
+    <de>Die ältere Version liess sich nicht beiseitelegen. Schliesse Cadwork und starte die Einrichtung nochmals.</de>
+    <fr>L'ancienne version n'a pas pu être mise de côté. Ferme Cadwork et relance l'installation.</fr>
+    <it>Non è stato possibile mettere da parte la versione precedente. Chiudi Cadwork e avvia di nuovo la configurazione.</it>
+    <en>The older version could not be put aside. Close Cadwork and run the setup again.</en>
+  </t>
+  <t id="t_ki_hilfe_vor">
+    <de>Du nutzt schon eine KI-App am PC? Kopiere </de>
+    <fr>Tu utilises déjà une application d'IA sur ton PC ? Copie </fr>
+    <it>Usi già un'app di IA sul PC? Copia </it>
+    <en>Already using an AI app on your PC? Copy </en>
+  </t>
+  <t id="t_ki_hilfe_link">
+    <de>diesen Text</de>
+    <fr>ce texte</fr>
+    <it>questo testo</it>
+    <en>this text</en>
+  </t>
+  <t id="t_ki_hilfe_nach">
+    <de> und schick ihn ihr, sie hilft dir beim Einrichten.</de>
+    <fr> et envoie-le-lui, elle t'aidera à installer.</fr>
+    <it> e mandaglielo, ti aiuterà a configurare.</it>
+    <en> and send it to it, it will help you set things up.</en>
+  </t>
+  <t id="t_details_ausblenden">
+    <de>Details ausblenden</de>
+    <fr>Masquer les détails</fr>
+    <it>Nascondi i dettagli</it>
+    <en>Hide details</en>
+  </t>
+  <t id="t_claude_code_holen">
+    <de>Claude Code holen (Claude im Befehlsfenster)</de>
+    <fr>Obtenir Claude Code (Claude dans la fenêtre de commandes)</fr>
+    <it>Scarica Claude Code (Claude nella finestra dei comandi)</it>
+    <en>Get Claude Code (Claude in the command window)</en>
+  </t>
+  <t id="t_wird_mitinstalliert">
+    <de>Wird mitinstalliert</de>
+    <fr>Sera installé</fr>
+    <it>Verrà installato</it>
+    <en>Will be installed</en>
+  </t>
+  <t id="t_suche_laeuft">
+    <de>Suche …</de>
+    <fr>Recherche …</fr>
+    <it>Ricerca …</it>
+    <en>Searching …</en>
+  </t>
+  <t id="t_suche_neu">
+    <de>Gefunden: {0}</de>
+    <fr>Trouvé : {0}</fr>
+    <it>Trovato: {0}</it>
+    <en>Found: {0}</en>
+  </t>
+  <t id="t_suche_nichts">
+    <de>Nichts Neues gefunden</de>
+    <fr>Rien de nouveau trouvé</fr>
+    <it>Niente di nuovo trovato</it>
+    <en>Nothing new found</en>
+  </t>
+  <t id="t_chat_auch">
+    <de>Chat in Cadwork auch einrichten</de>
+    <fr>Installer aussi le chat dans Cadwork</fr>
+    <it>Configura anche la chat in Cadwork</it>
+    <en>Also set up the chat in Cadwork</en>
+  </t>
+  <t id="t_bereit_plugin_ungetestet">
+    <de>Open MCP CAD in Cadwork {0} (mit dieser Version nicht getestet, sollte aber gehen)</de>
+    <fr>Open MCP CAD dans Cadwork {0} (pas testé avec cette version, mais cela devrait marcher)</fr>
+    <it>Open MCP CAD in Cadwork {0} (non testato con questa versione, ma dovrebbe funzionare)</it>
+    <en>Open MCP CAD in Cadwork {0} (not tested with this version, but it should work)</en>
+  </t>
+  <!-- Mehrere Cadwork-Versionen auf einem PC (seit 2026-10-10): die Warnseite,
+       wenn mehr als ein Profil angehakt ist und eines nicht passt ({1}: die
+       Namen, etwa "Cadwork 2024"); "Fertig" nennt die Jahre; die Fehlerseite,
+       wenn eines der angehakten nicht eingerichtet werden konnte. -->
+  <t id="t_version_mehrere">
+    <de>Dieses Paket braucht Cadwork 3D {0} oder neuer. Das passt nicht dazu: {1}. Mit «Zurück» kannst du es abwählen.</de>
+    <fr>Ce paquet a besoin de Cadwork 3D {0} ou plus récent. Ceci ne convient pas : {1}. Avec «Retour», tu peux le décocher.</fr>
+    <it>Questo pacchetto richiede Cadwork 3D {0} o più recente. Questo non è adatto: {1}. Con «Indietro» puoi togliere la spunta.</it>
+    <en>This package needs Cadwork 3D {0} or newer. This does not match: {1}. Use «Back» to untick it.</en>
+  </t>
+  <t id="t_fertig_cadwork">
+    <de>Open MCP CAD ist jetzt in Cadwork {0}.</de>
+    <fr>Open MCP CAD est maintenant dans Cadwork {0}.</fr>
+    <it>Open MCP CAD ora è in Cadwork {0}.</it>
+    <en>Open MCP CAD is now in Cadwork {0}.</en>
+  </t>
+  <t id="t_fehler_teilweise">
+    <de>Open MCP CAD liess sich nicht in jedes angehakte Cadwork einrichten. Was fehlt, steht in den Details.</de>
+    <fr>Open MCP CAD n'a pas pu être installé dans chaque Cadwork coché. Ce qui manque se trouve dans les détails.</fr>
+    <it>Non è stato possibile configurare Open MCP CAD in ogni Cadwork spuntato. Ciò che manca si trova nei dettagli.</it>
+    <en>Open MCP CAD could not be set up in every Cadwork that was ticked. The details show what is missing.</en>
+  </t>
+</texte>

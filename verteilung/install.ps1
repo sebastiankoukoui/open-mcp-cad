@@ -3,18 +3,30 @@ Open MCP CAD - Installation (Plugin + MCP-Server).
 
     1_INSTALLIEREN.cmd                           (Doppelklick, oben im Paket)
     1_INSTALLIEREN.cmd -Profil "D:\...\3d\API.x64"  anderes Cadwork-Profil
+    1_INSTALLIEREN.cmd -Profile "C:\...\userprofil_2026\3d\API.x64;C:\...\userprofil_2025\3d\API.x64"
+                                                 in mehrere Cadwork-Profile auf
+                                                 einmal (;-getrennt)
     1_INSTALLIEREN.cmd -OhneServer               nur das Plugin
     1_INSTALLIEREN.cmd -PythonInstallieren       fehlendes Python ohne Rueckfrage holen
-    1_INSTALLIEREN.cmd -TrotzdemKopieren         auch in ein Profil, das nicht
-                                                 zu Cadwork 2026 gehoert (startet dort nicht)
+    1_INSTALLIEREN.cmd -TrotzdemKopieren         auch in ein Profil einer aelteren
+                                                 Cadwork-Version (startet dort
+                                                 wahrscheinlich nicht)
     1_INSTALLIEREN.cmd -Konsole                  dieses Textfenster statt des
                                                  Einrichtungsfensters
+    1_INSTALLIEREN.cmd -Sprache fr               das Einrichtungsfenster in dieser
+                                                 Sprache (de, fr, it, en; sonst die
+                                                 von Windows). Dieses Textfenster
+                                                 bleibt deutsch.
+    1_INSTALLIEREN.cmd -AltesWegraeumen          eine aeltere Version ("LignoAI
+                                                 Connect") ohne Rueckfrage
+                                                 beiseitelegen
 
 Seit 2026-10-09 oeffnet der Doppelklick OHNE Schalter das Einrichtungsfenster
 (install_fenster.ps1, Rueckmeldung: das schwarze Fenster schreckte ab). Das
 Fenster stellt seine Fragen vorher und startet DIESE Datei dann mit den
-Antworten als Schalter (-Profil, -TrotzdemKopieren, -PythonInstallieren,
--KiNur, -OhnePause) - es gibt nur diese eine Installation. Jeder Schalter
+Antworten als Schalter (-Profil bzw. -Profile, -TrotzdemKopieren,
+-PythonInstallieren, -KiNur, -OhnePause) - es gibt nur diese eine
+Installation. Jeder Schalter
 (auch -Konsole) fuehrt wie bisher in dieses Textfenster; scheitert das
 Einrichtungsfenster, ebenfalls.
 
@@ -29,13 +41,31 @@ Was passiert, in dieser Reihenfolge:
      userprofil_2025). Vorgeschlagen wird userprofil_2026, sonst das
      neueste Profil, zu dem ein Cadwork installiert ist
      (C:\Program Files\cadwork.dir\EXE_<Jahr>).
-     Bei mehreren Profilen zeigt der Installer die Liste und fragt.
-     Das Plugin braucht Cadwork 3D 2026 (Python 3.14, PyQt6). Gehoert das
-     Profil zu einer anderen Version, bricht er ab - ausser nach
-     ausdruecklicher Bestaetigung (Frage oder -TrotzdemKopieren).
+     Bei mehreren Profilen zeigt der Installer die Liste und fragt (eine
+     Zahl, oder "a" = alle mit * markierten).
+     Mehrere Cadwork-Versionen auf einem PC (seit 2026-10-10): mit -Profile
+     "a;b" (das Einrichtungsfenster setzt es, wenn mehr als ein Haken steht)
+     kommt das Plugin in jedes dieser Profile; jedes wird fuer sich geprueft
+     (zu alt -> dieses uebersprungen, mit Grund), Server, Python und
+     KI-Programme laufen EINMAL. Vorausgewaehlt (Profil-Vorauswahl) sind im
+     Fenster alle Profile ab $CADWORK_ERLAUBT_AB mit installiertem Cadwork.
+     Das Plugin ist fuer Cadwork 3D 2026 gebaut und getestet (Python 3.14,
+     PyQt6); seit 2026-10-10 laeuft es ueber eine Qt-Schicht auch mit PyQt5
+     (Cadwork 3D 2025: Python 3.12.7, PyQt5) und ist dort seit 2026-10-10
+     ebenfalls getestet (Open MCP CAD 0.2.2 im echten Cadwork 2025). Ein
+     erlaubtes, aber nicht getestetes Jahr bekaeme den Hinweis "nicht
+     getestet, sollte aber gehen".
+     Gehoert das Profil zu einer aelteren Version (oder zu keiner
+     erkennbaren), bricht er ab - ausser nach ausdruecklicher Bestaetigung
+     (Frage oder -TrotzdemKopieren). Welche Jahre: $CADWORK_GETESTET und
+     $CADWORK_ERLAUBT_AB unten.
   2. Der Ordner "Open MCP CAD" wird in dieses Profil kopiert - DARUEBER,
      der Zielordner wird nicht geloescht (dort koennen lokale Dateien wie
      projektordner.txt liegen).
+     Liegt dort noch das alte Plugin "LignoAI Connect" (seit 2026-10-10,
+     Alte-Plugins), fragt er, ob er es beiseitelegen soll: VERSCHOBEN nach
+     <CadworkWurzel>\OpenMcpCad_Backups\<Zeit>_alte_Version, nie
+     geloescht; das Ergebnis nennt den Rueckweg.
   3. Ein eigenes Python-venv fuer den Server (Standard:
      %LOCALAPPDATA%\OpenMcpCad\python), darin "pip install" des Servers
      mit dem Extra "stubs" (cwapi3d, fuer die API-Hilfe; geht das nicht,
@@ -58,7 +88,10 @@ Was passiert, in dieser Reihenfolge:
      es zuruecknimmt (python -m open_mcp_cad.ki_eintragen, im Server).
      -KiEintragen: ohne Frage in alle gefundenen; -OhneKiEintrag: nie.
      Mit -OhnePause (ohne -KiEintragen) wird nichts eingetragen.
-  Am Ende steht fuer JEDEN Teil einzeln, ob er da ist - und was noch fehlt.
+  Am Ende steht fuer JEDEN Teil einzeln, ob er da ist - und was noch fehlt;
+  mit mehreren Profilen eine Zeile "Cadwork-Plugin:" je Profil (auch in
+  -ErgebnisDatei: "profile"). Fehlt das Plugin in einem gewaehlten Profil,
+  ist die Installation nicht vollstaendig (Rueckgabe 3).
 
 Fuer die Gates: "-NurFunktionen" (dot-sourced) laedt nur die Funktionen;
 -CadworkWurzel / -CadworkProgramm zeigen auf Attrappen-Ordner.
@@ -68,6 +101,11 @@ liest Skripte ohne BOM als ANSI, Umlaute kaemen verstuemmelt an.
 #>
 param(
     [string]$Profil = "",
+    # Mehrere Profile auf einmal (seit 2026-10-10): ;-getrennte Liste von
+    # ...\3d\API.x64 (-File reicht nur Text weiter, keine Liste). Geht vor
+    # -Profil. (Der Name verdeckt hier PowerShells $PROFILE - es wird in
+    # dieser Datei nie gebraucht.)
+    [string]$Profile = "",
     [string]$PythonZiel = (Join-Path $env:LOCALAPPDATA "OpenMcpCad\python"),
     [switch]$OhneServer,
     [switch]$PythonInstallieren,
@@ -94,6 +132,13 @@ param(
     # gleich an (ohne -OhnePause), das Einrichtungsfenster tut das selbst.
     [ValidateSet("", "claude", "codex")]
     [string]$ChatKi = "",
+    # Das alte Plugin "LignoAI Connect" ohne Frage beiseitelegen (seit
+    # 2026-10-10; das Einrichtungsfenster setzt es, wenn der Haken steht).
+    [switch]$AltesWegraeumen,
+    # Die Sprache des Einrichtungsfensters (1_INSTALLIEREN.cmd -Sprache fr).
+    # Hier ohne Wirkung - das Textfenster bleibt deutsch -, aber erlaubt:
+    # scheitert das Fenster, reicht der Doppelklick seine Schalter hierher.
+    [string]$Sprache = "",
     [switch]$NurFunktionen
 )
 
@@ -103,10 +148,25 @@ if ($Utf8Ausgabe -and -not $NurFunktionen) {
     try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch { }
 }
 
-# Die einzige Cadwork-Version, fuer die das Plugin gebaut ist (Python 3.14,
-# PyQt6). Rueckmeldung Kollege zu 0.1.0 (2026-09-26): in Cadwork 2025
-# (Python 3.12, PyQt5) tat der Klick nichts.
+# Die Cadwork-Version, fuer die das Plugin gebaut und an der es getestet ist
+# (Python 3.14, PyQt6) - Vorgabe bei der Profilwahl. Rueckmeldung Kollege zu
+# 0.1.0 (2026-09-26): in Cadwork 2025 (Python 3.12, PyQt5) tat der Klick
+# damals nichts; seit 2026-10-10 laeuft das Plugin ueber eine Qt-Schicht
+# auch mit PyQt5 (gemessen am Laptop des Maintainers: Cadwork 3D 2025 bringt
+# Python 3.12.7 und PyQt5, kein PyQt6).
 $CADWORK_JAHR = 2026
+# Welche Cadwork-Jahre (seit 2026-10-10, Rueckmeldung: der Vorgaenger lief
+# auch in Cadwork 2025): GETESTET ohne jede Warnung; ab ERLAUBT_AB, aber
+# nicht getestet: kopiert, mit dem Hinweis "nicht getestet, sollte gehen"
+# (keine Sperre, das Ergebnis gilt als vollstaendig); davor die Warnung mit
+# "Trotzdem". NUR HIER aendern - Version-Pruefen, das Einrichtungsfenster
+# und test_installer (I7, I9, I23, I24, I38) lesen diese zwei Werte.
+# Seit 2026-10-10 ab 2025: das Plugin laeuft ueber die Qt-Schicht auch mit
+# PyQt5. Seit 2026-10-10 auch GETESTET (Messung des Maintainers: Open MCP
+# CAD 0.2.2 laeuft im echten Cadwork 2025) - also ohne Hinweis. 2024 und
+# aelter: weiter nicht unterstuetzt.
+$CADWORK_GETESTET = @(2025, 2026)
+$CADWORK_ERLAUBT_AB = 2025
 # Hierhin schreibt das Plugin, wenn es beim Klick nicht starten kann.
 $START_LOG = "C:\Users\Public\OpenMcpCad_start.log"
 
@@ -220,29 +280,86 @@ function Profil-Antwort([string]$antwort, [int]$anzahl, [int]$vorgabe) {
     return -1
 }
 
+function Profil-Vorauswahl($kandidaten, [string]$programm) {
+    # Mehrere Cadwork-Versionen auf einem PC (seit 2026-10-10): welche
+    # Profile das Einrichtungsfenster vorab anhakt - JEDES mit Jahr ab
+    # $CADWORK_ERLAUBT_AB, zu dem ein Cadwork installiert ist (EXE_<Jahr>
+    # unter $programm). Trifft das auf keines zu: die bisherige Vorgabe
+    # (Profil-Vorgabe). Startet das Dock 1_INSTALLIEREN.cmd ohne Schalter
+    # (nach einem Update oder fuer ein Cadwork ohne Open MCP CAD), ist damit
+    # jedes erlaubte, installierte Cadwork dabei. -> Liste der Indizes in
+    # $kandidaten (neueste zuerst, wie Profil-Kandidaten).
+    $k = @($kandidaten)
+    $aus = @()
+    for ($i = 0; $i -lt $k.Count; $i++) {
+        # VORAUSWAHL-ANFANG (test_installer I39a-K ersetzt diese Zeile)
+        if ($k[$i].Installiert -and $k[$i].Nummer -ge $CADWORK_ERLAUBT_AB) { $aus += $i }
+        # VORAUSWAHL-ENDE
+    }
+    if ($aus.Count -eq 0 -and $k.Count -gt 0) { $aus = @((Profil-Vorgabe $k $programm).Index) }
+    return , $aus
+}
+
+function Profile-Liste([string]$text) {
+    # -Profile "a;b" -> die Pfade, ohne leere, ohne Anfuehrungszeichen und
+    # ohne doppelte (Gross/Klein egal); die Reihenfolge bleibt.
+    $aus = @()
+    foreach ($t in "$text".Split(";")) {
+        $p = $t.Trim().Trim('"').Trim()
+        if (-not $p) { continue }
+        if (@($aus | Where-Object { $_ -ieq $p }).Count -gt 0) { continue }
+        $aus += $p
+    }
+    return , $aus
+}
+
+function Profil-Antwort-Mehr([string]$antwort, [int]$anzahl, [int]$vorgabe, $alle) {
+    # Wie Profil-Antwort, dazu "a" (oder "alle") = alle vorausgewaehlten
+    # ($alle, aus Profil-Vorauswahl). -> Liste der Indizes; leer = nochmal
+    # fragen.
+    if ("$antwort".Trim() -match '^(a|alle)$' -and @($alle).Count -gt 0) { return , @($alle) }
+    $i = Profil-Antwort $antwort $anzahl $vorgabe
+    if ($i -lt 0) { return , @() }
+    return , @($i)
+}
+
+function Profil-Jahr($e) {
+    # "Cadwork 2025" fuer eine Zeile des Ergebnisses (oder der Ordnername).
+    if ($null -ne $e.Nummer) { return ("Cadwork " + $e.Nummer) }
+    return (Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $e.Pfad)))
+}
+
 function Version-Pruefen([string]$api, $installiert, [string]$programm) {
-    # Passt das Profil zu Cadwork 2026? -> Passt, Nummer, Text (fuer Laien).
+    # Passt das Profil zu den erlaubten Cadwork-Versionen ($CADWORK_GETESTET,
+    # ab $CADWORK_ERLAUBT_AB)? -> Passt, Nummer, Art, Text (fuer Laien).
     $name = Profil-Name $api
     $nr = Profil-Nummer $api
     if ($null -eq $nr) {
         return [pscustomobject]@{
             Passt  = $false
             Nummer = $null
-            Text   = ("Dieses Paket braucht Cadwork 3D $CADWORK_JAHR. Zu welcher Cadwork-Version das Profil " + $api + " gehoert, ist unbekannt (kein userprofil_<Jahr> im Pfad).")
+            Art    = "nicht"
+            Text   = ("Dieses Paket braucht Cadwork 3D $CADWORK_ERLAUBT_AB oder neuer. Zu welcher Cadwork-Version das Profil " + $api + " gehoert, ist unbekannt (kein userprofil_<Jahr> im Pfad).")
         }
     }
-    if ($nr -ne $CADWORK_JAHR) {
+    if (@($CADWORK_GETESTET) -notcontains $nr -and $nr -lt $CADWORK_ERLAUBT_AB) {
         return [pscustomobject]@{
             Passt  = $false
             Nummer = $nr
-            Text   = "Dieses Paket braucht Cadwork 3D $CADWORK_JAHR. Gefunden: Cadwork $nr im Profil $name."
+            Art    = "nicht"
+            Text   = "Dieses Paket braucht Cadwork 3D $CADWORK_ERLAUBT_AB oder neuer. Gefunden: Cadwork $nr im Profil $name."
         }
     }
+    $art = "getestet"
     $text = "Cadwork $nr im Profil $name"
+    if (@($CADWORK_GETESTET) -notcontains $nr) {
+        $art = "ungetestet"
+        $text += " - mit dieser Version nicht getestet, sollte aber gehen"
+    }
     if (@($installiert) -notcontains $nr) {
         $text += (" (Hinweis: " + (Join-Path $programm "EXE_$nr") + " nicht gefunden - Cadwork anders installiert?)")
     }
-    return [pscustomobject]@{ Passt = $true; Nummer = $nr; Text = $text }
+    return [pscustomobject]@{ Passt = $true; Nummer = $nr; Art = $art; Text = $text }
 }
 
 # --- Die KI fuer den Chat in Cadwork (seit 2026-10-09) -------------------
@@ -349,6 +466,90 @@ function Cli-Angemeldet([string]$ki, [string]$pfad) {
     }
 }
 
+# --- Das alte Plugin (seit 2026-10-10) ----------------------------------
+# Rueckmeldung 2026-10-10: auf einem Laptop lag noch das Plugin unter dem
+# Namen vor dem 2026-09-20, "LignoAI Connect" (aus dem Vorgaenger-Repo, mit
+# Steckplaetzen "LignoAI Connect A".."J"). Dann stehen zwei Eintraege im
+# Cadwork-Menue, und beide wollen dieselben Ports. Erkannt wird ein Ordner
+# nur, wenn er EINDEUTIG das alte Plugin ist: der Name passt UND sein
+# Einstieg <Ordnername>.py (Cadwork verlangt Ordnername == Dateiname) laedt
+# den alten Kern lignoai_bridge_core.py - so in jeder Fassung des alten
+# Plugins (gemessen an den Sicherungen des alten Installers und am
+# Vorgaenger-Repo). Fremde Plugins bleiben unberuehrt.
+$ALTE_PLUGINS_MUSTER = '^LignoAI Connect( [A-Z])?$'
+$ALTE_PLUGINS_KERN = "lignoai_bridge_core"
+
+function Alte-Plugins([string]$api) {
+    # Die Ordner des alten Plugins direkt unter $api (Gross/Klein egal).
+    # Liest nur, wirft nie. -> Liste von @{ Name; Pfad }.
+    $aus = @()
+    if (-not $api) { return , $aus }
+    foreach ($d in @(Get-ChildItem -LiteralPath $api -Directory -ErrorAction SilentlyContinue)) {
+        if ($d.Name -notmatch $ALTE_PLUGINS_MUSTER) { continue }
+        $einstieg = Join-Path $d.FullName ($d.Name + ".py")
+        if (-not (Test-Path -LiteralPath $einstieg -PathType Leaf)) { continue }
+        try { $text = [IO.File]::ReadAllText($einstieg) } catch { continue }
+        # KENNUNG-ANFANG (test_installer I32-K schneidet diese Zeile heraus)
+        if ($text.IndexOf($ALTE_PLUGINS_KERN, [StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+        # KENNUNG-ENDE
+        $aus += [pscustomobject]@{ Name = $d.Name; Pfad = $d.FullName }
+    }
+    return , $aus
+}
+
+function Alte-Ziel([string]$wurzel) {
+    # Wohin die alte Version kommt: neben die Profile (gleiches Laufwerk,
+    # Verschieben ist dann nur ein Umbenennen), je Lauf ein eigener Ordner.
+    return (Join-Path (Join-Path $wurzel "OpenMcpCad_Backups") ((Get-Date -Format "yyyy-MM-dd_HHmmss") + "_alte_Version"))
+}
+
+function Alte-Wegraeumen($alte, [string]$ziel) {
+    # Jeden Ordner nach $ziel VERSCHIEBEN, nie loeschen. Geht einer nicht
+    # (Cadwork offen, Datei gesperrt, anderes Laufwerk), bleibt er, wo er
+    # ist, und die Zeile sagt warum - die anderen laufen weiter.
+    # -> Liste von @{ Name; Von; Nach; Ok; Text }.
+    $aus = @()
+    foreach ($a in @($alte)) {
+        if (-not $a) { continue }
+        $nach = Join-Path $ziel $a.Name
+        try {
+            if (Test-Path -LiteralPath $nach) { throw ("dort liegt schon etwas: " + $nach) }
+            New-Item -ItemType Directory -Force -Path $ziel | Out-Null
+            # Directory.Move ist EIN Umbenennen: geht es nicht (eine Datei
+            # offen, anderes Laufwerk), bleibt alles, wo es war. Move-Item
+            # verschob dann einzelne Dateien und liess den Rest liegen
+            # (gemessen 2026-10-10, test_installer I32e).
+            [IO.Directory]::Move($a.Pfad, $nach)
+            if (Test-Path -LiteralPath $a.Pfad) { throw ("liegt nach dem Verschieben noch da: " + $a.Pfad) }
+            $aus += [pscustomobject]@{ Name = $a.Name; Von = $a.Pfad; Nach = $nach; Ok = $true; Text = "" }
+        } catch {
+            $aus += [pscustomobject]@{ Name = $a.Name; Von = $a.Pfad; Nach = $nach; Ok = $false; Text = $_.Exception.Message }
+        }
+    }
+    # Ein leer gebliebener Sicherungsordner (nichts ging) bleibt nicht liegen.
+    try {
+        if ((Test-Path -LiteralPath $ziel) -and -not (Get-ChildItem -LiteralPath $ziel -Force)) {
+            Remove-Item -LiteralPath $ziel -Force
+        }
+    } catch { }
+    return , $aus
+}
+
+function Alte-Zeile($weg, [string]$api) {
+    # Eine Zeile fuer das Ergebnis, mit dem Rueckweg. -> Text, Fehler, Weg
+    $gut = @($weg | Where-Object { $_ -and $_.Ok })
+    $schlecht = @($weg | Where-Object { $_ -and -not $_.Ok })
+    $teile = @()
+    if ($gut.Count -gt 0) {
+        $ziel = Split-Path -Parent $gut[0].Nach
+        $teile += ("'" + (($gut | ForEach-Object { $_.Name }) -join "', '") + "' beiseitegelegt nach " + $ziel + ". Rueckweg: Cadwork schliessen und den Ordner von dort zurueck nach " + $api + " verschieben")
+    }
+    foreach ($s in $schlecht) {
+        $teile += ("'" + $s.Name + "' NICHT beiseitegelegt (" + $s.Text + ") - Cadwork schliessen und 1_INSTALLIEREN.cmd nochmals starten")
+    }
+    return [pscustomobject]@{ Text = ($teile -join "; "); Fehler = ($schlecht.Count -gt 0); Weg = $gut.Count }
+}
+
 function Zusammenfassung($stand) {
     # Jeder Teil einzeln - nie "fertig", wenn ein Teil fehlt.
     $zeilen = @()
@@ -357,10 +558,22 @@ function Zusammenfassung($stand) {
         "uebersprungen" { $zeilen += "MCP-Server:     nicht eingerichtet (-OhneServer)" }
         default         { $zeilen += ("MCP-Server:     NICHT eingerichtet - " + $stand.ServerText) }
     }
-    switch ($stand.Plugin) {
-        "ok"      { $zeilen += ("Cadwork-Plugin: kopiert nach " + $stand.Profil + ", Cadwork-Version passt (" + $stand.PluginText + ")") }
-        "version" { $zeilen += ("Cadwork-Plugin: kopiert nach " + $stand.Profil + ", ABER die Cadwork-Version passt NICHT: " + $stand.PluginText) }
-        default   { $zeilen += ("Cadwork-Plugin: NICHT kopiert - " + $stand.PluginText) }
+    $je = @($stand.Profile | Where-Object { $_ })
+    if ($je.Count -gt 1) {
+        # Mehrere Profile (-Profile): jedes einzeln, auch die uebersprungenen.
+        foreach ($e in $je) {
+            switch ($e.Status) {
+                "ok"      { $zeilen += ("Cadwork-Plugin: kopiert nach " + $e.Pfad + ", Cadwork-Version passt (" + $e.Text + ")") }
+                "version" { $zeilen += ("Cadwork-Plugin: kopiert nach " + $e.Pfad + ", ABER die Cadwork-Version passt NICHT: " + $e.Text) }
+                default   { $zeilen += ("Cadwork-Plugin: NICHT kopiert nach " + $e.Pfad + " - " + $e.Text) }
+            }
+        }
+    } else {
+        switch ($stand.Plugin) {
+            "ok"      { $zeilen += ("Cadwork-Plugin: kopiert nach " + $stand.Profil + ", Cadwork-Version passt (" + $stand.PluginText + ")") }
+            "version" { $zeilen += ("Cadwork-Plugin: kopiert nach " + $stand.Profil + ", ABER die Cadwork-Version passt NICHT: " + $stand.PluginText) }
+            default   { $zeilen += ("Cadwork-Plugin: NICHT kopiert - " + $stand.PluginText) }
+        }
     }
     if ($stand.Python) {
         $zeilen += ("Python:         " + $stand.Python)
@@ -371,12 +584,20 @@ function Zusammenfassung($stand) {
     if ($stand.Chat) {
         $zeilen += ("Chat-KI:        " + $stand.Chat)
     }
-    if ($stand.Plugin -eq "ok" -or $stand.Plugin -eq "version") {
+    if ($stand.Alt) {
+        $zeilen += ("Alte Version:   " + $stand.Alt)
+    }
+    if ($stand.Plugin -eq "ok" -or $stand.Plugin -eq "version" -or $stand.Plugin -eq "teilweise") {
         $zeilen += ("Noch offen:     in Cadwork einmal auf 'Open MCP CAD' klicken. Klappt es nicht, steht der Grund in " + $START_LOG)
     }
+    # "teilweise": in mindestens ein gewaehltes Profil nicht kopiert - dann
+    # nie fertig (Rueckgabe 3).
     $fertig = ($stand.Plugin -eq "ok") -and ($stand.Server -eq "ok" -or $stand.Server -eq "uebersprungen")
     # Die KI fuer den Chat, wenn sie gewollt war (-ChatKi), gehoert dazu.
     if ($stand.Chat -and -not $stand.ChatOk) { $fertig = $false }
+    # Sollte die alte Version weg und ging das nicht, ist es nicht fertig:
+    # sie steht dann weiter im Menue und will dieselben Ports.
+    if ($stand.AltFehler) { $fertig = $false }
     if ($fertig -and $stand.Server -eq "ok") {
         $zeilen += "Beide Teile sind installiert. Offen ist nur noch der erste Klick in Cadwork."
     } elseif ($fertig) {
@@ -613,16 +834,36 @@ function KI-Nur-Frage([string]$liste) {
 }
 
 function KI-Zeile($ergebnisse) {
-    # Eine Zeile fuer das Ergebnis: je Programm, was geschah.
-    $teile = @()
+    # Eine Zeile fuer das Ergebnis: je Programm, was geschah - jedes
+    # Programm EINMAL (Rueckmeldung 2026-10-10: "Claude Desktop eingetragen;
+    # Claude Desktop eingetragen" - Claude Desktop hat zwei Orte,
+    # %APPDATA%\Claude und das Store-Paket Packages\Claude_*). Gleiches an
+    # mehreren Orten: "(2 Orte)"; Verschiedenes bleibt einzeln stehen.
+    $namen = @()
+    $je = @{}
     foreach ($e in @($ergebnisse)) {
+        if ($null -eq $e) { continue }
         switch ($e.Status) {
-            "eingetragen" { $teile += ($e.Name + " eingetragen") }
-            "schon_da"    { $teile += ($e.Name + " war schon eingetragen") }
-            "abgelehnt"   { $teile += ($e.Name + " nicht gewollt") }
-            "abweichend"  { $teile += ($e.Name + " hat einen anderen Eintrag (siehe oben)") }
-            default       { $teile += ($e.Name + " FEHLER (siehe oben)") }
+            "eingetragen" { $was = "eingetragen" }
+            "schon_da"    { $was = "war schon eingetragen" }
+            "abgelehnt"   { $was = "nicht gewollt" }
+            "abweichend"  { $was = "hat einen anderen Eintrag (siehe oben)" }
+            default       { $was = "FEHLER (siehe oben)" }
         }
+        $n = "$($e.Name)"
+        if (-not $je.ContainsKey($n)) { $namen += $n; $je[$n] = New-Object System.Collections.ArrayList }
+        [void]$je[$n].Add($was)
+    }
+    $teile = @()
+    foreach ($n in $namen) {
+        $arten = @()
+        foreach ($w in @($je[$n])) { if ($arten -notcontains $w) { $arten += $w } }
+        $stuecke = @()
+        foreach ($w in $arten) {
+            $zahl = @($je[$n] | Where-Object { $_ -ceq $w }).Count
+            if ($zahl -gt 1) { $stuecke += ($w + " (" + $zahl + " Orte)") } else { $stuecke += $w }
+        }
+        $teile += ($n + " " + ($stuecke -join ", "))
     }
     if ($teile.Count -eq 0) { return "keins gefunden - siehe 2_ANLEITUNG.pdf, danach 1_INSTALLIEREN.cmd nochmals" }
     return ($teile -join "; ")
@@ -690,6 +931,17 @@ function Ergebnis-Schreiben([string]$datei, $stand, $ergebnis, $ki, $fehler) {
     try {
         $liste = @()
         foreach ($e in @($ki)) { if ($e) { $liste += @{ name = "$($e.Name)"; status = "$($e.Status)" } } }
+        # Jedes gewaehlte Profil einzeln (seit 2026-10-10): pfad, name,
+        # nummer, status (ok | version | fehlt), text.
+        $jeProfil = @()
+        foreach ($e in @($stand.Profile)) {
+            if (-not $e) { continue }
+            $nr = $null
+            if ($null -ne $e.Nummer) { $nr = [int]$e.Nummer }
+            $st = "$($e.Status)"
+            if ($st -ne "ok" -and $st -ne "version") { $st = "fehlt" }
+            $jeProfil += @{ pfad = "$($e.Pfad)"; name = "$($e.Name)"; nummer = $nr; status = $st; text = "$($e.Text)" }
+        }
         $text = $null
         if ($fehler) { $text = "$($fehler.Exception.Message)" }
         $daten = @{
@@ -698,6 +950,8 @@ function Ergebnis-Schreiben([string]$datei, $stand, $ergebnis, $ki, $fehler) {
             python = "$($stand.Python)"; ki = "$($stand.KI)"; kiListe = $liste; fehler = $text
             zeilen = @($ergebnis.Zeilen)
             chat = "$($stand.Chat)"; chatOk = [bool]$stand.ChatOk; chatPfad = "$($stand.ChatPfad)"
+            alt = "$($stand.Alt)"; altFehler = [bool]$stand.AltFehler; altWeg = [int]$stand.AltWeg
+            profile = $jeProfil
         }
         $json = ConvertTo-Json -InputObject $daten -Depth 5
         [IO.File]::WriteAllText($datei, $json, (New-Object System.Text.UTF8Encoding $false))
@@ -719,6 +973,12 @@ $stand = @{
     Chat       = ""
     ChatOk     = $false
     ChatPfad   = ""
+    Alt        = ""
+    AltFehler  = $false
+    AltWeg     = 0
+    # Jedes gewaehlte Profil: Pfad, Name, Nummer, Status (bereit -> ok |
+    # version | fehlt), Text, Version (seit 2026-10-10, -Profile).
+    Profile    = @()
 }
 if ($OhneServer) { $stand.Server = "uebersprungen" }
 # Fuenf Schritte, mit -ChatKi sechs (das Einrichtungsfenster liest "n/N").
@@ -729,10 +989,17 @@ $fehler = $null
 $ergebnis = $null
 $ki = @()
 try {
-    # --- 1. Profil waehlen und Cadwork-Version pruefen ---------------------
+    # --- 1. Profil(e) waehlen und Cadwork-Version pruefen ------------------
     Schritt ("1/" + $SCHRITTE + " Cadwork-Profil waehlen und Version pruefen")
     $installiert = @(Cadwork-Installiert $CadworkProgramm)
-    if ($Profil) {
+    if ($Profile) {
+        # Mehrere Profile (seit 2026-10-10; das Einrichtungsfenster bei mehr
+        # als einem Haken). Geht vor -Profil.
+        $ziele = Profile-Liste $Profile
+        if ($ziele.Count -eq 0) { throw "-Profile ohne Pfad angegeben. Die Ordner ...\3d\API.x64 mit ; getrennt angeben." }
+        $grund = "mit -Profile angegeben"
+    } elseif ($Profil) {
+        $ziele = @($Profil)
         $grund = "mit -Profil angegeben"
     } else {
         $kandidaten = @(Profil-Kandidaten $CadworkWurzel $CadworkProgramm)
@@ -740,9 +1007,13 @@ try {
             throw "Kein Cadwork-Profil unter $CadworkWurzel gefunden. Den Ordner ...\3d\API.x64 mit -Profil angeben."
         }
         $vorgabe = Profil-Vorgabe $kandidaten $CadworkProgramm
-        $wahl = $vorgabe.Index
+        $wahlen = @($vorgabe.Index)
         $grund = $vorgabe.Grund
         if ($kandidaten.Count -gt 1) {
+            # Mit * die, die das Einrichtungsfenster vorab anhakt; "a" nimmt
+            # sie alle (nur, wenn es mehr als eines ist).
+            $alle = Profil-Vorauswahl $kandidaten $CadworkProgramm
+            if ($alle.Count -lt 2) { $alle = @() }
             Write-Host "Mehrere Cadwork-Profile gefunden:"
             for ($i = 0; $i -lt $kandidaten.Count; $i++) {
                 $k = $kandidaten[$i]
@@ -752,71 +1023,167 @@ try {
                     $info = "kein " + (Join-Path $CadworkProgramm ("EXE_" + $k.Nummer))
                 }
                 $marke = ""
-                if ($i -eq $wahl) { $marke = "   <- Vorgabe" }
+                if ($alle -contains $i) { $marke = " *" }
+                if ($i -eq $vorgabe.Index) { $marke += "   <- Vorgabe" }
                 Write-Host ("  [{0}] {1}   ({2}){3}" -f ($i + 1), $k.Pfad, $info, $marke)
             }
             if (-not $OhnePause) {
+                $frage = "Welches Profil? Zahl eingeben, Enter = " + ($vorgabe.Index + 1)
+                if ($alle.Count -gt 0) { $frage += ", a = alle mit *" }
                 do {
-                    $antwort = Read-Host ("Welches Profil? Zahl eingeben, Enter = " + ($vorgabe.Index + 1))
-                    $wahl = Profil-Antwort $antwort $kandidaten.Count $vorgabe.Index
-                    if ($wahl -lt 0) { Write-Host ("Bitte eine Zahl von 1 bis " + $kandidaten.Count + " eingeben.") }
-                } while ($wahl -lt 0)
-                if ($wahl -ne $vorgabe.Index) { $grund = "von Hand gewaehlt" }
+                    $antwort = Read-Host $frage
+                    $wahlen = Profil-Antwort-Mehr $antwort $kandidaten.Count $vorgabe.Index $alle
+                    if ($wahlen.Count -eq 0) { Write-Host ("Bitte eine Zahl von 1 bis " + $kandidaten.Count + " eingeben.") }
+                } while ($wahlen.Count -eq 0)
+                if ($wahlen.Count -gt 1) { $grund = "alle mit * gewaehlt" }
+                elseif ($wahlen[0] -ne $vorgabe.Index) { $grund = "von Hand gewaehlt" }
             } else {
                 $grund += " - ohne Rueckfrage (-OhnePause)"
             }
         } else {
             $grund = "einziges Cadwork-Profil unter $CadworkWurzel"
         }
-        $Profil = $kandidaten[$wahl].Pfad
+        $ziele = @($wahlen | ForEach-Object { $kandidaten[$_].Pfad })
     }
-    if (-not (Test-Path -LiteralPath $Profil)) { throw "Profilordner gibt es nicht: $Profil" }
-    $stand.Profil = $Profil
-    $version = Version-Pruefen $Profil $installiert $CadworkProgramm
-    Write-Host "Profil:  $Profil"
-    Write-Host "Warum:   $grund"
-    if ($version.Passt) {
-        Write-Host ("Cadwork: " + $version.Text + " - passt.") -ForegroundColor Green
-    } else {
-        Write-Host ""
-        Write-Host $version.Text -ForegroundColor Yellow
-        Write-Host "Das Plugin startet dort nicht: es braucht Python 3.14 und PyQt6 aus Cadwork 3D $CADWORK_JAHR." -ForegroundColor Yellow
-        $ja = [bool]$TrotzdemKopieren
-        if (-not $ja -and -not $OhnePause) {
-            $antwort = Read-Host "Trotzdem in dieses Profil kopieren? [j/N]"
-            $ja = ($antwort -match '^\s*(j|ja|y|yes)\s*$')
+    $mehrere = ($ziele.Count -gt 1)
+    $stand.Profil = ($ziele -join "; ")
+    # Jedes Profil fuer sich pruefen: passt es nicht (und ist es nicht
+    # ausdruecklich bestaetigt), bleibt NUR dieses aus, mit Grund.
+    $geprueft = @()
+    foreach ($z in $ziele) {
+        $e = [pscustomobject]@{ Pfad = $z; Name = (Profil-Name $z); Nummer = (Profil-Nummer $z); Status = "fehlt"; Text = ""; Version = $null; Abbruch = "" }
+        $geprueft += $e
+        if ($mehrere) { Write-Host "" }
+        if (-not (Test-Path -LiteralPath $z)) {
+            $e.Text = "Profilordner gibt es nicht: $z"
+            $e.Abbruch = $e.Text
+            Write-Host $e.Text -ForegroundColor Yellow
+            continue
         }
-        if (-not $ja) {
-            $stand.PluginText = $version.Text + " Nichts kopiert."
-            throw ($version.Text + " Nichts kopiert, abgebrochen. Anderes Profil angeben: 1_INSTALLIEREN.cmd -Profil ""...\userprofil_$CADWORK_JAHR\3d\API.x64""")
+        $version = Version-Pruefen $z $installiert $CadworkProgramm
+        Write-Host "Profil:  $z"
+        Write-Host "Warum:   $grund"
+        if ($version.Passt -and $version.Art -eq "ungetestet") {
+            Write-Host ("Cadwork: " + $version.Text + ".") -ForegroundColor Yellow
+        } elseif ($version.Passt) {
+            Write-Host ("Cadwork: " + $version.Text + " - passt.") -ForegroundColor Green
+        } else {
+            Write-Host ""
+            Write-Host $version.Text -ForegroundColor Yellow
+            Write-Host ("Das Plugin ist fuer Cadwork 3D $CADWORK_ERLAUBT_AB und neuer gebaut (getestet mit " + (@($CADWORK_GETESTET) -join ", ") + ") und startet mit dieser Version wahrscheinlich nicht.") -ForegroundColor Yellow
+            $ja = [bool]$TrotzdemKopieren
+            if (-not $ja -and -not $OhnePause) {
+                $antwort = Read-Host "Trotzdem in dieses Profil kopieren? [j/N]"
+                $ja = ($antwort -match '^\s*(j|ja|y|yes)\s*$')
+            }
+            if (-not $ja) {
+                $e.Text = $version.Text + " Nichts kopiert."
+                $e.Abbruch = ($version.Text + " Nichts kopiert, abgebrochen. Anderes Profil angeben: 1_INSTALLIEREN.cmd -Profil ""...\userprofil_$CADWORK_JAHR\3d\API.x64""")
+                if ($mehrere) { Write-Host ("Dieses Profil wird uebersprungen: " + $z) -ForegroundColor Yellow }
+                continue
+            }
+            Write-Host "Kopiert wird trotzdem (ausdruecklich bestaetigt)." -ForegroundColor Yellow
         }
-        Write-Host "Kopiert wird trotzdem (ausdruecklich bestaetigt)." -ForegroundColor Yellow
+        $e.Status = "bereit"
+        $e.Version = $version
+        $e.Text = $version.Text
+    }
+    $stand.Profile = $geprueft
+    $bereit = @($geprueft | Where-Object { $_.Status -eq "bereit" })
+    if ($bereit.Count -eq 0) {
+        # Kein gewaehltes Profil geht: abbrechen wie bisher (mit einem
+        # Profil genau dieselbe Meldung wie vor 2026-10-10).
+        if (-not $mehrere) {
+            if ($geprueft[0].Text -like "*Nichts kopiert.") { $stand.PluginText = $geprueft[0].Text }
+            throw $geprueft[0].Abbruch
+        }
+        $stand.PluginText = (($geprueft | ForEach-Object { (Profil-Jahr $_) + ": " + $_.Text }) -join " ")
+        throw ("Kein gewaehltes Cadwork-Profil passt. Nichts kopiert, abgebrochen. " + $stand.PluginText)
     }
 
-    # --- 2. Plugin ---------------------------------------------------------
+    # --- 2. Plugin (in jedes gewaehlte Profil) ------------------------------
     Schritt ("2/" + $SCHRITTE + " Plugin nach Cadwork kopieren")
-    $pluginZiel = Join-Path $Profil "Open MCP CAD"
-    New-Item -ItemType Directory -Force -Path $pluginZiel | Out-Null
-    Copy-Item -Path (Join-Path $hier "Open MCP CAD\*") -Destination $pluginZiel -Recurse -Force
-    # Die Anleitung (oben im Paket) auch neben das Plugin: der Chat oeffnet
-    # sie mit "Anleitung oeffnen" (Dashboard ANLEITUNG_DATEI, 2026-09-29).
-    $anleitung = Join-Path (Split-Path -Parent $hier) "2_ANLEITUNG.pdf"
-    if (Test-Path -LiteralPath $anleitung) {
-        Copy-Item -LiteralPath $anleitung -Destination (Join-Path $pluginZiel "ANLEITUNG.pdf") -Force
+    $altBasis = Alte-Ziel $CadworkWurzel
+    $kopierFehler = $null
+    foreach ($e in $bereit) {
+        $api = $e.Pfad
+        $pluginZiel = Join-Path $api "Open MCP CAD"
+        try {
+            New-Item -ItemType Directory -Force -Path $pluginZiel | Out-Null
+            Copy-Item -Path (Join-Path $hier "Open MCP CAD\*") -Destination $pluginZiel -Recurse -Force
+            # Die Anleitung (oben im Paket) auch neben das Plugin: der Chat
+            # oeffnet sie mit "Anleitung oeffnen" (Dashboard ANLEITUNG_DATEI,
+            # 2026-09-29).
+            $anleitung = Join-Path (Split-Path -Parent $hier) "2_ANLEITUNG.pdf"
+            if (Test-Path -LiteralPath $anleitung) {
+                Copy-Item -LiteralPath $anleitung -Destination (Join-Path $pluginZiel "ANLEITUNG.pdf") -Force
+            }
+        } catch {
+            # Mit einem Profil wie bisher: abbrechen. Mit mehreren laufen die
+            # anderen weiter; dieses zaehlt als nicht installiert.
+            if (-not $mehrere) { throw }
+            $e.Status = "fehlt"
+            $e.Text = "Kopieren ging nicht: " + $_.Exception.Message
+            if (-not $kopierFehler) { $kopierFehler = $e.Text }
+            Write-Host ("NICHT kopiert nach " + $pluginZiel + ": " + $_.Exception.Message) -ForegroundColor Yellow
+            continue
+        }
+        Write-Host "Plugin: $pluginZiel"
+        if ($e.Version.Passt) { $e.Status = "ok" } else { $e.Status = "version" }
+        $e.Text = $e.Version.Text
+        # Die Ordner "Open MCP CAD A".."F" aus dem Quellcode-Repo sind Pruef-
+        # Ordner (feste Ports, ohne Fenster) und gehoeren nicht nach Cadwork.
+        # Wer den ganzen Ordner cad_plugin kopiert hat, sieht sie im Menue -
+        # ein Klick darauf oeffnet kein Fenster. Nur melden, nie loeschen.
+        $fremde = @(Get-ChildItem -LiteralPath $api -Directory -Filter "Open MCP CAD ?" -ErrorAction SilentlyContinue)
+        if ($fremde.Count -gt 0) {
+            Write-Host ""
+            Write-Host "ACHTUNG: alte Pruef-Ordner im Cadwork-Profil gefunden:" -ForegroundColor Yellow
+            foreach ($f in $fremde) { Write-Host ("  " + $f.FullName) -ForegroundColor Yellow }
+            Write-Host "Diese Ordner bitte loeschen (Cadwork vorher schliessen). Benutzt wird nur 'Open MCP CAD'." -ForegroundColor Yellow
+        }
+        # Das alte Plugin "LignoAI Connect" (seit 2026-10-10): beiseitelegen,
+        # nie loeschen; ohne Frage nur mit -AltesWegraeumen. Mit mehreren
+        # Profilen je Profil ein eigener Unterordner der Sicherung.
+        $alte = Alte-Plugins $api
+        if (@($alte).Count -gt 0) {
+            Write-Host ""
+            Write-Host "Aeltere Version gefunden - sie stuende sonst zusaetzlich im Cadwork-Menue:" -ForegroundColor Yellow
+            foreach ($a in @($alte)) { Write-Host ("  " + $a.Pfad) -ForegroundColor Yellow }
+            $altZiel = $altBasis
+            if ($mehrere) { $altZiel = Join-Path $altBasis (Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $api))) }
+            $ja = [bool]$AltesWegraeumen
+            if (-not $ja -and -not $OhnePause) {
+                $ja = Ja-Frage ("Beiseitelegen, also verschieben nach " + $altZiel + " (nichts wird geloescht)? [J/n]")
+            }
+            if ($ja) {
+                $weg = Alte-Wegraeumen $alte $altZiel
+                foreach ($x in @($weg)) {
+                    if ($x.Ok) { Write-Host ("Beiseitegelegt: " + $x.Von + " -> " + $x.Nach) -ForegroundColor Green }
+                    else { Write-Host ("NICHT beiseitegelegt: " + $x.Von + " (" + $x.Text + ")") -ForegroundColor Yellow }
+                }
+                $z = Alte-Zeile $weg $api
+                $altText = $z.Text
+                if ($z.Fehler) { $stand.AltFehler = $true }
+                $stand.AltWeg = [int]$stand.AltWeg + [int]$z.Weg
+            } else {
+                $altText = ("'" + ((@($alte) | ForEach-Object { $_.Name }) -join "', '") + "' liegt noch in " + $api + " (nicht beiseitegelegt) - steht doppelt im Cadwork-Menue. Beiseitelegen: 1_INSTALLIEREN.cmd -AltesWegraeumen")
+                Write-Host "Nicht beiseitegelegt." -ForegroundColor Yellow
+            }
+            if ($stand.Alt) { $stand.Alt += "; " + $altText } else { $stand.Alt = $altText }
+        }
     }
-    Write-Host "Plugin: $pluginZiel"
-    if ($version.Passt) { $stand.Plugin = "ok" } else { $stand.Plugin = "version" }
-    $stand.PluginText = $version.Text
-    # Die Ordner "Open MCP CAD A".."F" aus dem Quellcode-Repo sind Pruef-
-    # Ordner (feste Ports, ohne Fenster) und gehoeren nicht nach Cadwork.
-    # Wer den ganzen Ordner cad_plugin kopiert hat, sieht sie im Menue -
-    # ein Klick darauf oeffnet kein Fenster. Nur melden, nie loeschen.
-    $fremde = @(Get-ChildItem -LiteralPath $Profil -Directory -Filter "Open MCP CAD ?" -ErrorAction SilentlyContinue)
-    if ($fremde.Count -gt 0) {
-        Write-Host ""
-        Write-Host "ACHTUNG: alte Pruef-Ordner im Cadwork-Profil gefunden:" -ForegroundColor Yellow
-        foreach ($f in $fremde) { Write-Host ("  " + $f.FullName) -ForegroundColor Yellow }
-        Write-Host "Diese Ordner bitte loeschen (Cadwork vorher schliessen). Benutzt wird nur 'Open MCP CAD'." -ForegroundColor Yellow
+    # Der Stand des Plugins ueber alle gewaehlten Profile: "ok" nur, wenn
+    # JEDES da ist und passt; "teilweise", wenn eines fehlt (Rueckgabe 3).
+    $kopiert = @($geprueft | Where-Object { $_.Status -eq "ok" -or $_.Status -eq "version" })
+    if ($kopiert.Count -eq 0) { throw $kopierFehler }
+    if ($kopiert.Count -lt $geprueft.Count) { $stand.Plugin = "teilweise" }
+    elseif (@($kopiert | Where-Object { $_.Status -eq "version" }).Count -gt 0) { $stand.Plugin = "version" }
+    else { $stand.Plugin = "ok" }
+    if ($mehrere) {
+        $stand.PluginText = (($geprueft | ForEach-Object { (Profil-Jahr $_) + ": " + $_.Text }) -join " ")
+    } else {
+        $stand.PluginText = $geprueft[0].Text
     }
 
     if (-not $OhneServer) {

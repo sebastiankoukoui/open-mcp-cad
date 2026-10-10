@@ -103,7 +103,8 @@ HANDGEPFLEGT = {
            "omcad_a_dashboard.py", "omcad_a_chat.py",
            "omcad_a_anbieter.py", "omcad_a_lokal.py", "omcad_a_symbole.py",
            "omcad_a_hinweise.py", "omcad_verbindungen_client.py",
-           "omcad_dll_pfade.py", "omcad_startfehler.py"),
+           "omcad_dll_pfade.py", "omcad_startfehler.py", "omcad_qt.py",
+           "omcad_a_update.py"),
 }
 
 #: Die Dateien, die `erzeugen()` je Ordner schreibt (oder, wenn

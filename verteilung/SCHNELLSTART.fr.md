@@ -9,12 +9,12 @@ dessine dans Cadwork. Avant chaque modification, elle te demande. (MCP est
 le nom du pont par lequel un programme d'IA peut piloter un autre
 programme.)
 
-Le plugin et l'installateur parlent allemand. Leurs mots sont écrits ici
-en **gras**, avec la traduction entre parenthèses si nécessaire.
+Le plugin parle allemand. Ses mots sont écrits ici en **gras**, avec la traduction entre parenthèses si nécessaire. La fenêtre d'installation parle la langue de Windows (français, allemand, italien ou anglais).
 
 ## 1. Ce qu'il te faut
 
-- Un PC Windows avec **Cadwork 3D 2026**.
+- Un PC Windows avec **Cadwork 3D 2025** ou **Cadwork 3D 2026** (les
+  deux testés).
 - Internet pendant l'installation.
 - **Une application d'IA avec abonnement :** Claude Desktop (avec un
   abonnement Claude, Pro ou Max) ou l'application ChatGPT d'OpenAI (avec un
@@ -32,23 +32,23 @@ La section 6 montre ces étapes en images.
 2. **Fermer Cadwork.**
 3. Dans le dossier extrait, double-cliquer sur **1_INSTALLIEREN.cmd**.
    Si Windows demande si tu veux vraiment exécuter le fichier :
-   **Exécuter** (ou **Informations complémentaires** → **Exécuter quand
-   même**).
-4. La fenêtre «Open MCP CAD einrichten» (installer Open MCP CAD)
-   s'ouvre. Elle demande où tu veux travailler avec l'IA : dans ton
+   **Exécuter** (ou **Informations complémentaires** → **Exécuter quand même**).
+   Si tu as double-cliqué le fichier directement dans le fichier ZIP,
+   une fenêtre demande : «Le fichier est encore compressé» –
+   **Extraire et lancer** le fait pour toi.
+4. La fenêtre «Installer Open MCP CAD» s'ouvre. Elle demande où tu veux travailler avec l'IA : dans ton
    application d'IA, directement dans Cadwork dans le chat, ou les deux.
-   Sous **Deine KI-App** (ton application d'IA), ce qu'elle a trouvé sur
+   Sous **Ton application d'IA**, ce qu'elle a trouvé sur
    le PC est déjà coché. Si elle n'en trouve aucune, elle te montre où en
    obtenir une.
-5. Cliquer sur **Weiter** (suivant) puis sur **Installieren**
-   (installer). La fenêtre montre chaque étape ; cela prend quelques
+5. Cliquer sur **Suivant** puis sur **Installer**. La fenêtre montre chaque étape ; cela prend quelques
    minutes. S'il manque un composant au PC, elle demande d'abord si elle
    peut l'installer aussi. Cela marche aussi sur les PC d'entreprise sans
    le gestionnaire de paquets de Windows : elle le télécharge alors
    directement chez l'éditeur et vérifie d'abord sa signature numérique.
    Elle fait d'abord une copie de sauvegarde des réglages de ton
    application d'IA.
-6. Quand **Fertig eingerichtet** (installation terminée) s'affiche, tout
+6. Quand **Installation terminée** s'affiche, tout
    est là. Si quelque chose ne marche pas, la fenêtre dit ce qui manque
    et indique le journal `C:\Users\Public\OpenMcpCad_installer.log`.
 
@@ -58,16 +58,16 @@ La section 6 montre ces étapes en images.
 
 Tu utilises déjà une application d'IA sur ton PC ? Copie ce texte et
 envoie-le-lui, elle t'aidera à installer. La fenêtre d'installation reste
-le chemin recommandé ; sur sa première page, **Text kopieren** (copier le
-texte) copie le même texte en allemand.
+le chemin recommandé ; sur sa première page, un clic sur **ce texte** (ou sur le
+symbole de copie à côté) copie le même texte.
 
-> Aide-moi s'il te plaît à installer Open MCP CAD. Il relie Cadwork 3D
-> 2026 à une IA. Guide-moi pas à pas, une seule étape à la fois, et
+> Aide-moi s'il te plaît à installer Open MCP CAD.
+> Il relie Cadwork 3D 2025 ou 2026 à une IA. Guide-moi pas à pas, une seule étape à la fois, et
 > attends que je l'aie faite. 1) Télécharger le dernier fichier ZIP :
 > https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2)
 > Fermer Cadwork et extraire le fichier ZIP (clic droit, «Extraire
 > tout»). 3) Dans le dossier extrait, double-cliquer sur
-> 1_INSTALLIEREN.cmd et cliquer sur «Installieren» dans la fenêtre
+> 1_INSTALLIEREN.cmd et cliquer sur «Installer» dans la fenêtre
 > d'installation. C'est le chemin recommandé. 4) Ensuite, quitter
 > complètement l'application d'IA et la redémarrer. 5) Dans Cadwork,
 > cliquer sur «Open MCP CAD» jusqu'à ce que «Bereit» s'affiche. Si
@@ -94,6 +94,13 @@ Les boutons de la barre :
 - **Trennen** (déconnecter) : déconnecte Cadwork de l'IA. Ensuite un **×**
   apparaît à droite et ferme la fenêtre. Un clic sur **Open MCP CAD** dans
   le menu des plugins la ramène.
+
+S'il y a une nouvelle version, la fenêtre affiche une petite ligne
+«Neue Version …» (nouvelle version) avec **Aktualisieren** (mettre à
+jour) : un clic la télécharge, la vérifie et ouvre la fenêtre
+d'installation. Pour cela, Open MCP CAD demande une fois par jour à GitHub,
+sans rien envoyer sur toi ni sur ton modèle ; tu peux le désactiver dans
+les réglages.
 
 ## 4. Choisir un chemin
 
@@ -145,10 +152,10 @@ Tu écris directement dans Cadwork, dans le chat d'Open MCP CAD.
 Tu écris dans l'application ChatGPT d'OpenAI sur le PC, Cadwork dessine.
 
 1. Installer l'application ChatGPT pour le PC (dans la fenêtre
-   d'installation, **ChatGPT-App holen** (obtenir l'application ChatGPT)
+   d'installation, **Obtenir l'application ChatGPT**
    ouvre le Microsoft Store), la démarrer et se connecter avec ton compte ChatGPT.
 2. Double-cliquer (à nouveau) sur **1_INSTALLIEREN.cmd**. Dans la
-   fenêtre, **ChatGPT-App (mit Codex)** est coché : **Weiter** → **Installieren**.
+   fenêtre, **Application ChatGPT (avec Codex)** est coché : **Suivant** → **Installer**.
 3. Fermer complètement l'application ChatGPT et la redémarrer.
 4. Dans Cadwork, cliquer sur **Open MCP CAD** (la barre affiche
    **Bereit**).
@@ -162,13 +169,13 @@ Tu écris dans l'application Claude (ou dans la fenêtre de commandes),
 Cadwork dessine.
 
 1. Installer **Claude Desktop** (dans la fenêtre d'installation :
-   **Claude Desktop holen** (obtenir Claude Desktop), ou depuis
+   **Obtenir Claude Desktop**, ou depuis
    claude.com/download), le démarrer et se connecter.
 2. Quitter complètement Claude Desktop (aussi en bas à droite près de
    l'heure : clic droit sur l'icône Claude → **Quitter**) avant de lancer
    1_INSTALLIEREN.cmd.
 3. Double-cliquer (à nouveau) sur **1_INSTALLIEREN.cmd**. Dans la
-   fenêtre, **Claude Desktop** est coché : **Weiter** → **Installieren**.
+   fenêtre, **Claude Desktop** est coché : **Suivant** → **Installer**.
 4. Redémarrer Claude Desktop. Dans Cadwork, cliquer sur **Open MCP CAD**
    (la barre affiche **Bereit**).
 5. Écrire la phrase de test dans Claude. Si Claude demande s'il peut
@@ -203,7 +210,7 @@ Il te faut **Claude Desktop** (avec un abonnement Claude) ou
 l'**application ChatGPT** sur le PC (avec un abonnement ChatGPT). Si tu n'en as
 encore aucune, la fenêtre d'installation (étape 2) montre cette page :
 
-![Installation 1 : la fenêtre d'installation tant qu'il n'y a pas d'application d'IA](bilder/einrichten-1-ki-app-holen.png)
+![Installation 1 : la fenêtre d'installation tant qu'il n'y a pas d'application d'IA](bilder/einrichten-1-ki-app-holen.fr.png)
 
 1. Ouvre la page d'Anthropic pour Claude Desktop.
 2. Ouvre l'application ChatGPT dans le Microsoft Store.
@@ -223,31 +230,31 @@ encore aucune, la fenêtre d'installation (étape 2) montre cette page :
 4. Ici se trouve tout ce dont la fenêtre d'installation a besoin. Tu n'as
    rien à y ouvrir.
 
-### Étape 3 : «Installieren» dans la fenêtre
+### Étape 3 : «Installer» dans la fenêtre
 
-![Installation 3a : «Wo möchtest du mit der KI arbeiten?» (où veux-tu travailler avec l'IA ?)](bilder/einrichten-3a-wo.png)
+![Installation 3a : «Où veux-tu travailler avec l'IA ?»](bilder/einrichten-3a-wo.fr.png)
 
 1. Dans ton application d'IA : Claude Desktop ou l'application ChatGPT.
 2. Directement dans Cadwork dans le chat, à côté du dessin (voir «Chat
    directement dans Cadwork» plus bas).
 3. Les deux. Si une application d'IA est déjà là, c'est présélectionné.
-4. **Weiter** (suivant).
+4. **Suivant**.
 
-![Installation 3 : «Deine KI-App» (ton application d'IA) dans la fenêtre d'installation](bilder/einrichten-3-ki-app.png)
+![Installation 3 : «Ton application d'IA» dans la fenêtre d'installation](bilder/einrichten-3-ki-app.fr.png)
 
 1. Trouvé sur le PC et coché : la fenêtre y inscrit Open MCP CAD.
 2. De même. Décoche une application que tu ne veux pas connecter.
 3. Cela marche seulement avec l'application sur le PC, pas dans le navigateur ni sur le téléphone.
-4. **Weiter** (suivant).
+4. **Suivant**.
 
-![Installation 4 : «Bereit zum Installieren» (prêt à installer)](bilder/einrichten-4-installieren.png)
+![Installation 4 : «Prêt à installer»](bilder/einrichten-4-installieren.fr.png)
 
 1. Ce que la fenêtre installe. S'il manque un composant au PC, la
    fenêtre demande d'abord si elle peut l'installer aussi ; il figure
    alors aussi ici.
-2. Cliquer sur **Installieren** (installer).
+2. Cliquer sur **Installer**.
 
-![Installation 5 : la fenêtre installe et montre ce qui se télécharge](bilder/einrichten-5-laeuft.png)
+![Installation 5 : la fenêtre installe et montre ce qui se télécharge](bilder/einrichten-5-laeuft.fr.png)
 
 1. La progression. Cela prend quelques minutes.
 2. Ce qui se passe en ce moment, par exemple quel composant se
@@ -256,7 +263,7 @@ encore aucune, la fenêtre d'installation (étape 2) montre cette page :
 4. Montre ce qui se passe exactement. C'est aussi dans le journal
    `C:\Users\Public\OpenMcpCad_installer.log`.
 
-![Installation 6 : «Fertig eingerichtet» (installation terminée)](bilder/einrichten-6-fertig.png)
+![Installation 6 : «Installation terminée»](bilder/einrichten-6-fertig.fr.png)
 
 1. L'application à laquelle Open MCP CAD est maintenant connecté.
 2. Les étapes suivantes, voir l'étape 4.
@@ -284,10 +291,9 @@ encore aucune, la fenêtre d'installation (étape 2) montre cette page :
 
 ### Chat directement dans Cadwork
 
-Si tu choisis «Direkt in Cadwork im Chat» (directement dans Cadwork dans
-le chat) ou «Beides» (les deux), la fenêtre demande l'IA du chat :
+Si tu choisis «Directement dans Cadwork, dans le chat» ou «Les deux», la fenêtre demande l'IA du chat :
 
-![Installation 8a : «Welche KI im Chat in Cadwork?» (quelle IA dans le chat de Cadwork ?)](bilder/einrichten-8a-chat-ki.png)
+![Installation 8a : «Quelle IA pour le chat dans Cadwork ?»](bilder/einrichten-8a-chat-ki.fr.png)
 
 1. Claude, avec un abonnement Claude. La fenêtre installe pour cela
    Claude Code avec la commande officielle d'Anthropic.
@@ -295,16 +301,15 @@ le chat) ou «Beides» (les deux), la fenêtre demande l'IA du chat :
    Codex avec la commande officielle d'OpenAI. L'application ChatGPT
    seule ne suffit pas pour le chat dans Cadwork.
 3. Plus tard ou avec ta propre clé (voir plus bas).
-4. **Weiter** (suivant).
+4. **Suivant**.
 
 Après l'installation, tu te connectes une fois :
 
-![Installation 8b : «Bei Claude anmelden» (se connecter à Claude)](bilder/einrichten-8b-anmelden.png)
+![Installation 8b : «Se connecter à Claude»](bilder/einrichten-8b-anmelden.fr.png)
 
 1. Voici comment : une petite fenêtre noire et ton navigateur s'ouvrent.
    Connecte-toi avec ton compte dans le navigateur.
-2. Cliquer sur **Anmelden** (se connecter). Ensuite, «Fertig
-   eingerichtet» s'affiche. **Später** (plus tard) marche aussi ; relance
+2. Cliquer sur **Se connecter**. Ensuite, «Installation terminée» s'affiche. **Plus tard** marche aussi ; relance
    alors 1_INSTALLIEREN.cmd plus tard.
 
 Ensuite, dans Cadwork, cliquer sur **Open MCP CAD**, sur la bulle de la
@@ -313,7 +318,7 @@ barre, et écrire dans le chat.
 ### Pour les utilisateurs avancés
 
 Si aucune IA n'est encore configurée dans le chat de Cadwork (par exemple
-après «Später», plus tard), cette carte s'affiche (la bulle de la barre
+après «Plus tard»), cette carte s'affiche (la bulle de la barre
 ouvre le chat) :
 
 ![Installation 8 : «Womit möchtest du chatten?» dans le chat d'Open MCP CAD](bilder/einrichten-8-chat.png)
@@ -390,8 +395,7 @@ aux points en dessous.
   fichier `C:\Users\Public\OpenMcpCad_start.log`.
 - **L'IA ne connaît pas Cadwork :** fermer complètement le programme d'IA
   et le redémarrer. Si cela n'aide pas, double-cliquer encore une fois sur
-  1_INSTALLIEREN.cmd, laisser l'application cochée et cliquer sur
-  **Installieren**. Pour ChatGPT, prendre l'application ChatGPT du
+  1_INSTALLIEREN.cmd, laisser l'application cochée et cliquer sur **Installer**. Pour ChatGPT, prendre l'application ChatGPT du
   Microsoft Store ; l'ancienne «ChatGPT Classic» ne connaît pas Open MCP
   CAD.
 - **L'IA dit que Cadwork n'est pas joignable :** dans Cadwork, cliquer sur

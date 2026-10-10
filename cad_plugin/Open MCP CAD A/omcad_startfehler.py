@@ -23,6 +23,12 @@ Standardbibliothek braucht, und KEIN Schritt darf werfen:
      in einem Prozess laden); ohne QApplication oder ohne Qt ein Windows-
      `MessageBoxW` ueber ctypes; geht auch das nicht, bleibt die Logdatei.
 
+Seit 2026-10-10 laeuft Open MCP CAD auch mit PyQt5 (Cadwork 2025, Qt-Schicht
+`omcad_qt.py`). PyQt5 ist deshalb kein Grund mehr fuer "braucht Cadwork
+2026"; nur OHNE jedes Qt sagt der Dialog, dass Qt fehlt. Das Startlog nennt
+den Qt-Stand (`PYQT_VERSION_STR`/`QT_VERSION_STR`, Wunsch des Maintainers
+nach dem ersten Lauf in Cadwork 2025).
+
 Fehlt dieses Modul selbst (unvollstaendig kopiert), schreibt der Einstieg
 die Logdatei mit einem eigenen, kleinen Notnagel.
 """
@@ -62,6 +68,32 @@ def _vorhanden(paket):
         return "unklar (%s)" % type(exc).__name__
 
 
+def _qt_stand():
+    """'PyQt5 5.15.11 / Qt 5.15.2 (geladen)' — oder warum nicht. Wirft nie.
+
+    Eine schon geladene Bindung zuerst; sonst nach derselben Regel wie der
+    Dialog (PyQt6, nur wenn es FEHLT PyQt5) und nur deren QtCore.
+    """
+    try:
+        for name in ("PyQt6", "PyQt5"):
+            core = sys.modules.get(name + ".QtCore")
+            if core is not None:
+                return "%s %s / Qt %s (geladen)" % (
+                    name, getattr(core, "PYQT_VERSION_STR", "?"),
+                    getattr(core, "QT_VERSION_STR", "?"))
+        for name in ("PyQt6", "PyQt5"):
+            try:
+                core = importlib.import_module(name + ".QtCore")
+            except ImportError:
+                continue
+            return "%s %s / Qt %s" % (
+                name, getattr(core, "PYQT_VERSION_STR", "?"),
+                getattr(core, "QT_VERSION_STR", "?"))
+        return "kein Qt"
+    except Exception as exc:                              # noqa: BLE001
+        return "unklar (%s)" % type(exc).__name__
+
+
 def log_schreiben(exc, plugin, log):
     """Haengt den Fehler an die Logdatei. -> True, wenn geschrieben. Wirft nie."""
     try:
@@ -72,6 +104,7 @@ def log_schreiben(exc, plugin, log):
             "Programm    %s" % sys.executable,
             "Plugin      %s" % plugin,
             "PyQt6 %s, PyQt5 %s" % (_vorhanden("PyQt6"), _vorhanden("PyQt5")),
+            "Qt          %s" % _qt_stand(),
             "",
             "".join(traceback.format_exception(type(exc), exc,
                                                exc.__traceback__)),
@@ -91,11 +124,15 @@ def log_schreiben(exc, plugin, log):
         return False
 
 
-def meldetext(exc, qt6_fehlt, log, log_ok):
-    """Der Text fuer den Dialog — fuer Laien, die technische Zeile zuletzt."""
-    if qt6_fehlt:
-        kopf = ("Open MCP CAD braucht Cadwork 2026. Diese Cadwork-Version "
-                "hat PyQt6 nicht.")
+def meldetext(exc, qt_fehlt, log, log_ok):
+    """Der Text fuer den Dialog — fuer Laien, die technische Zeile zuletzt.
+
+    `qt_fehlt`: weder PyQt6 noch PyQt5 (seit 2026-10-10 laeuft das Plugin
+    mit beiden, PyQt5 allein ist kein Grund mehr).
+    """
+    if qt_fehlt:
+        kopf = ("Open MCP CAD braucht Qt (PyQt6 aus Cadwork 2026 oder PyQt5 "
+                "aus Cadwork 2025). Diese Cadwork-Version hat keins davon.")
     else:
         kopf = "Open MCP CAD konnte nicht starten und ist NICHT verbunden."
     if log_ok:
@@ -106,7 +143,7 @@ def meldetext(exc, qt6_fehlt, log, log_ok):
 
 
 def _qt_widgets():
-    """-> (QtWidgets-Modul oder None, Weg, PyQt6 fehlt?). Wirft nie.
+    """-> (QtWidgets-Modul oder None, Weg, Qt fehlt ganz?). Wirft nie.
 
     PyQt5 nur, wenn PyQt6 FEHLT: in einem Qt-6-Cadwork noch Qt 5 zu laden,
     waere ein neues Risiko, um einen Fehler zu melden.
@@ -118,7 +155,7 @@ def _qt_widgets():
     except Exception:                                     # noqa: BLE001
         return None, None, False
     try:
-        return importlib.import_module("PyQt5.QtWidgets"), "qt5", True
+        return importlib.import_module("PyQt5.QtWidgets"), "qt5", False
     except Exception:                                     # noqa: BLE001
         return None, None, True
 
@@ -140,8 +177,8 @@ def melden(exc, plugin, log):
         log_ok = log_schreiben(exc, plugin, log)
         ausgabe("[Open MCP CAD] Start nicht moeglich (%s: %s) - NICHT "
                 "verbunden. Details: %s" % (type(exc).__name__, exc, log))
-        widgets, weg, qt6_fehlt = _qt_widgets()
-        text = meldetext(exc, qt6_fehlt, log, log_ok)
+        widgets, weg, qt_fehlt = _qt_widgets()
+        text = meldetext(exc, qt_fehlt, log, log_ok)
         if widgets is not None:
             try:
                 # Ohne QApplication ginge ein Dialog nicht sauber schief,

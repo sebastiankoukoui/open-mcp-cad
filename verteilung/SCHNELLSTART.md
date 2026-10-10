@@ -11,7 +11,8 @@ bedienen darf.)
 
 ## 1. Was du brauchst
 
-- Einen Windows-PC mit **Cadwork 3D 2026**.
+- Einen Windows-PC mit **Cadwork 3D 2025** oder **Cadwork 3D 2026**
+  (beide getestet).
 - Internet während der Installation.
 - **Eine KI-App mit Abo:** Claude Desktop (mit einem Claude-Abo, Pro oder
   Max) oder die ChatGPT-App von OpenAI (mit einem ChatGPT-Abo, Plus oder
@@ -31,6 +32,9 @@ Abschnitt 6 zeigt diese Schritte in Bildern.
 3. Im entpackten Ordner **1_INSTALLIEREN.cmd** doppelklicken.
    Fragt Windows, ob du die Datei wirklich ausführen willst: **Ausführen**
    (oder **Weitere Informationen** → **Trotzdem ausführen**).
+   Hast du die Datei direkt in der ZIP-Datei doppelgeklickt, fragt ein
+   Fenster: «Die Datei ist noch gepackt» – **Entpacken und starten**
+   erledigt das für dich.
 4. Das Fenster «Open MCP CAD einrichten» öffnet sich. Es fragt, wo du
    mit der KI arbeiten willst: in deiner KI-App, direkt in Cadwork im
    Chat oder beides. Unter **Deine KI-App** ist schon angehakt, was es
@@ -52,11 +56,11 @@ Abschnitt 6 zeigt diese Schritte in Bildern.
 
 Du nutzt schon eine KI-App am PC? Kopiere diesen Text und schick ihn ihr,
 sie hilft dir beim Einrichten. Das Einrichtungsfenster bleibt der
-empfohlene Weg; auf seiner ersten Seite kopiert **Text kopieren**
-denselben Text.
+empfohlene Weg; auf seiner ersten Seite kopiert ein Klick auf **diesen
+Text** (oder auf das Kopier-Symbol daneben) denselben Text.
 
-> Hilf mir bitte, Open MCP CAD einzurichten. Es verbindet Cadwork 3D
-> 2026 mit einer KI. Führe mich Schritt für Schritt, immer nur einen
+> Hilf mir bitte, Open MCP CAD einzurichten.
+> Es verbindet Cadwork 3D 2025 oder 2026 mit einer KI. Führe mich Schritt für Schritt, immer nur einen
 > Schritt, und warte, bis ich ihn erledigt habe. 1) Die neueste
 > ZIP-Datei herunterladen:
 > https://github.com/sebastiankoukoui/open-mcp-cad/releases/latest 2)
@@ -88,6 +92,12 @@ Die Knöpfe der Leiste:
 - **Trennen**: trennt Cadwork von der KI. Danach steht rechts ein **×**,
   das das Fenster schliesst. Ein Klick auf **Open MCP CAD** im Plugin-Menü
   holt es zurück.
+
+Gibt es eine neue Version, steht im Fenster eine kleine Zeile «Neue Version
+…» mit **Aktualisieren**: ein Klick lädt und prüft sie und öffnet das
+Einrichtungsfenster. Dafür fragt Open MCP CAD einmal am Tag bei GitHub
+nach, ohne etwas über dich oder dein Modell zu senden; abschalten kannst du
+das in den Einstellungen.
 
 ## 4. Einen Weg wählen
 

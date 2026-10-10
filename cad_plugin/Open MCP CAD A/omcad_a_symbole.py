@@ -6,8 +6,10 @@ zu erkennen. Statt ihrer Strich-Symbole aus Lucide (https://lucide.dev),
 Fassung 1.8.0, die Pfade unveraendert aus den ESM-Dateien des Pakets
 `lucide` uebernommen (nur die Knoten, die Huelle setzt `svg()`).
 
-Gezeichnet ueber PyQt6.QtSvg in der Farbe des Themas. Ob QtSvg in Cadworks
-PyQt6 6.8.1 vorhanden ist, ist NICHT gemessen — fehlt es (oder scheitert
+Gezeichnet ueber QtSvg (PyQt6 oder, in Cadwork 2025, PyQt5 — ueber die
+Qt-Schicht `omcad_qt`, seit 2026-10-10) in der Farbe des Themas. Ob QtSvg in
+Cadworks PyQt6 6.8.1 bzw. im PyQt5 von Cadwork 2025 vorhanden ist, ist NICHT
+gemessen — fehlt es (oder scheitert
 irgendetwas beim Zeichnen), liefert `symbol()` None und der Aufrufer zeigt
 seinen Text (`knopf_setzen`). Nichts hier wirft.
 
@@ -325,10 +327,11 @@ def svg(name, farbe="#1d1d1f", strich=2, fuellen=False):
 
 
 def qtsvg():
-    """PyQt6.QtSvg — oder None, wenn es fehlt (in Cadwork nicht gemessen)."""
+    """QtSvg der Qt-Schicht — oder None, wenn es fehlt (in Cadwork nicht
+    gemessen)."""
     if not _SVG:
         try:
-            from PyQt6 import QtSvg
+            from omcad_qt import QtSvg
             _SVG.append(QtSvg)
         except Exception:                               # noqa: BLE001
             _SVG.append(None)
@@ -342,7 +345,7 @@ def aufloesung():
     Hauptbildschirm weich). Wirft nie."""
     dpr = 2.0
     try:
-        from PyQt6.QtGui import QGuiApplication
+        from omcad_qt.QtGui import QGuiApplication
         app = QGuiApplication.instance()
         if app is not None:
             for schirm in app.screens():
@@ -362,8 +365,8 @@ def pixmap(name, farbe="#1d1d1f", groesse=16, strich=2, fuellen=False):
         Q = qtsvg()
         text = svg(name, farbe, strich, fuellen)
         if Q is not None and text is not None:
-            from PyQt6.QtCore import QByteArray, QRectF, Qt
-            from PyQt6.QtGui import QPainter, QPixmap
+            from omcad_qt.QtCore import QByteArray, QRectF, Qt
+            from omcad_qt.QtGui import QPainter, QPixmap
             dpr = aufloesung()
             leser = Q.QSvgRenderer(QByteArray(text.encode("utf-8")))
             if leser.isValid():
@@ -393,7 +396,7 @@ def symbol(name, farbe="#1d1d1f", groesse=16, strich=2, fuellen=False):
     try:
         pm = pixmap(name, farbe, groesse, strich, fuellen)
         if pm is not None:
-            from PyQt6.QtGui import QIcon
+            from omcad_qt.QtGui import QIcon
             ikone = QIcon(pm)
             # Ein ausgeschalteter Knopf zeichnet sein Symbol grau.
             grau = pixmap(name, "#b0b0b5", groesse, strich, fuellen)
@@ -414,7 +417,7 @@ def knopf_setzen(knopf, name, ersatz="", text=None, farbe="#1d1d1f",
     try:
         ikone = symbol(name, farbe, groesse, fuellen=fuellen)
         if ikone is not None:
-            from PyQt6.QtCore import QSize
+            from omcad_qt.QtCore import QSize
             knopf.setIcon(ikone)
             knopf.setIconSize(QSize(groesse, groesse))
             knopf.setText(text or "")
